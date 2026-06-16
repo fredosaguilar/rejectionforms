@@ -823,7 +823,7 @@ function downloadAuthPDF(){
   showT('PDF downloaded!','success');
 }
 function collectCoverages(gridId){return Array.from(document.querySelectorAll('#'+gridId+' .cov-card')).map(card=>{const name=card.dataset.name||'';const off=card.querySelector('.tb.offered');const dec=card.querySelector('.tb.declined');const status=off?'offered':dec?'declined':'not_set';const inputs=card.querySelectorAll('.combo-input');return{name,status,recommended:inputs[0]?.value||'',selected:inputs[1]?.value||''};});}
-function submitForm(formType,prefix){
+async function submitForm(formType,prefix){
   const btn=document.getElementById('submit-'+prefix);
   btn.disabled=true;btn.textContent='Generating PDF…';
   const gv=id=>(document.getElementById(id)||{}).value||'';
@@ -883,8 +883,11 @@ function submitForm(formType,prefix){
       right.forEach(([l,v])=>{chk();doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...muted);doc.text(l,310,y+10);doc.setFont('helvetica','normal');doc.setTextColor(26,26,26);doc.text(v||'—',460,y+10);y+=18;});
       y=Math.max(ly,y)+4;
     }
+    let savePayload={formType,clientName:'',clientEmail:gv('global-client-email'),policyNumber:'',carrier:'',effectiveDate:'',coverages:[],formData:{}};
     hdr();
     if(formType==='vehicle_removal'){
+      savePayload.clientName=gv('veh-client');savePayload.policyNumber=gv('veh-policy');savePayload.carrier=gv('veh-carrier');savePayload.effectiveDate=gv('veh-eff-date');
+      savePayload.formData={requestDate:gv('veh-req-date'),year:gv('veh-year'),make:gv('veh-make'),model:gv('veh-model'),vin:gv('veh-vin'),reason:gv('veh-reason-other')};
       secTitle('Policy Information / Información de Póliza');
       twoRow([['Named insured',gv('veh-client')],['Policy #',gv('veh-policy')],['Carrier',gv('veh-carrier')],['Date of request',gv('veh-req-date')],['Effective date of removal',gv('veh-eff-date')]]);
       secTitle('Vehicle Details / Detalles del Vehículo');
@@ -899,10 +902,12 @@ function submitForm(formType,prefix){
       const policyField=prefix+'-policy';
       const carrierField=prefix+'-carrier';
       const effField=prefix+'-eff';
+      savePayload.clientName=gv(clientField);savePayload.policyNumber=gv(policyField);savePayload.carrier=gv(carrierField);savePayload.effectiveDate=gv(effField);
       secTitle('Policy Information / Información de Póliza');
       twoRow([['Named insured',gv(clientField)],['Policy #',gv(policyField)],['Carrier',gv(carrierField)],['Effective date',gv(effField)]]);
       const gridMap={auto_cov:'auto-grid',home_cov:'home-grid',trucking_cov:'truck-grid',contractor_cov:'cont-grid'};
       const covs=collectCoverages(gridMap[formType]);
+      savePayload.coverages=covs;
       // Coverage definitions in English and Spanish
       const COV_DEFS={
         'Bodily injury liability':'Pays for injuries you cause to others in an accident. / Paga por lesiones que cause a otros en un accidente.',
@@ -1042,6 +1047,7 @@ function submitForm(formType,prefix){
         });
         y+=4;
       }
+      savePayload.formData={notes,otherProducts};
     }
     chk();y+=10;
     secTitle('Acknowledgment & Signature / Reconocimiento y Firma');
@@ -1100,7 +1106,15 @@ function submitForm(formType,prefix){
     }
     const clientName=gv(prefix+'-client')||gv('veh-client')||'form';
     doc.save('EO-'+formType+'-'+clientName.replace(/\s+/g,'-')+'-'+date.replace(/,?\s+/g,'-')+'.pdf');
-    showT('PDF downloaded!','success');
+    savePayload.signatureClient=(sigC&&sigC.width>0)?sigC.toDataURL('image/png'):null;
+    savePayload.signatureAgent=(sigA&&sigA.width>0)?sigA.toDataURL('image/png'):null;
+    savePayload.formData={...savePayload.formData,agentName:gv('global-agent-name')};
+    try{
+      const saveResp=await fetch('/api/forms/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(savePayload)});
+      const saveData=await saveResp.json();
+      if(saveResp.ok&&saveData.success){showT('PDF downloaded & saved as EO-'+saveData.submissionId,'success');loadHistory();}
+      else{showT('PDF downloaded, but save failed: '+(saveData.error||'unknown error'),'error');}
+    }catch(saveErr){showT('PDF downloaded, but save failed: '+saveErr.message,'error');}
   }catch(e){showT('PDF error: '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='Save & Download PDF';}
 }

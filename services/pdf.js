@@ -158,6 +158,16 @@ function generatePDF(submission) {
            .text(data.notes, 55, y, { width: W - 10 });
         y = doc.y + 12;
       }
+
+      const otherProducts = data.otherProducts || [];
+      if (otherProducts.length) {
+        sectionTitle('Other Products Offered / Otros Productos Ofrecidos');
+        const statusLabel = { quoted: 'Quote provided', accepted: 'Accepted', declined: 'Declined' };
+        otherProducts.forEach(p => {
+          row(p.product, `${statusLabel[p.status] || p.status || '—'}${p.notes ? ' — ' + p.notes : ''}`);
+        });
+        y += 4;
+      }
     }
 
     // ── Acknowledgment ────────────────────────────────────────────────────────
