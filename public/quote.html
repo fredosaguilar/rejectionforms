@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quote Proposal — Columbia Basin Insurance</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#1a4a4a;--gold:#c8922a;--bg:#f7f5f0;--card:#fff;--border:#e0dcd4;--border2:#d4cfc6;--text:#1a1a1a;--muted:#6b6560;--hint:#9b9690;--radius:8px;--radius-lg:12px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.nav{background:var(--navy);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:300}
+.nav-left{display:flex;align-items:center;gap:12px}
+.nav-logo{height:42px;width:auto;object-fit:contain}
+.nav-brand{color:#fff;font-size:14px;font-weight:500;line-height:1.2}
+.nav-brand-sub{color:var(--gold);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.nav-right{display:flex;align-items:center;gap:14px}
+.nav-link{color:rgba(255,255,255,.75);font-size:13px;text-decoration:none;background:none;border:none;cursor:pointer;font-family:inherit;padding:0}
+.nav-link:hover{color:#fff}
+.nav-agent{color:rgba(255,255,255,.6);font-size:12px}
+.nav-tabs{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.1);border-radius:6px;padding:3px;margin-right:8px}
+.nav-tab{padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none;white-space:nowrap}
+.nav-tab.active{background:rgba(255,255,255,.15);color:#fff}
+.wrap{max-width:660px;margin:0 auto;padding:44px 16px}
+.hero{text-align:center;margin-bottom:36px}
+.hero-title{font-size:26px;font-weight:700;color:var(--navy);margin-bottom:8px}
+.hero-sub{font-size:14px;color:var(--muted);line-height:1.7;max-width:480px;margin:0 auto}
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;margin-bottom:20px}
+.card-title{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:16px;text-transform:uppercase;letter-spacing:.08em}
+.lang-sel{display:flex;gap:12px;justify-content:center}
+.lang-btn{padding:12px 36px;border-radius:var(--radius);font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;border:2px solid var(--border2);background:#fff;color:var(--muted);transition:all .15s}
+.lang-btn.active{border-color:var(--navy);background:var(--navy);color:#fff}
+.upload-zone{border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:44px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#faf9f7}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--navy);background:#eef3f3}
+.upload-icon{width:56px;height:56px;background:var(--bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;border:1px solid var(--border)}
+.upload-title{font-size:15px;font-weight:600;color:var(--navy);margin-bottom:6px}
+.upload-sub{font-size:13px;color:var(--muted)}
+.upload-sub span{color:var(--navy);font-weight:500;text-decoration:underline;cursor:pointer}
+.file-badge{margin-top:14px;font-size:12px;color:var(--navy);background:#eef3f3;border:1px solid var(--border);padding:6px 14px;border-radius:20px;display:inline-block;font-weight:500}
+.gen-btn{width:100%;padding:15px;background:var(--gold);color:#fff;border:none;border-radius:var(--radius);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;letter-spacing:.02em}
+.gen-btn:hover{opacity:.9}
+.gen-btn:disabled{opacity:.35;cursor:not-allowed}
+.steps{display:flex;gap:6px;margin-top:18px;justify-content:center;align-items:center}
+.step{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--hint)}
+.step-num{width:20px;height:20px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--muted);flex-shrink:0}
+.step.done .step-num{background:var(--navy);color:#fff}
+.step.active .step-num{background:var(--gold);color:#fff}
+.step.active{color:var(--navy);font-weight:600}
+.step-arr{color:var(--border2);font-size:12px}
+.status{padding:14px 16px;border-radius:var(--radius);font-size:13px;margin-top:16px;display:none;line-height:1.5}
+.status.loading{background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;display:block}
+.status.error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;display:block}
+.status.success{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;display:block}
+.progress{height:5px;background:#e0dcd4;border-radius:3px;margin-top:10px;overflow:hidden;display:none}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--navy),var(--gold));border-radius:3px;transition:width .4s;width:0%}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-left">
+    <img src="/logo.jpg" alt="Columbia Basin Insurance" class="nav-logo">
+    <div>
+      <div class="nav-brand">Columbia Basin Insurance</div>
+      <div class="nav-brand-sub">E&O Forms Portal</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="nav-tabs">
+      <a href="/" class="nav-tab">E&O Forms</a>
+      <a href="/quote" class="nav-tab active">Quote Proposals</a>
+    </div>
+    <span class="nav-agent" id="nav-agent"></span>
+    <a href="/admin/agents" class="nav-link" id="admin-link" style="display:none">Agents</a>
+    <form method="POST" action="/logout" style="margin:0"><button type="submit" class="nav-link">Sign out</button></form>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-title">Quote Proposal Generator</div>
+    <div class="hero-sub">Upload any quote or proposal PDF. Claude AI reads it and generates a professional branded Columbia Basin Insurance proposal.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Step 1 — Language / Idioma</div>
+    <div class="lang-sel">
+      <button class="lang-btn active" id="lang-en" onclick="setLang('en')">🇺🇸 English</button>
+      <button class="lang-btn" id="lang-es" onclick="setLang('es')">🇲🇽 Español</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Step 2 — Upload Quote PDF</div>
+    <div class="upload-zone" id="upload-zone"
+      onclick="document.getElementById('qfile').click()"
+      ondragover="ev(event,true)" ondragleave="ev(event,false)" ondrop="drop(event)">
+      <div class="upload-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a4a4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      </div>
+      <div class="upload-title">Drop your quote PDF here</div>
+      <div class="upload-sub">or <span>click to browse</span></div>
+      <div class="file-badge" id="fname" style="display:none"></div>
+    </div>
+    <input type="file" id="qfile" accept=".pdf" style="display:none" onchange="picked(this)">
+  </div>
+
+  <button class="gen-btn" id="gbtn" onclick="go()" disabled>✦ Generate Proposal PDF</button>
+
+  <div class="steps" id="steps" style="display:none">
+    <div class="step" id="s1"><div class="step-num">1</div>Reading PDF</div>
+    <div class="step-arr">›</div>
+    <div class="step" id="s2"><div class="step-num">2</div>AI Processing</div>
+    <div class="step-arr">›</div>
+    <div class="step" id="s3"><div class="step-num">3</div>Building PDF</div>
+  </div>
+  <div class="progress" id="prog"><div class="progress-bar" id="bar"></div></div>
+  <div class="status" id="st"></div>
+</div>
+
+<script>
+let lang='en', file=null;
+
+fetch('/api/me').then(r=>r.json()).then(d=>{
+  document.getElementById('nav-agent').textContent=d.agentName||'';
+  if(d.role==='admin'){const a=document.getElementById('admin-link');if(a)a.style.display='';}
+}).catch(()=>{});
+
+function setLang(l){lang=l;['en','es'].forEach(x=>document.getElementById('lang-'+x).classList.toggle('active',x===l));}
+function ev(e,on){e.preventDefault();document.getElementById('upload-zone').classList.toggle('drag',on);}
+function drop(e){e.preventDefault();document.getElementById('upload-zone').classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&f.type==='application/pdf')setFile(f);}
+function picked(i){if(i.files[0])setFile(i.files[0]);}
+function setFile(f){file=f;const fn=document.getElementById('fname');fn.textContent='📄 '+f.name;fn.style.display='inline-block';document.getElementById('gbtn').disabled=false;}
+
+function step(n){[1,2,3].forEach(i=>{const e=document.getElementById('s'+i);e.classList.remove('active','done');if(i<n)e.classList.add('done');else if(i===n)e.classList.add('active');});}
+function status(msg,type){const e=document.getElementById('st');e.textContent=msg;e.className='status '+type;}
+function setBar(pct){document.getElementById('bar').style.width=pct+'%';}
+
+async function go(){
+  if(!file)return;
+  const btn=document.getElementById('gbtn');
+  btn.disabled=true;btn.textContent='Generating...';
+  document.getElementById('steps').style.display='flex';
+  document.getElementById('prog').style.display='block';
+  try{
+    step(1);setBar(15);
+    status(lang==='es'?'Leyendo el PDF...':'Reading your PDF...','loading');
+    const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
+    step(2);setBar(45);
+    status(lang==='es'?'Claude IA está procesando la cotización...':'Claude AI is processing the quote...','loading');
+    const resp=await fetch('/api/generate-quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pdf:b64,language:lang})});
+    setBar(80);
+    const data=await resp.json();
+    if(!data.success)throw new Error(data.error||'Generation failed');
+    step(3);setBar(92);
+    status(lang==='es'?'Construyendo el PDF...':'Building the PDF...','loading');
+    await new Promise(r=>setTimeout(r,200));
+    buildPDF(data.quote,lang);
+    setBar(100);step(4);
+    status(lang==='es'?'¡Propuesta generada! Revise sus descargas.':'Proposal generated! Check your downloads.','success');
+  }catch(e){status('Error: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='✦ Generate Proposal PDF';setTimeout(()=>{document.getElementById('prog').style.display='none';setBar(0);},2000);}
+}
+
+function buildPDF(q,lang){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'pt',format:'letter'});
+  const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();
+  const navy=[26,74,74],gold=[200,146,42],white=[255,255,255],muted=[107,101,96],light=[247,245,240];
+  const isES=lang==='es';
+  const date=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const MARGIN=44,CONTENT=W-MARGIN*2,LINE_H=10;
+  let y=50;
+
+  function np(){doc.addPage();y=MARGIN+6;}
+  function chk(n=50){if(y+n>H-50){np();}}
+
+  // Helper: draw wrapped text and return new y
+  function txt(text,x,startY,maxW,size,style,color){
+    doc.setFont('helvetica',style||'normal');
+    doc.setFontSize(size||8);
+    doc.setTextColor(...(color||[26,26,26]));
+    const lines=doc.splitTextToSize(String(text||''),maxW||CONTENT);
+    doc.text(lines,x,startY);
+    return startY+lines.length*(size||8)*1.25;
+  }
+
+  // ── COVER PAGE ─────────────────────────────────────────────
+  doc.setFillColor(...navy);doc.rect(0,0,W,H*0.55,'F');
+
+  // Logo: smart crop white space, preserve aspect ratio, centered, large
+  try{
+    const img=document.querySelector('.nav-logo');
+    const natW=img.naturalWidth,natH=img.naturalHeight;
+    // Draw to canvas and find actual content bounds (crop whitespace)
+    const cv=document.createElement('canvas');cv.width=natW;cv.height=natH;
+    const ctx=cv.getContext('2d');ctx.drawImage(img,0,0);
+    const px=ctx.getImageData(0,0,natW,natH).data;
+    let top=natH,bot=0,left=natW,right=0;
+    for(let row=0;row<natH;row++){for(let col=0;col<natW;col++){
+      const idx=(row*natW+col)*4;
+      const r=px[idx],g=px[idx+1],b=px[idx+2],a=px[idx+3];
+      // Consider non-white, non-transparent pixels as content
+      if(a>30&&!(r>240&&g>240&&b>240)){
+        if(row<top)top=row;if(row>bot)bot=row;
+        if(col<left)left=col;if(col>right)right=col;
+      }
+    }}
+    // Add small padding around actual content
+    const pad=8;
+    top=Math.max(0,top-pad);bot=Math.min(natH-1,bot+pad);
+    left=Math.max(0,left-pad);right=Math.min(natW-1,right+pad);
+    const cw=right-left,ch=bot-top;
+    // Draw cropped version to new canvas
+    const cv2=document.createElement('canvas');cv2.width=cw;cv2.height=ch;
+    cv2.getContext('2d').drawImage(cv,left,top,cw,ch,0,0,cw,ch);
+    const ld=cv2.toDataURL('image/png');
+    // Scale to fit in a generous area
+    const maxLogoW=260,maxLogoH=110;
+    const scale=Math.min(maxLogoW/cw,maxLogoH/ch);
+    const lw=Math.round(cw*scale),lh=Math.round(ch*scale);
+    doc.addImage(ld,'PNG',W/2-lw/2,52,lw,lh);
+  }catch(e){}
+
+  // Badge — positioned below logo area
+  const badgeY=182;
+  doc.setDrawColor(...gold);doc.setLineWidth(1.2);doc.roundedRect(W/2-118,badgeY,236,22,4,4,'S');
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...gold);
+  doc.text((isES?'PROPUESTA DE SEGURO COMERCIAL':'COMMERCIAL INSURANCE PROPOSAL'),W/2,badgeY+14,{align:'center'});
+
+  // "Proposal for"
+  doc.setFont('helvetica','normal');doc.setFontSize(14);doc.setTextColor(200,220,220);
+  doc.text(isES?'Propuesta de Cobertura para':'Coverage Proposal for',W/2,222,{align:'center'});
+
+  // Client name — split and auto-size
+  const maxNameSize=30,minNameSize=16;
+  let nameSize=maxNameSize;
+  doc.setFont('helvetica','bold');doc.setFontSize(nameSize);doc.setTextColor(...gold);
+  let nameLines=doc.splitTextToSize(q.clientName||'—',W-80);
+  while(nameLines.length>2&&nameSize>minNameSize){nameSize-=2;doc.setFontSize(nameSize);nameLines=doc.splitTextToSize(q.clientName||'—',W-80);}
+  doc.text(nameLines,W/2,252,{align:'center'});
+  let coverY=252+nameLines.length*nameSize*1.2;
+
+  // Business type — wrap if needed
+  if(q.businessType){
+    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(170,205,205);
+    const btLines=doc.splitTextToSize(q.businessType,W-100);
+    doc.text(btLines,W/2,coverY+4,{align:'center'});
+    coverY+=btLines.length*13;
+  }
+
+  // Date boxes — positioned relative to bottom of navy section
+  const boxRowY=H*0.55-68;
+  const bxs=isES
+    ?[{l:'FECHA COTIZACIÓN',v:q.quoteDate||date},{l:'FECHA VIGENCIA',v:q.effectiveDate||'—'},{l:'VENCIMIENTO',v:q.expirationDate||'—'},{l:'VÁLIDA',v:(q.validDays||45)+' días'}]
+    :[{l:'QUOTE DATE',v:q.quoteDate||date},{l:'EFFECTIVE DATE',v:q.effectiveDate||'—'},{l:'EXPIRATION',v:q.expirationDate||'—'},{l:'VALID FOR',v:(q.validDays||45)+' days'}];
+  const bw2=(W-80)/4;
+  bxs.forEach((b,i)=>{
+    const bx2=40+i*bw2;
+    doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...gold);
+    doc.text(b.l,bx2+bw2/2,boxRowY,{align:'center'});
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(255,255,255);
+    doc.text(String(b.v),bx2+bw2/2,boxRowY+15,{align:'center'});
+  });
+
+  // Light bottom section
+  doc.setFillColor(232,229,224);doc.rect(0,H*0.55,W,H*0.45,'F');
+
+  // Presented by / Carrier info
+  const infoY=H*0.55+30;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(...muted);
+  doc.text((isES?'Presentado por: ':'Presented by: ')+(q.agentName||'Columbia Basin Insurance'),MARGIN,infoY);
+  if(q.carrier){
+    const carrierLines=doc.splitTextToSize((isES?'Asegurador: ':'Carrier: ')+q.carrier+(q.carrierRating?' · '+q.carrierRating:''),W/2-MARGIN-10);
+    doc.text(carrierLines,MARGIN,infoY+16);
+  }
+
+  // Premium box — sized to content
+  if(q.totalPremium||q.annualPremium){
+    const premStr=q.totalPremium||q.annualPremium;
+    doc.setFont('helvetica','bold');doc.setFontSize(24);
+    const premW=doc.getTextWidth(premStr);
+    const pbw=Math.max(160,premW+40),pbh=82;
+    const pbx=W-MARGIN-pbw,pby=H*0.55+16;
+    doc.setFillColor(...gold);doc.roundedRect(pbx,pby,pbw,pbh,8,8,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(255,255,255);
+    doc.text(isES?'PRIMA ANUAL TOTAL':'TOTAL ANNUAL PREMIUM',pbx+pbw/2,pby+16,{align:'center'});
+    doc.setFontSize(24);doc.text(premStr,pbx+pbw/2,pby+46,{align:'center'});
+    if(q.effectiveDate&&q.expirationDate){
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+      doc.text(q.effectiveDate+' – '+q.expirationDate,pbx+pbw/2,pby+64,{align:'center'});
+    }
+  }
+
+  // Cover footer
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...muted);
+  doc.text('Columbia Basin Insurance'+(q.quoteNumber?' · '+(isES?'Cotización ':'Quote ')+q.quoteNumber:''),W/2,H-16,{align:'center'});
+
+  // ── CONTENT PAGES ───────────────────────────────────────────
+  np();
+
+  function sh(title,sec){
+    chk(30);
+    if(sec){doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(...muted);doc.text(sec,W-MARGIN,y,{align:'right'});}
+    doc.setFillColor(...navy);doc.rect(MARGIN,y,CONTENT,22,'F');
+    doc.setFillColor(...gold);doc.rect(MARGIN,y,3,22,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...white);
+    doc.text(title,MARGIN+10,y+14);y+=28;
+  }
+
+  function ir(label,val){
+    if(!val||val==='—'||val==='null'||val===null)return;
+    const valStr=String(val).trim();if(!valStr)return;
+    chk(14);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...navy);doc.text(label,MARGIN+6,y);
+    doc.setFont('helvetica','normal');doc.setTextColor(26,26,26);
+    const ls=doc.splitTextToSize(valStr,CONTENT-160);
+    doc.text(ls,MARGIN+158,y);
+    y+=Math.max(15,ls.length*11+3);
+  }
+
+  sh(isES?'Información del Asegurado':'Insured Information',isES?'SECCIÓN 01':'SECTION 01');
+  ir(isES?'Asegurado Nombrado':'Named Insured',q.clientName);
+  if(q.businessAddress)ir(isES?'Dirección':'Address',q.businessAddress);
+  ir(isES?'Tipo de Negocio':'Business Type',q.businessType);
+  ir(isES?'Asegurador':'Carrier',[q.carrier,q.carrierRating].filter(Boolean).join(' · '));
+  ir(isES?'Cotización #':'Quote #',q.quoteNumber);
+  ir(isES?'Período de Vigencia':'Policy Period',(q.effectiveDate&&q.expirationDate)?q.effectiveDate+' – '+q.expirationDate:'');
+  y+=10;
+
+  // Coverage table
+  if(q.coverages&&q.coverages.filter(c=>c.name).length){
+    chk(50);
+    sh(isES?'Límites de Cobertura':'Coverage Limits');
+    // Column positions — give name more room, compress deductible
+    const cCov=MARGIN+6,cLim=MARGIN+210,cDed=MARGIN+330,cPrem=MARGIN+440;
+    const wCov=198,wLim=114,wDed=104,wPrem=CONTENT-(cPrem-MARGIN);
+    doc.setFillColor(...navy);doc.rect(MARGIN,y,CONTENT,15,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...white);
+    doc.text(isES?'TIPO DE COBERTURA':'COVERAGE TYPE',cCov,y+10);
+    doc.text(isES?'LÍMITE':'LIMIT',cLim,y+10);
+    doc.text(isES?'DEDUCIBLE':'DEDUCTIBLE',cDed,y+10);
+    doc.text(isES?'PRIMA':'PREMIUM',cPrem,y+10);
+    y+=17;
+    q.coverages.filter(c=>c.name).forEach((c,i)=>{
+      doc.setFontSize(7.5);
+      const nl=doc.splitTextToSize(c.name,wCov);
+      const ll=doc.splitTextToSize(String(c.limit||'—'),wLim);
+      const dl=doc.splitTextToSize(String(c.deductible||'—'),wDed);
+      const pl=doc.splitTextToSize(String(c.premium||'—'),wPrem);
+      const maxL=Math.max(nl.length,ll.length,dl.length,pl.length);
+      const rh=Math.max(16,maxL*9+7);
+      chk(rh);
+      doc.setFillColor(i%2===0?255:248,i%2===0?255:250,i%2===0?255:248);
+      doc.rect(MARGIN,y,CONTENT,rh,'F');
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(26,26,26);
+      doc.text(nl,cCov,y+9);
+      doc.setTextColor(...muted);doc.text(ll,cLim,y+9);doc.text(dl,cDed,y+9);
+      doc.setFont('helvetica','bold');doc.setTextColor(...navy);doc.text(pl,cPrem,y+9);
+      doc.setDrawColor(220,220,214);doc.line(MARGIN,y+rh,W-MARGIN,y+rh);
+      y+=rh;
+    });
+    y+=10;
+  }
+
+  // Premium summary
+  if(q.annualPremium||q.totalPremium){
+    chk(70);
+    const premItems=[[isES?'Prima Anual Base':'Base Annual Premium',q.annualPremium],[isES?'Tarifa de Póliza':'Policy Fee',q.policyFee],[isES?'Prima Total':'Total Premium',q.totalPremium||q.annualPremium]].filter(p=>p[1]);
+    const boxH=65;
+    doc.setFillColor(...light);doc.roundedRect(MARGIN,y,CONTENT,boxH,6,6,'F');
+    const colW=CONTENT/Math.max(premItems.length,1);
+    premItems.forEach((p,i)=>{
+      const px=MARGIN+8+i*colW;
+      doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...muted);doc.text(p[0],px,y+15);
+      doc.setFont('helvetica','bold');doc.setFontSize(i===premItems.length-1?20:16);
+      doc.setTextColor(...(i===premItems.length-1?gold:navy));doc.text(p[1],px,y+46);
+    });
+    y+=boxH+12;
+  }
+
+  // Business classifications
+  if(q.businessClassifications&&q.businessClassifications.filter(c=>c.description).length){
+    chk(50);
+    sh(isES?'Clasificaciones del Negocio':'Business Classifications',isES?'SECCIÓN 02':'SECTION 02');
+    const cCode=MARGIN+6,cDesc=MARGIN+60,cExp=MARGIN+370,cRate=MARGIN+455;
+    const wDesc=304,wExp=80,wRate=CONTENT-(cRate-MARGIN);
+    doc.setFillColor(...navy);doc.rect(MARGIN,y,CONTENT,15,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...white);
+    doc.text(isES?'CÓDIGO':'CODE',cCode,y+10);doc.text(isES?'DESCRIPCIÓN':'DESCRIPTION',cDesc,y+10);
+    doc.text(isES?'EXPOSICIÓN':'EXPOSURE',cExp,y+10);doc.text(isES?'TASA':'RATE',cRate,y+10);y+=17;
+    q.businessClassifications.filter(c=>c.description).forEach((c,i)=>{
+      doc.setFontSize(7.5);
+      const dl=doc.splitTextToSize(c.description||'—',wDesc);
+      const el=doc.splitTextToSize(String(c.exposure||'—'),wExp);
+      const rh=Math.max(18,Math.max(dl.length,el.length)*9+7);
+      chk(rh);
+      doc.setFillColor(i%2===0?255:248,i%2===0?255:250,i%2===0?255:248);doc.rect(MARGIN,y,CONTENT,rh,'F');
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(26,26,26);
+      doc.text(String(c.code||'—'),cCode,y+9);doc.text(dl,cDesc,y+9);
+      doc.setTextColor(...muted);doc.text(el,cExp,y+9);doc.text(String(c.rate||'—'),cRate,y+9);
+      doc.setDrawColor(220,220,214);doc.line(MARGIN,y+rh,W-MARGIN,y+rh);y+=rh;
+    });y+=10;
+  }
+
+  // Audit info
+  if(q.auditInfo&&q.auditInfo.trim()){
+    chk(30);doc.setFont('helvetica','italic');doc.setFontSize(7.5);doc.setTextColor(...muted);
+    const al=doc.splitTextToSize(q.auditInfo,CONTENT);doc.text(al,MARGIN,y);y+=al.length*9+12;
+  }
+
+  // Exclusions — 2-column grid, each cell sized to content
+  if(q.exclusions&&q.exclusions.filter(e=>e&&e.trim()).length){
+    chk(50);
+    sh(isES?'Exclusiones Principales':'Key Exclusions',isES?'SECCIÓN 03':'SECTION 03');
+    const intro=isES?'Lea detenidamente. La cobertura no aplica en estas áreas.':'Read carefully. Coverage does not apply in these areas. Review with your agent.';
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...muted);
+    const il=doc.splitTextToSize(intro,CONTENT);doc.text(il,MARGIN,y);y+=il.length*10+10;
+    const excls=q.exclusions.filter(e=>e&&e.trim());
+    const colW2=(CONTENT-12)/2;
+    // Pair up exclusions side by side
+    for(let i=0;i<excls.length;i+=2){
+      const left=excls[i],right=excls[i+1]||null;
+      doc.setFontSize(7.5);
+      const ll=doc.splitTextToSize(left,colW2-14);
+      const rl=right?doc.splitTextToSize(right,colW2-14):[];
+      const rh=Math.max(16,Math.max(ll.length,rl.length)*9+6);
+      chk(rh);
+      // Left
+      doc.setFillColor(...gold);doc.rect(MARGIN,y+4,5,5,'F');
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(26,26,26);
+      doc.text(ll,MARGIN+10,y+9);
+      // Right
+      if(right){
+        doc.setFillColor(...gold);doc.rect(MARGIN+colW2+12,y+4,5,5,'F');
+        doc.text(rl,MARGIN+colW2+22,y+9);
+      }
+      y+=rh;
+    }
+    y+=10;
+  }
+
+  // Additional features & conditions
+  if((q.additionalFeatures&&q.additionalFeatures.filter(f=>f).length)||(q.conditions&&q.conditions.filter(c=>c).length)){
+    chk(50);
+    sh(isES?'Condiciones y Próximos Pasos':'Conditions & Next Steps',isES?'SECCIÓN 04':'SECTION 04');
+    if(q.additionalFeatures&&q.additionalFeatures.filter(f=>f).length){
+      doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(...navy);
+      doc.text(isES?'Características Adicionales de Cobertura':'Additional Coverage Features',MARGIN+4,y);y+=13;
+      q.additionalFeatures.filter(f=>f).forEach(f=>{
+        const ls=doc.splitTextToSize(f,CONTENT-24);
+        const rh=Math.max(15,ls.length*9+5);chk(rh);
+        doc.setFillColor(22,163,74);doc.roundedRect(MARGIN+4,y+1,7,7,2,2,'F');
+        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(26,26,26);
+        doc.text(ls,MARGIN+16,y+8);y+=rh;
+      });y+=6;
+    }
+    if(q.conditions&&q.conditions.filter(c=>c).length){
+      doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(...navy);
+      doc.text(isES?'Requisitos de Suscripción':'Underwriting Requirements',MARGIN+4,y);y+=13;
+      q.conditions.filter(c=>c).forEach((c,i)=>{
+        const ls=doc.splitTextToSize(c,CONTENT-28);
+        const rh=Math.max(18,ls.length*9+6);chk(rh);
+        doc.setFillColor(...navy);doc.circle(MARGIN+10,y+5,5,'F');
+        doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...white);doc.text(String(i+1),MARGIN+10,y+8,{align:'center'});
+        doc.setFont('helvetica','normal');doc.setTextColor(26,26,26);doc.text(ls,MARGIN+22,y+8);y+=rh;
+      });
+    }
+    y+=6;
+  }
+
+  // Disclaimer (no signature block)
+  if(q.disclaimer&&q.disclaimer.trim()){
+    chk(30);y+=10;
+    doc.setFont('helvetica','italic');doc.setFontSize(7);doc.setTextColor(...muted);
+    const dl=doc.splitTextToSize(q.disclaimer,CONTENT);doc.text(dl,MARGIN,y);y+=dl.length*9+8;
+  }
+
+  // Footer on every page
+  const pages=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i);
+    doc.setFillColor(...gold);doc.rect(MARGIN,H-22,CONTENT,1,'F');
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...muted);
+    doc.text('Columbia Basin Insurance'+(q.quoteNumber?' · '+(isES?'Cotización ':'Quote ')+q.quoteNumber:''),MARGIN,H-10);
+    doc.text((isES?'Pág. ':'Page ')+i+(isES?' de ':' of ')+pages,W-MARGIN,H-10,{align:'right'});
+  }
+
+  doc.save('Quote-'+(q.clientName||'Proposal').replace(/[^a-zA-Z0-9]/g,'-')+'.pdf');
+}
+</script>
+</body>
+</html>

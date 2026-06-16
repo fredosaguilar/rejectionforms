@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>E&O Forms — Columbia Basin Insurance</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#1a4a4a;--gold:#c8922a;--bg:#f7f5f0;--card:#fff;--border:#e0dcd4;--border2:#d4cfc6;--text:#1a1a1a;--muted:#6b6560;--hint:#9b9690;--radius:8px;--radius-lg:12px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.nav{background:var(--navy);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:300}
+.nav-left{display:flex;align-items:center;gap:12px}
+.nav-logo{height:42px;width:auto;object-fit:contain}
+.nav-brand{color:#fff;font-size:14px;font-weight:500;line-height:1.2}
+.nav-brand-sub{color:var(--gold);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.nav-right{display:flex;align-items:center;gap:1rem}
+.nav-agent{color:#94a3b8;font-size:12px}
+.nav-link{color:#94a3b8;font-size:12px;text-decoration:none;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:none;cursor:pointer;font-family:inherit}
+.nav-link:hover{background:rgba(255,255,255,.1);color:#fff}
+.wrap{max-width:980px;margin:0 auto;padding:1.5rem 1rem}
+.top-panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1.25rem}
+.top-panel-title{font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld.full{grid-column:1/-1}
+.lbl{font-size:11px;font-weight:500;color:var(--muted)}
+input[type=text],input[type=date],input[type=email],textarea{width:100%;padding:7px 9px;font-size:13px;font-family:inherit;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;color:var(--text);outline:none;transition:border-color .12s}
+input:focus,textarea:focus{border-color:var(--navy)}
+textarea{resize:vertical;min-height:60px;line-height:1.5}
+.tabs{display:flex;gap:5px;margin-bottom:1.25rem;flex-wrap:wrap}
+.tab{padding:7px 13px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;background:#fff;color:var(--muted);font-family:inherit;transition:all .12s}
+.tab:hover{background:var(--bg)}
+.tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.tab.active::after{content:'';display:block;height:2px;background:var(--gold);margin-top:-1px}
+.fc{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:visible;display:none}
+.fc.vis{display:block}
+.fhdr{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
+.ftitle{font-size:16px;font-weight:500;color:var(--text)}
+.fsub{font-size:11px;color:var(--muted);margin-top:3px;font-style:italic}
+.badge{font-size:11px;padding:3px 9px;border-radius:20px;white-space:nowrap;font-weight:500}
+.badge-eo{background:#fef2f2;color:#dc2626}
+.badge-cov{background:#eff6ff;color:#1d4ed8}
+.fbody{padding:1.25rem}
+.sec{margin-bottom:1.5rem}
+.sec-title{font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+.cov-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cov-card{border:1px solid var(--border);border-radius:var(--radius);padding:11px 12px;overflow:visible}
+.cov-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px}
+.cov-names{flex:1}
+.cov-en{font-size:13px;font-weight:500;color:var(--text)}
+.cov-es{font-size:11px;color:var(--muted);font-style:italic;margin-top:1px}
+.tog{display:flex;gap:4px;flex-shrink:0}
+.tb{font-size:11px;padding:3px 7px;border-radius:20px;border:1px solid var(--border2);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;transition:all .1s;white-space:nowrap}
+.tb.offered{background:#f0fdf4;color:#16a34a;border-color:transparent}
+.tb.declined{background:#fef2f2;color:#dc2626;border-color:transparent}
+.cov-fields{display:flex;flex-direction:column;gap:7px}
+.cov-row{display:flex;flex-direction:column;gap:3px}
+.cov-row-lbl{font-size:10px;font-weight:500;color:var(--muted);letter-spacing:.03em}
+.cov-row-lbl span{font-style:italic;font-weight:400;color:var(--hint)}
+.cov-divider{height:1px;background:var(--border)}
+.combo-wrap{position:relative}
+.combo-input{width:100%;padding:5px 26px 5px 8px;font-size:12px;font-family:inherit;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;color:var(--text);outline:none}
+.combo-input:focus{border-color:var(--navy)}
+.combo-arrow{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:12px;height:12px;pointer-events:none;color:var(--hint)}
+.combo-drop{position:absolute;top:calc(100% + 3px);left:0;right:0;background:#fff;border:1px solid var(--border2);border-radius:var(--radius);z-index:500;display:none;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.combo-drop.open{display:block}
+.combo-opt{padding:6px 9px;font-size:12px;cursor:pointer;color:var(--text);border-bottom:1px solid #f5f3f0}
+.combo-opt:last-child{border-bottom:none}
+.combo-opt:hover{background:var(--bg)}
+.chk-grp{display:flex;flex-direction:column;gap:7px}
+.chk-item{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer}
+.chk-item:hover{background:var(--bg)}
+.chk-item input[type=checkbox]{width:14px;height:14px;margin-top:2px;flex-shrink:0;accent-color:var(--navy)}
+.chk-en{font-size:13px;color:var(--text);line-height:1.4}
+.chk-es{font-size:11px;color:var(--muted);margin-top:2px;font-style:italic;line-height:1.4}
+.init-row{display:flex;align-items:flex-start;gap:9px;padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:5px}
+.init-box{flex-shrink:0;width:44px}
+.init-box input{text-align:center;font-weight:500;text-transform:uppercase;padding:5px 3px;font-size:13px}
+.rr{display:flex;gap:7px;flex-wrap:wrap}
+.rp{display:flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid var(--border2);border-radius:20px;cursor:pointer;font-size:12px;color:var(--muted);font-family:inherit;transition:all .1s}
+.rp.sel{background:var(--bg);border-color:var(--navy);color:var(--text);font-weight:500}
+.rp input{accent-color:var(--navy)}
+.ack-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem 1.1rem}
+.ack-txt{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:6px}
+.ack-es{font-size:11px;color:var(--hint);font-style:italic;line-height:1.6;margin-bottom:11px}
+.sig-c{width:100%;height:72px;cursor:crosshair;display:block;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg)}
+.sig-ctrl{display:flex;gap:7px;margin-top:5px}
+.sig-clr{font-size:11px;padding:3px 9px;border:1px solid var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit}
+.upload-panel{background:#fff;border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.25rem;transition:border-color .15s}
+.upload-panel.dragging{border-color:var(--navy);background:#f0f4fa}
+.upload-panel-inner{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.upload-icon{width:36px;height:36px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.upload-text{flex:1}
+.upload-title{font-size:13px;font-weight:500;color:var(--text)}
+.upload-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.upload-btn{padding:7px 16px;font-size:12px;font-family:inherit;font-weight:500;border-radius:var(--radius);cursor:pointer;background:var(--navy);border:none;color:#fff;white-space:nowrap}
+.upload-btn:hover{opacity:.88}
+.upload-btn:disabled{opacity:.5;cursor:not-allowed}
+.upload-progress{width:100%;height:3px;background:var(--border);border-radius:2px;margin-top:10px;display:none}
+.upload-progress-bar{height:100%;background:var(--navy);border-radius:2px;width:0%;transition:width .3s}
+.upload-result{margin-top:10px;font-size:12px;padding:8px 12px;border-radius:var(--radius);display:none}
+.upload-result.ok{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+.upload-result.err{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.btn{padding:8px 18px;font-size:12px;font-family:inherit;font-weight:500;border-radius:var(--radius);cursor:pointer;transition:all .12s}
+.btn-sec{background:transparent;border:1px solid var(--border2);color:var(--muted)}
+.btn-sec:hover{background:var(--bg)}
+.btn-pri{background:var(--navy);border:none;color:#fff}
+.btn-pri:hover{opacity:.88}
+.btn-pri:disabled{opacity:.5;cursor:not-allowed}
+.btn-green{background:#16a34a;border:none;color:#fff}
+.btn-green:hover{opacity:.88}
+.hist-panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-top:1.5rem}
+.hist-title{font-size:14px;font-weight:500;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.hist-search{padding:6px 10px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);width:220px;font-family:inherit;outline:none}
+.hist-table{width:100%;border-collapse:collapse;font-size:12px}
+.hist-table th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-weight:500}
+.hist-table td{padding:7px 10px;border-bottom:1px solid #f5f3f0;color:var(--text)}
+.hist-table tr:hover td{background:var(--bg)}
+.dl-link{font-size:11px;color:var(--navy);text-decoration:none;padding:2px 8px;border:1px solid var(--border2);border-radius:20px}
+.dl-link:hover{background:var(--bg)}
+.toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;max-width:360px}
+.toast.show{opacity:1}
+.toast.success{background:#16a34a;color:#fff}
+.toast.error{background:#dc2626;color:#fff}
+.toast.info{background:var(--navy);color:#fff}
+@media(max-width:600px){.g2,.g3,.g4,.cov-grid{grid-template-columns:1fr!important}}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-left">
+    <img src="/logo.jpg" alt="Columbia Basin Insurance" class="nav-logo">
+    <div>
+      <div class="nav-brand">Columbia Basin Insurance</div>
+      <div class="nav-brand-sub">E&O Forms Portal</div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <div style="display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.1);border-radius:6px;padding:3px;margin-right:8px">
+      <a href="/" style="padding:5px 14px;border-radius:4px;font-size:12px;background:rgba(255,255,255,.15);color:#fff;text-decoration:none">E&O Forms</a>
+      <a href="/quote" style="padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none">Quote Proposals</a>
+    </div>
+    <span class="nav-agent" id="nav-agent"></span>
+    <a href="/admin/agents" class="nav-link" id="admin-link" style="display:none">Agents</a>
+    <form method="POST" action="/logout" style="margin:0"><button type="submit" class="nav-link">Sign out</button></form>
+  </div>
+</nav>
+<div class="wrap">
+
+  <!-- Policy Upload & AI Autofill -->
+  <div class="upload-panel" id="upload-panel">
+    <div class="upload-panel-inner">
+      <div class="upload-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a4a4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      </div>
+      <div class="upload-text">
+        <div class="upload-title">Upload policy PDF to auto-fill form / Sube la póliza PDF para llenar automáticamente</div>
+        <div class="upload-sub">Claude AI will read the policy and fill in all matching fields instantly / Claude IA leerá la póliza y llenará los campos automáticamente</div>
+      </div>
+      <input type="file" id="policy-file" accept=".pdf" style="display:none" onchange="handleUpload(this)">
+      <button class="upload-btn" id="upload-btn" onclick="document.getElementById('policy-file').click()">Upload Policy PDF</button>
+    </div>
+    <div class="upload-progress" id="upload-progress"><div class="upload-progress-bar" id="upload-bar"></div></div>
+    <div class="upload-result" id="upload-result"></div>
+  </div>
+
+  <!-- Client Info Panel -->
+  <div class="top-panel">
+    <div class="top-panel-title">Client information / Información del cliente</div>
+    <div class="g2">
+      <div class="fld"><div class="lbl">Client name / Nombre del cliente</div><input type="text" id="global-client-name" placeholder="Full legal name" oninput="syncClientName()"></div>
+      <div class="fld"><div class="lbl">Client email (optional) / Correo del cliente</div><input type="email" id="global-client-email" placeholder="client@email.com"></div>
+      <div class="fld"><div class="lbl">Agent / Agente</div><input type="text" id="global-agent-name" placeholder="Agent name"></div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="ST('auto')">Auto / Vehículo</button>
+    <button class="tab" onclick="ST('home')">Home / Hogar</button>
+    <button class="tab" onclick="ST('truck')">Trucking / Camiones</button>
+    <button class="tab" onclick="ST('cont')">Contractor / Contratista</button>
+    <button class="tab" onclick="ST('auth')">3rd Party Auth / Autorización</button>
+  </div>
+
+
+  <!-- AUTO -->
+  <div id="f-auto" class="fc vis">
+    <div class="fhdr"><div><div class="ftitle">Auto Coverage Recommendation / Recomendación de Cobertura de Auto</div><div class="fsub">Personal &amp; Commercial / Personal y Comercial</div></div><span class="badge badge-cov">Coverage Rec.</span></div>
+    <div class="fbody">
+      <div class="sec"><div class="sec-title">Policy information / Información de póliza</div><div class="g2">
+        <div class="fld"><div class="lbl">Named insured / Asegurado nombrado</div><input type="text" id="auto-client" placeholder="Full legal name"></div>
+        <div class="fld"><div class="lbl">Policy # / Número de póliza</div><input type="text" id="auto-policy" placeholder="Policy #"></div>
+        <div class="fld"><div class="lbl">Carrier / Compañía</div><input type="text" id="auto-carrier" placeholder="Carrier"></div>
+        <div class="fld"><div class="lbl">Effective date / Fecha de vigencia</div><input type="date" id="auto-eff"></div>
+        <div class="fld"><div class="lbl">Date of recommendation / Fecha</div><input type="date" id="auto-rec-date"></div>
+      </div></div>
+      <div class="sec"><div class="sec-title">Coverage recommendations / Recomendaciones de cobertura</div><div class="cov-grid" id="auto-grid"></div></div>
+      <div class="sec">
+        <div class="sec-title">Vehicles on policy / Vehículos en la póliza</div>
+        <div id="auto-vehicles-list"></div>
+        <button onclick="addVehicle('auto')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add vehicle / Agregar vehículo</button>
+      </div>
+      <div class="sec">
+        <div class="sec-title">Drivers on policy / Conductores en la póliza</div>
+        <div id="auto-drivers-list"></div>
+        <button onclick="addDriver('auto')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add driver / Agregar conductor</button>
+      </div>
+      <div class="sec"><div class="sec-title">Notes / Notas</div><textarea id="auto-notes" placeholder="Declined coverages and reasons / Coberturas rechazadas y razones…"></textarea></div>
+      <div class="sec"><div class="sec-title">Acknowledgment &amp; signature / Reconocimiento y firma</div><div class="ack-box">
+        <div class="ack-txt">I have reviewed the coverage recommendations above with my agent. I understand which coverages are included and which I have declined. Declining any recommended coverage may expose me to financial risk.</div>
+        <div class="ack-es">He revisado las recomendaciones de cobertura con mi agente. Entiendo qué coberturas están incluidas y cuáles he rechazado.</div>
+        <label class="chk-item" style="margin-bottom:10px"><input type="checkbox"><div><div class="chk-en">Client acknowledges receipt and review of coverage recommendations.</div><div class="chk-es">El cliente reconoce haber recibido y revisado las recomendaciones de cobertura.</div></div></label>
+        <div class="g2">
+          <div class="fld"><div class="lbl">Client signature</div><canvas class="sig-c" id="s-auto-c"></canvas><div class="sig-ctrl"><button class="sig-clr" onclick="CS('s-auto-c')">Clear</button></div></div>
+          <div class="fld"><div class="lbl">Agent signature</div><canvas class="sig-c" id="s-auto-a"></canvas><div class="sig-ctrl"><button class="sig-clr" onclick="CS('s-auto-a')">Clear</button></div></div>
+          <div class="fld"><div class="lbl">Print name / Nombre en molde</div><input type="text" id="auto-print" placeholder="Full name"></div>
+          <div class="fld"><div class="lbl">Date / Fecha</div><input type="date" id="auto-sig-date"></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="fbody" style="padding-top:0">
+      <div class="sec"><div class="sec-title">Other products offered / Otros productos ofrecidos</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Document any other insurance products quoted or discussed during this appointment. / Documente cualquier otro producto de seguro cotizado o discutido durante esta cita.</div>
+        <div id="auto-other-products"></div>
+        <button onclick="addOtherProduct('auto')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add product / Agregar producto</button>
+      </div>
+    </div>
+    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-auto')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-auto" onclick="submitForm('auto_cov','auto')">Save &amp; Download PDF</button></div>
+  </div>
+  <div id="f-home" class="fc">
+    <div class="fhdr"><div><div class="ftitle">Homeowners Coverage Recommendation / Recomendación de Cobertura para Hogar</div><div class="fsub">Personal Lines — Residential / Líneas Personales — Residencial</div></div><span class="badge badge-cov">Coverage Rec.</span></div>
+    <div class="fbody">
+      <div class="sec"><div class="sec-title">Client &amp; property / Cliente y propiedad</div><div class="g2">
+        <div class="fld"><div class="lbl">Named insured / Asegurado nombrado</div><input type="text" id="home-client" placeholder="Full legal name"></div>
+        <div class="fld"><div class="lbl">Policy # / Número de póliza</div><input type="text" id="home-policy" placeholder="Policy #"></div>
+        <div class="fld full"><div class="lbl">Property address / Dirección de la propiedad</div><input type="text" id="home-addr" placeholder="Full address"></div>
+        <div class="fld"><div class="lbl">Carrier / Compañía</div><input type="text" id="home-carrier" placeholder="Carrier"></div>
+        <div class="fld"><div class="lbl">Effective date / Fecha de vigencia</div><input type="date" id="home-eff"></div>
+      </div></div>
+      <div class="sec"><div class="sec-title">Coverage recommendations / Recomendaciones de cobertura</div><div class="cov-grid" id="home-grid"></div></div>
+      <div class="sec"><div class="sec-title">Deductibles / Deducibles</div><div class="g3">
+        <div class="fld"><div class="lbl">All-peril / Todos los riesgos</div><input type="text" id="home-ded1" placeholder="e.g. $1,000"></div>
+        <div class="fld"><div class="lbl">Wind/hail / Viento/granizo</div><input type="text" id="home-ded2" placeholder="e.g. $2,500 or 1%"></div>
+        <div class="fld"><div class="lbl">Named storm / Tormenta con nombre</div><input type="text" id="home-ded3" placeholder="e.g. 2% of Coverage A"></div>
+      </div></div>
+      <div class="sec"><div class="sec-title">Notes / Notas</div><textarea id="home-notes" placeholder="Declined coverages and reasons…"></textarea></div>
+      <div class="sec"><div class="sec-title">Acknowledgment &amp; signature / Reconocimiento y firma</div><div class="ack-box">
+        <div class="ack-txt">I have reviewed the homeowners coverage recommendations with my agent and understand which coverages I have accepted and declined.</div>
+        <div class="ack-es">He revisado las recomendaciones de cobertura para el hogar con mi agente y entiendo qué coberturas he aceptado y rechazado.</div>
+        <label class="chk-item" style="margin-bottom:10px"><input type="checkbox"><div><div class="chk-en">Client acknowledges receipt and review of coverage recommendations.</div><div class="chk-es">El cliente reconoce haber recibido y revisado las recomendaciones de cobertura.</div></div></label>
+        <div class="g2">
+          <div class="fld"><div class="lbl">Client signature</div><canvas class="sig-c" id="s-home-c"></canvas><div class="sig-ctrl"><button class="sig-clr" onclick="CS('s-home-c')">Clear</button></div></div>
+          <div class="fld"><div class="lbl">Agent signature</div><canvas class="sig-c" id="s-home-a"></canvas><div class="sig-ctrl"><button class="sig-clr" onclick="CS('s-home-a')">Clear</button></div></div>
+          <div class="fld"><div class="lbl">Print name</div><input type="text" id="home-print" placeholder="Full name"></div>
+          <div class="fld"><div class="lbl">Date</div><input type="date" id="home-sig-date"></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="fbody" style="padding-top:0">
+      <div class="sec"><div class="sec-title">Other products offered / Otros productos ofrecidos</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Document any other insurance products quoted or discussed. / Documente cualquier otro producto de seguro cotizado o discutido.</div>
+        <div id="home-other-products"></div>
+        <button onclick="addOtherProduct('home')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add product / Agregar producto</button>
+      </div>
+    </div>
+    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-home')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-home" onclick="submitForm('home_cov','home')">Save &amp; Download PDF</button></div>
+  </div>
+
+  <!-- TRUCKING -->
+  <div id="f-truck" class="fc">
+    <div class="fhdr"><div><div class="ftitle">Trucking Coverage Recommendation / Recomendación de Cobertura para Camiones</div><div class="fsub">Commercial Transportation / Transporte Comercial</div></div><span class="badge badge-cov">Coverage Rec.</span></div>
+    <div class="fbody">
+      <div class="sec"><div class="sec-title">Insured &amp; operation / Asegurado y operación</div><div class="g2">
+        <div class="fld"><div class="lbl">Named insured / Asegurado nombrado</div><input type="text" id="truck-client" placeholder="Business name"></div>
+        <div class="fld"><div class="lbl">DOT #</div><input type="text" id="truck-dot" placeholder="USDOT #"></div>
+        <div class="fld"><div class="lbl">MC #</div><input type="text" id="truck-mc" placeholder="MC #"></div>
+        <div class="fld"><div class="lbl">Policy # / Número de póliza</div><input type="text" id="truck-policy" placeholder="Policy #"></div>
+        <div class="fld"><div class="lbl">Carrier / Compañía</div><input type="text" id="truck-carrier" placeholder="Carrier"></div>
+        <div class="fld"><div class="lbl">Effective date / Fecha de vigencia</div><input type="date" id="truck-eff"></div>
+        <div class="fld"><div class="lbl">Radius / Radio de operación</div><input type="text" id="truck-radius" placeholder="Local / Regional / OTR"></div>
+        <div class="fld"><div class="lbl">Commodity / Mercancía transportada</div><input type="text" id="truck-commodity" placeholder="Primary cargo"></div>
+      </div></div>
+      <div class="sec"><div class="sec-title">Coverage recommendations / Recomendaciones de cobertura</div><div class="cov-grid" id="truck-grid"></div></div>
+      <div class="sec">
+        <div class="sec-title">Units / vehicles on policy / Unidades en la póliza</div>
+        <div id="truck-vehicles-list"></div>
+        <button onclick="addVehicle('truck')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add unit / Agregar unidad</button>
+      </div>
+      <div class="sec">
+        <div class="sec-title">Drivers / Conductores</div>
+        <div id="truck-drivers-list"></div>
+        <button onclick="addDriver('truck')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add driver / Agregar conductor</button>
+      </div>
+      <div class="sec"><div class="sec-title">Fleet details / Detalles de la flota</div><div class="g3">
+        <div class="fld"><div class="lbl">Power units / Unidades de potencia</div><input type="text" id="truck-units" placeholder="# trucks/tractors"></div>
+        <div class="fld"><div class="lbl">Trailers / Remolques</div><input type="text" id="truck-trailers" placeholder="# trailers"></div>
+        <div class="fld"><div class="lbl">Drivers / Conductores</div><input type="text" id="truck-drivers" placeholder="# drivers"></div>
+      </div></div>
+      <div class="sec"><div class="sec-title">Notes / Notas</div><textarea id="truck-notes" placeholder="Declined coverages, FMCSA requirements…"></textarea></div>
+      <div class="sec"><div class="sec-title">Acknowledgment &amp; signature / Reconocimiento y firma</div><div class="ack-box">
+        <div class="ack-txt">I have reviewed the trucking coverage recommendations with my agent. I understand FMCSA filing requirements and accept responsibility for operating in compliance with applicable regulations.</div>
+        <div class="ack-es">He revisado las recomendaciones de cobertura para camiones con mi agente. Entiendo los requisitos de la FMCSA.</div>
+        <label class="chk-item" style="margin-bottom:10px"><input type="checkbox"><div><div class="chk-en">Client acknowledges receipt and review of trucking coverage recommendations.</div><div class="chk-es">El cliente reconoce haber recibido y revisado las recomendaciones de cobertura para camiones.</div></div></label>
+        <div class="g2">
+          <div class="fld"><div class="lbl">Client / owner signature</div><canvas class="sig-c" id="s-truck-c"></canvas><div class="sig-ctrl"><button class="sig-clr" onclick="CS('s-truck-c')">Clear</button></div></div>
+          <div class="fld"><div class="lbl">Agent signature</div><canvas class="sig-c" id="s-truck-a"></canvas><div class="sig-ctrl"><button class="sig-clr" onclick="CS('s-truck-a')">Clear</button></div></div>
+          <div class="fld"><div class="lbl">Print name</div><input type="text" id="truck-print" placeholder="Full name"></div>
+          <div class="fld"><div class="lbl">Date</div><input type="date" id="truck-sig-date"></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="fbody" style="padding-top:0">
+      <div class="sec"><div class="sec-title">Other products offered / Otros productos ofrecidos</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Document any other insurance products quoted or discussed. / Documente cualquier otro producto de seguro cotizado o discutido.</div>
+        <div id="truck-other-products"></div>
+        <button onclick="addOtherProduct('truck')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add product / Agregar producto</button>
+      </div>
+    </div>
+    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-truck')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-truck" onclick="submitForm('trucking_cov','truck')">Save &amp; Download PDF</button></div>
+  </div>
+
+  <!-- CONTRACTOR -->
+  <div id="f-cont" class="fc">
+    <div class="fhdr"><div><div class="ftitle">Contractor Coverage Recommendation / Recomendación de Cobertura para Contratista</div><div class="fsub">Commercial Lines — Construction / Líneas Comerciales — Construcción</div></div><span class="badge badge-cov">Coverage Rec.</span></div>
+    <div class="fbody">
+      <div class="sec"><div class="sec-title">Business information / Información del negocio</div><div class="g2">
+        <div class="fld"><div class="lbl">Named insured / Asegurado nombrado</div><input type="text" id="cont-client" placeholder="Business name"></div>
+        <div class="fld"><div class="lbl">Contractor license # / Licencia</div><input type="text" id="cont-lic" placeholder="State lic. #"></div>
+        <div class="fld"><div class="lbl">Trade / Specialty / Oficio</div><input type="text" id="cont-trade" placeholder="e.g. General, Electrical"></div>
+        <div class="fld"><div class="lbl">Annual revenue / Ingresos anuales</div><input type="text" id="cont-revenue" placeholder="e.g. $500,000"></div>
+        <div class="fld"><div class="lbl">Policy # / Número de póliza</div><input type="text" id="cont-policy" placeholder="Policy #"></div>
+        <div class="fld"><div class="lbl">Effective date / Fecha de vigencia</div><input type="date" id="cont-eff"></div>
+      </div></div>
+      <div class="sec"><div class="sec-title">Coverage recommendations / Recomendaciones de cobertura</div><div class="cov-grid" id="cont-grid"></div></div>
+      <div class="sec"><div class="sec-title">Subcontractor info / Subcontratistas</div><div class="g2">
+        <div class="fld"><div class="lbl">Uses subcontractors? / ¿Usa subcontratistas?</div><div class="rr" style="margin-top:4px"><label class="rp"><input type="radio" name="sub"> Yes / Sí</label><label class="rp"><input type="radio" name="sub"> No</label></div></div>
+        <div class="fld"><div class="lbl">Require certs of insurance? / ¿Requiere certificados?</div><div class="rr" style="margin-top:4px"><label class="rp"><input type="radio" name="cert"> Yes / Sí</label><label class="rp"><input type="radio" name="cert"> No</label></div></div>
+      </div></div>
+      <div class="sec"><div class="sec-title">Notes / Notas</div><textarea id="cont-notes" placeholder="Declined coverages, license requirements…"></textarea></div>
+      <div class="sec"><div class="sec-title">Acknowledgment &amp; signature / Reconocimiento y firma</div><div class="ack-box">
+        <div class="ack-txt">I have reviewed the contractor insurance coverage recommendations with my agent. I understand the coverages recommended and any coverages I have declined. I acknowledge that some coverages may be required by state law, contract, or permit.</div>
+        <div class="ack-es">He revisado las recomendaciones de cobertura para contratistas con mi agente. Reconozco que algunas coberturas pueden ser requeridas por ley estatal, contrato o permiso.</div>
+        <label class="chk-item" style="margin-bottom:10px"><input type="checkbox"><div><div class="chk-en">Client acknowledges receipt and review of contractor coverage recommendations.</div><div class="chk-es">El cliente reconoce haber recibido y revisado las recomendaciones de cobertura para contratistas.</div></div></label>
+        <div class="g2">
+          <div class="fld"><div class="lbl">Client / owner signature</div><canvas class="sig-c" id="s-cont-c"></canvas><div class="sig-ctrl"><button class="sig-clr" onclick="CS('s-cont-c')">Clear</button></div></div>
+          <div class="fld"><div class="lbl">Agent signature</div><canvas class="sig-c" id="s-cont-a"></canvas><div class="sig-ctrl"><button class="sig-clr" onclick="CS('s-cont-a')">Clear</button></div></div>
+          <div class="fld"><div class="lbl">Print name</div><input type="text" id="cont-print" placeholder="Full name"></div>
+          <div class="fld"><div class="lbl">Date</div><input type="date" id="cont-sig-date"></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="fbody" style="padding-top:0">
+      <div class="sec"><div class="sec-title">Other products offered / Otros productos ofrecidos</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Document any other insurance products quoted or discussed. / Documente cualquier otro producto de seguro cotizado o discutido.</div>
+        <div id="cont-other-products"></div>
+        <button onclick="addOtherProduct('cont')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add product / Agregar producto</button>
+      </div>
+    </div>
+    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-cont')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-cont" onclick="submitForm('contractor_cov','cont')">Save &amp; Download PDF</button></div>
+  </div>
+
+  <!-- THIRD-PARTY AUTHORIZATION -->
+  <div id="f-auth" class="fc">
+    <div class="fhdr"><div><div class="ftitle">Third-Party Authorization &amp; E&O Acknowledgment / Autorización de Terceros y Reconocimiento de E&O</div><div class="fsub">Authorization Form / Formulario de Autorización</div></div><span class="badge badge-eo">E&O Form</span></div>
+    <div class="fbody">
+
+      <!-- Section 1: Named Insured -->
+      <div class="sec"><div class="sec-title">1. Named Insured Information / Información del Asegurado</div><div class="g2">
+        <div class="fld"><div class="lbl">Insured name / Nombre del asegurado</div><input type="text" id="auth-name" placeholder="Full legal name"></div>
+        <div class="fld"><div class="lbl">Policy number(s) / Número(s) de póliza</div><input type="text" id="auth-policy" placeholder="e.g. PA-2024-00123"></div>
+        <div class="fld"><div class="lbl">Phone / Teléfono</div><input type="text" id="auth-phone" placeholder="(509) 555-0000"></div>
+        <div class="fld"><div class="lbl">Email / Correo electrónico</div><input type="email" id="auth-email" placeholder="insured@email.com"></div>
+      </div></div>
+
+      <!-- Section 2: Authorized Representative -->
+      <div class="sec"><div class="sec-title">2. Authorized Representative / Representante Autorizado</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px">I authorize the following individual to act on my behalf regarding my insurance policies. / Autorizo a la siguiente persona a actuar en mi nombre con respecto a mis pólizas de seguro.</div>
+        <div class="g2">
+          <div class="fld"><div class="lbl">Full name / Nombre completo</div><input type="text" id="auth-rep-name" placeholder="Representative full name"></div>
+          <div class="fld"><div class="lbl">Relationship / Relación</div><input type="text" id="auth-rep-rel" placeholder="e.g. Spouse, Business partner"></div>
+          <div class="fld"><div class="lbl">Phone / Teléfono</div><input type="text" id="auth-rep-phone" placeholder="(509) 555-0000"></div>
+          <div class="fld"><div class="lbl">Email / Correo electrónico</div><input type="email" id="auth-rep-email" placeholder="rep@email.com"></div>
+        </div>
+      </div>
+
+      <!-- Section 3: Scope of Authorization -->
+      <div class="sec"><div class="sec-title">3. Scope of Authorization / Alcance de la Autorización</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px">The authorized representative may (initial all that apply) / El representante autorizado puede (iniciales en todas las que correspondan):</div>
+        <div class="chk-grp">
+          <label class="chk-item"><input type="checkbox" id="auth-s1"><div><div class="chk-en">Request policy changes / Solicitar cambios en la póliza</div><div class="chk-es">Solicitar cambios en la póliza</div></div></label>
+          <label class="chk-item"><input type="checkbox" id="auth-s2"><div><div class="chk-en">Add or remove coverage / Agregar o eliminar cobertura</div><div class="chk-es">Agregar o eliminar cobertura</div></div></label>
+          <label class="chk-item"><input type="checkbox" id="auth-s3"><div><div class="chk-en">Receive policy information / Recibir información de la póliza</div><div class="chk-es">Recibir información de la póliza</div></div></label>
+          <label class="chk-item"><input type="checkbox" id="auth-s4"><div><div class="chk-en">Discuss billing and payments / Hablar sobre facturación y pagos</div><div class="chk-es">Hablar sobre facturación y pagos</div></div></label>
+          <label class="chk-item"><input type="checkbox" id="auth-s5"><div><div class="chk-en">Request certificates or documents / Solicitar certificados o documentos</div><div class="chk-es">Solicitar certificados o documentos</div></div></label>
+          <label class="chk-item" style="align-items:flex-start">
+            <input type="checkbox" id="auth-s6" style="margin-top:2px">
+            <div style="flex:1">
+              <div class="chk-en">Other / Otro:</div>
+              <input type="text" id="auth-s6-other" placeholder="Specify / Especifique..." style="margin-top:6px;width:100%;padding:6px 9px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit">
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Section 4: E&O Acknowledgment -->
+      <div class="sec"><div class="sec-title">4. E&amp;O Acknowledgment / Reconocimiento de E&amp;O</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px">I understand and agree to the following / Entiendo y acepto lo siguiente:</div>
+        <div class="chk-grp">
+          <label class="chk-item"><input type="checkbox"><div><div class="chk-en">I am responsible for reviewing all coverage, limits, deductibles, and policy details.</div><div class="chk-es">Soy responsable de revisar toda la cobertura, límites, deducibles y detalles de la póliza.</div></div></label>
+          <label class="chk-item"><input type="checkbox"><div><div class="chk-en">Any changes requested by my authorized representative will be considered as if requested directly by me.</div><div class="chk-es">Cualquier cambio solicitado por mi representante autorizado será considerado como si yo lo hubiera solicitado directamente.</div></div></label>
+          <label class="chk-item"><input type="checkbox"><div><div class="chk-en">I understand that coverage is subject to policy terms, conditions, and carrier approval.</div><div class="chk-es">Entiendo que la cobertura está sujeta a los términos, condiciones de la póliza y aprobación de la aseguradora.</div></div></label>
+          <label class="chk-item"><input type="checkbox"><div><div class="chk-en">I understand that failure to maintain adequate coverage may result in uncovered losses.</div><div class="chk-es">Entiendo que no mantener cobertura adecuada puede resultar en pérdidas no cubiertas.</div></div></label>
+          <label class="chk-item"><input type="checkbox"><div><div class="chk-en">I acknowledge that the agency is not responsible for gaps in coverage resulting from my or my representative's instructions.</div><div class="chk-es">Reconozco que la agencia no es responsable por vacíos en cobertura derivados de mis instrucciones o las de mi representante.</div></div></label>
+        </div>
+      </div>
+
+      <!-- Section 5: Duration -->
+      <div class="sec"><div class="sec-title">5. Duration of Authorization / Duración de la Autorización</div>
+        <div class="chk-grp">
+          <label class="chk-item"><input type="radio" name="auth-duration" value="permanent" id="auth-dur-perm"><div><div class="chk-en">This authorization remains in effect until revoked in writing.</div><div class="chk-es">Esta autorización permanece vigente hasta ser revocada por escrito.</div></div></label>
+          <label class="chk-item" style="align-items:flex-start">
+            <input type="radio" name="auth-duration" value="expires" id="auth-dur-exp" style="margin-top:2px">
+            <div style="flex:1">
+              <div class="chk-en">This authorization expires on / Esta autorización vence el:</div>
+              <input type="date" id="auth-expires" style="margin-top:6px;padding:6px 9px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit">
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Section 6: Communication Authorization -->
+      <div class="sec"><div class="sec-title">6. Communication Authorization / Autorización de Comunicación</div>
+        <div class="chk-grp">
+          <label class="chk-item"><input type="checkbox" id="auth-comm"><div><div class="chk-en">I authorize the agency to communicate with my representative via phone, email, and text, including sharing policy-related documents.</div><div class="chk-es">Autorizo a la agencia a comunicarse con mi representante por teléfono, correo electrónico y mensajes de texto, incluyendo compartir documentos relacionados con la póliza.</div></div></label>
+        </div>
+      </div>
+
+      <!-- Section 7: Signature -->
+      <div class="sec"><div class="sec-title">7. Signature / Firma</div><div class="ack-box">
+        <div class="ack-txt">By signing below, I confirm that I have read, understand, and agree to the statements above, and that the authorized representative named herein is authorized to act on my behalf.</div>
+        <div class="ack-es">Al firmar a continuación, confirmo que he leído, entiendo y acepto las declaraciones anteriores, y que el representante autorizado aquí nombrado está autorizado para actuar en mi nombre.</div>
+        <div class="g2" style="margin-top:14px">
+          <div class="fld"><div class="lbl">Named insured signature / Firma del asegurado</div><canvas class="sig-c" id="s-auth-c"></canvas><div class="sig-ctrl"><button class="sig-clr" onclick="CS('s-auth-c')">Clear</button></div></div>
+          <div class="fld"><div class="lbl">Agent signature / Firma del agente</div><canvas class="sig-c" id="s-auth-a"></canvas><div class="sig-ctrl"><button class="sig-clr" onclick="CS('s-auth-a')">Clear</button></div></div>
+          <div class="fld"><div class="lbl">Print name / Nombre en molde</div><input type="text" id="auth-print" placeholder="Full name"></div>
+          <div class="fld"><div class="lbl">Date / Fecha</div><input type="date" id="auth-sig-date"></div>
+        </div>
+      </div></div>
+
+    </div>
+    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-auth')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" onclick="downloadAuthPDF()">Save &amp; Download PDF</button></div>
+  </div>
+
+  <!-- History -->
+  <div class="hist-panel">
+    <div class="hist-title">
+      <span>Recent submissions / Envíos recientes</span>
+      <input class="hist-search" id="hist-search" type="text" placeholder="Search client, policy…" oninput="loadHistory()">
+    </div>
+    <table class="hist-table">
+      <thead><tr><th>#</th><th>Form</th><th>Client</th><th>Policy #</th><th>Agent</th><th>Date</th><th>PDF</th></tr></thead>
+      <tbody id="hist-body"><tr><td colspan="7" style="color:var(--hint);padding:14px 10px">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+
+const OPTS={
+  bi:['$25,000 each person / $50,000 each accident','$50,000 each person / $100,000 each accident','$100,000 each person / $300,000 each accident','$250,000 each person / $500,000 each accident','$500,000 each person / $1,000,000 each accident','$1,000,000 each person / $1,000,000 each accident','Declined / Rechazado'],
+  pd:['$25,000','$50,000','$100,000','$250,000','$500,000','$1,000,000','Declined / Rechazado'],
+  umbi:['$25,000 each person / $50,000 each accident (UM & UIM)','$50,000 each person / $100,000 each accident (UM & UIM)','$100,000 each person / $300,000 each accident (UM & UIM)','$250,000 each person / $500,000 each accident (UM & UIM)','$500,000 each person / $1,000,000 each accident (UM & UIM)','$1,000,000 each person / $1,000,000 each accident (UM & UIM)','Declined / Rechazado'],
+  umpd:['$25,000 (UM & UIM)','$50,000 (UM & UIM)','$100,000 (UM & UIM)','$250,000 (UM & UIM)','Declined / Rechazado'],
+  pip:['$10,000','$35,000','Declined / Rechazado'],
+  deduct:['$250','$500','$1,000','$1,500','$2,500','$5,000','Declined / Rechazado'],
+  medpay:['$1,000','$2,000','$5,000','$10,000','$25,000','Declined / Rechazado'],
+  rental:['$30/day – $900 max','$40/day – $1,200 max','$50/day – $1,500 max','$75/day – $2,250 max','Declined / Rechazado'],
+  roadside:['Included / Incluido','Declined / Rechazado'],
+  gap:['Recommended if financed / Recomendado si financiado','Declined / Rechazado'],
+  dwell:['$150,000','$200,000','$250,000','$300,000','$350,000','$400,000','$500,000','$600,000','$750,000','$1,000,000+'],
+  othstr:['$15,000 (10%)','$20,000 (10%)','$30,000 (10%)','$50,000 (10%)','Declined / Rechazado'],
+  perp:['$50,000','$75,000','$100,000','$150,000','$175,000','$200,000','Declined / Rechazado'],
+  lou:['$20,000 (20%)','$30,000 (20%)','$50,000 (20%)','$70,000 (20%)','$100,000 (20%)'],
+  liab:['$100,000','$200,000','$300,000','$500,000','Declined / Rechazado'],
+  medpayh:['$1,000','$2,500','$5,000','$10,000','Declined / Rechazado'],
+  flood:['NFIP – $250,000 building','NFIP – $100,000 contents','Private flood – quote required','Declined / Rechazado'],
+  eq:['5% of Coverage A','10% of Coverage A','15% of Coverage A','Declined / Rechazado'],
+  sched:['Jewelry / Joyería','Art / Arte','Collectibles / Coleccionables','Electronics / Electrónicos','Multiple items – appraisal req.','Declined / Rechazado'],
+  umbrella:['$1,000,000','$2,000,000','$3,000,000','$5,000,000','Declined / Rechazado'],
+  tauto:['$750,000 CSL (FMCSA min)','$1,000,000 CSL','$1,500,000 CSL','$2,000,000 CSL','Hazmat – $5,000,000 CSL'],
+  gl:['$1M / $2M aggregate','$2M / $4M aggregate','$5M / $5M aggregate'],
+  physdmg:['ACV – $1,000 ded.','ACV – $2,500 ded.','ACV – $5,000 ded.','Stated value – specify','Declined / Rechazado'],
+  cargo:['$25,000 per load','$50,000 per load','$100,000 per load','$150,000 per load','$250,000 per load'],
+  trailer:['$25,000 per trailer','$35,000 per trailer','$50,000 per trailer','Declined / Rechazado'],
+  bobtail:['$1,000,000 CSL','Declined / Rechazado'],
+  occacc:['$500k accidental death','$1M accidental death','Declined / Rechazado'],
+  wc:['100/500/100k EL','500/500/500k EL','1M/1M/1M EL','Declined / Rechazado'],
+  notrlr:['$25,000','$50,000','Declined / Rechazado'],
+  cgl:['$500k / $1M aggregate','$1M / $2M aggregate','$2M / $4M aggregate'],
+  compauto:['$500,000 CSL','$1,000,000 CSL','$2,000,000 CSL'],
+  builders:['$100,000','$250,000','$500,000','Per project – quote req.','Blanket – quote req.','Declined / Rechazado'],
+  tools:['$10,000','$25,000','$50,000','$100,000','Declined / Rechazado'],
+  eo:['$500k / $500k','$1M / $1M','$2M / $2M','Declined / Rechazado'],
+  pollution:['$1M / $2M','$2M / $4M','Declined / Rechazado'],
+  surety:['$10,000','$25,000','$50,000','$100,000','Declined / Rechazado'],
+};
+const AUTO_COVS=[
+  {en:'Bodily injury liability',es:'Responsabilidad por lesiones corporales',rec:'bi',sel:'bi',recVal:'$100,000 each person / $300,000 each accident',status:'offered'},
+  {en:'Property damage liability',es:'Responsabilidad por daños a la propiedad',rec:'pd',sel:'pd',recVal:'$100,000 each accident',status:'offered'},
+  {en:'Un/Underinsured motorist – bodily injury (UM/UIM BI)',es:'Motorista no asegurado/insuficiente – lesiones (UM/UIM BI)',rec:'umbi',sel:'umbi',recVal:'$100,000 each person / $300,000 each accident (UM & UIM)',status:'offered'},
+  {en:'Un/Underinsured motorist – property damage (UM/UIM PD)',es:'Motorista no asegurado/insuficiente – propiedad (UM/UIM PD)',rec:'umpd',sel:'umpd',recVal:'$100,000 each accident (UM & UIM)',status:'offered'},
+  {en:'Personal injury protection (PIP)',es:'Protección por lesiones personales (PIP)',rec:'pip',sel:'pip',recVal:'$35,000',status:'offered'},
+  {en:'Comprehensive',es:'Cobertura integral',rec:'deduct',sel:'deduct',recVal:'$500',status:'offered'},
+  {en:'Collision',es:'Colisión',rec:'deduct',sel:'deduct',recVal:'$500',status:'offered'},
+  {en:'Medical payments (MedPay)',es:'Pagos médicos',rec:'medpay',sel:'medpay',recVal:'',status:'offered'},
+  {en:'Rental reimbursement',es:'Reembolso de renta de vehículo',rec:'rental',sel:'rental',recVal:'$40/day – $1,200 max',status:'offered'},
+  {en:'Roadside assistance',es:'Asistencia en carretera',rec:'roadside',sel:'roadside',recVal:'Included / Incluido',status:'offered'},
+  {en:'Gap / loan-lease coverage',es:'Cobertura GAP / préstamo o arrendamiento',rec:'gap',sel:'gap',recVal:'Recommended if financed / Recomendado si financiado',status:'offered'},
+];
+const HOME_COVS=[
+  {en:'Dwelling – Coverage A <span style="font-size:10px;color:#16a34a;font-weight:400">(Replacement cost recommended)</span>',es:'Vivienda – Cobertura A',rec:'dwell',sel:'dwell',recVal:'',status:'offered'},
+  {en:'Other structures – Coverage B',es:'Otras estructuras – Cobertura B',rec:'othstr',sel:'othstr',recVal:'$35,000 (10%)',status:'offered'},
+  {en:'Personal property – Coverage C <span style="font-size:10px;color:#16a34a;font-weight:400">(Replacement cost recommended)</span>',es:'Propiedad personal – Cobertura C',rec:'perp',sel:'perp',recVal:'',status:'offered'},
+  {en:'Loss of use – Coverage D',es:'Pérdida de uso – Cobertura D',rec:'lou',sel:'lou',recVal:'$70,000 (20%)',status:'offered'},
+  {en:'Personal liability – Coverage E',es:'Responsabilidad personal – Cobertura E',rec:'liab',sel:'liab',recVal:'$1,000,000',status:'offered'},
+  {en:'Medical payments – Coverage F',es:'Pagos médicos – Cobertura F',rec:'medpayh',sel:'medpayh',recVal:'$10,000',status:'offered'},
+  {en:'Flood insurance',es:'Seguro contra inundaciones',rec:'flood',sel:'flood',recVal:'NFIP – $250,000 building',status:'offered',floodToggle:true},
+  {en:'Earthquake endorsement',es:'Endoso por terremoto',rec:'eq',sel:'eq',recVal:'10% of Coverage A',status:'offered'},
+  {en:'Scheduled personal property',es:'Propiedad personal programada',rec:'sched',sel:'sched',recVal:'Multiple items – appraisal req.',status:'offered'},
+  {en:'Umbrella / excess liability',es:'Paraguas / responsabilidad excedente',rec:'umbrella',sel:'umbrella',recVal:'$1,000,000',status:'offered'},
+];
+const TRUCK_COVS=[
+  {en:'Auto liability (primary)',es:'Responsabilidad de auto (primaria)',rec:'tauto',sel:'tauto',recVal:'$1,000,000 CSL',status:'offered'},
+  {en:'General liability',es:'Responsabilidad general',rec:'gl',sel:'gl',recVal:'$1M / $2M aggregate',status:'offered'},
+  {en:'Physical damage – owned units',es:'Daño físico – unidades propias',rec:'physdmg',sel:'physdmg',recVal:'ACV – $1,000 ded.',status:'offered'},
+  {en:'Motor truck cargo',es:'Carga de camión motor',rec:'cargo',sel:'cargo',recVal:'$100,000 per load',status:'offered'},
+  {en:'Trailer interchange',es:'Intercambio de remolque',rec:'trailer',sel:'trailer',recVal:'$35,000 per trailer',status:'offered'},
+  {en:'Bobtail / non-trucking liability',es:'Responsabilidad bobtail / no transporte',rec:'bobtail',sel:'bobtail',recVal:'$1,000,000 CSL',status:'offered'},
+  {en:'Occupational accident',es:'Accidente ocupacional',rec:'occacc',sel:'occacc',recVal:'$500k accidental death',status:'offered'},
+  {en:'Workers compensation',es:'Compensación laboral',rec:'wc',sel:'wc',recVal:'500/500/500k EL',status:'offered'},
+  {en:'Non-owned trailer',es:'Remolque no propio',rec:'notrlr',sel:'notrlr',recVal:'$35,000',status:'offered'},
+  {en:'Excess / umbrella liability',es:'Responsabilidad excedente / paraguas',rec:'umbrella',sel:'umbrella',recVal:'$1,000,000',status:'offered'},
+];
+const CONT_COVS=[
+  {en:'General liability (CGL)',es:'Responsabilidad general (CGL)',rec:'cgl',sel:'cgl',recVal:'$1M / $2M aggregate',status:'offered'},
+  {en:'Products & completed operations',es:'Productos y operaciones completadas',rec:'cgl',sel:'cgl',recVal:'$1M / $2M aggregate',status:'offered'},
+  {en:'Commercial auto',es:'Auto comercial',rec:'compauto',sel:'compauto',recVal:'$1,000,000 CSL',status:'offered'},
+  {en:'Workers compensation',es:'Compensación laboral',rec:'wc',sel:'wc',recVal:'500/500/500k EL',status:'offered'},
+  {en:'Builders risk / installation',es:'Riesgo de construcción / instalación',rec:'builders',sel:'builders',recVal:'Per project – quote req.',status:'offered'},
+  {en:'Tools & equipment',es:'Herramientas y equipo',rec:'tools',sel:'tools',recVal:'$50,000',status:'offered'},
+  {en:'Professional liability (E&O)',es:'Responsabilidad profesional (E&O)',rec:'eo',sel:'eo',recVal:'$1M / $1M',status:'offered'},
+  {en:'Pollution liability',es:'Responsabilidad por contaminación',rec:'pollution',sel:'pollution',recVal:'$1M / $2M',status:'offered'},
+  {en:'Umbrella / excess liability',es:'Paraguas / responsabilidad excedente',rec:'umbrella',sel:'umbrella',recVal:'$1,000,000',status:'offered'},
+  {en:'Surety / contractor bond',es:'Fianza / bono de contratista',rec:'surety',sel:'surety',recVal:'$25,000',status:'offered'},
+];
+let openDrop=null;
+function closeDrop(){if(openDrop){openDrop.classList.remove('open');openDrop=null;}}
+function makeCombo(k,ph,prefill){
+  const id='c'+Math.random().toString(36).slice(2,9);
+  const opts=(OPTS[k]||[]);
+  const val=prefill||'';
+  // Use a datalist for reliable cross-browser dropdown + free typing
+  const listId='list-'+id;
+  const dataOpts=opts.map(o=>'<option value="'+o+'">').join('');
+  return '<div class="combo-wrap"><input class="combo-input" id="'+id+'" type="text" list="'+listId+'" placeholder="'+ph+'" value="'+val+'" autocomplete="off"><datalist id="'+listId+'">'+dataOpts+'</datalist></div>';
+}
+function openDD(id){closeDrop();const d=document.getElementById('drop-'+id);if(!d)return;d.querySelectorAll('.combo-opt').forEach(o=>o.style.display='');d.classList.add('open');openDrop=d;}
+function filterDD(id){const v=document.getElementById(id).value.toLowerCase();const d=document.getElementById('drop-'+id);if(!d)return;d.querySelectorAll('.combo-opt').forEach(o=>{o.style.display=o.textContent.toLowerCase().includes(v)?'':'none';});if(!d.classList.contains('open')){d.classList.add('open');openDrop=d;}}
+function pickOpt(e,id){e.preventDefault();document.getElementById(id).value=e.target.textContent;closeDrop();}
+document.addEventListener('click',e=>{if(!e.target.closest('.combo-wrap'))closeDrop();});
+function buildCard(c){
+  const offClass=c.status==='offered'?'offered':'';
+  const decClass=c.status==='declined'?'declined':'';
+  const enLabel='<div class="cov-en">'+c.en+'</div>';
+  let fieldsHtml;
+  if(c.floodToggle){
+    fieldsHtml='<div class="cov-fields"><div class="cov-row"><div class="cov-row-lbl" style="margin-bottom:6px">Flood zone applicability / Aplicabilidad de zona de inundación</div><div style="display:flex;gap:8px"><button class="tb offered" id="flood-needed-yes" onclick="setFloodNeeded(true)" style="font-size:11px">Flood zone – needed / Zona de inundación</button><button class="tb" id="flood-needed-no" onclick="setFloodNeeded(false)" style="font-size:11px">Not applicable / No aplica</button></div></div><div id="flood-fields"><div class="cov-divider" style="margin:8px 0"></div><div class="cov-row"><div class="cov-row-lbl">Recommended / <span>Recomendado</span></div>'+makeCombo(c.rec,'Select or type',c.recVal||'')+'</div><div class="cov-divider"></div><div class="cov-row"><div class="cov-row-lbl">Client selected / <span>Seleccionado</span></div>'+makeCombo(c.sel,'Amount chosen','')+'</div></div></div>';
+  } else {
+    fieldsHtml='<div class="cov-fields"><div class="cov-row"><div class="cov-row-lbl">Recommended / <span>Recomendado</span></div>'+makeCombo(c.rec,'Select or type',c.recVal||'')+'</div><div class="cov-divider"></div><div class="cov-row"><div class="cov-row-lbl">Client selected / <span>Seleccionado</span></div>'+makeCombo(c.sel,'Amount chosen','')+'</div></div>';
+  }
+  return '<div class="cov-card" data-name="'+c.en.replace(/<[^>]+>/g,'')+'"><div class="cov-top"><div class="cov-names">'+enLabel+'<div class="cov-es">'+c.es+'</div></div><div class="tog"><button class="tb '+offClass+'" onclick="ST2(this,\'offered\')">Offered / Ofrecido</button><button class="tb '+decClass+'" onclick="ST2(this,\'declined\')">Declined / Rechazado</button></div></div>'+fieldsHtml+'</div>';
+}
+function setFloodNeeded(needed){
+  const yBtn=document.getElementById('flood-needed-yes');
+  const nBtn=document.getElementById('flood-needed-no');
+  const fields=document.getElementById('flood-fields');
+  if(yBtn)yBtn.className='tb'+(needed?' offered':'');
+  if(nBtn)nBtn.className='tb'+(needed?'':' declined');
+  if(fields)fields.style.display=needed?'':'none';
+}
+// Init flood fields hidden by default until agent clicks
+setTimeout(()=>{
+  const fields=document.getElementById('flood-fields');
+  if(fields)fields.style.display='none';
+},100);
+function buildGrid(id,covs){document.getElementById(id).innerHTML=covs.map(buildCard).join('');}
+buildGrid('auto-grid',AUTO_COVS);
+buildGrid('home-grid',HOME_COVS);
+buildGrid('truck-grid',TRUCK_COVS);
+buildGrid('cont-grid',CONT_COVS);
+function ST(id){document.querySelectorAll('.fc').forEach(f=>f.classList.remove('vis'));document.getElementById('f-'+id).classList.add('vis');const m={auto:0,home:1,truck:2,cont:3,auth:4};document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===m[id]));}
+function ST2(btn,val){const t=btn.closest('.tog');t.querySelectorAll('.tb').forEach(b=>b.className='tb');btn.classList.add(val);}
+function CF(id){const f=document.getElementById(id);f.querySelectorAll('input[type=text],input[type=date],input[type=email],textarea').forEach(el=>{if(!el.readOnly)el.value='';});f.querySelectorAll('input[type=checkbox],input[type=radio]').forEach(el=>el.checked=false);f.querySelectorAll('.tb').forEach(b=>b.className='tb');f.querySelectorAll('.rp').forEach(p=>p.classList.remove('sel'));f.querySelectorAll('canvas').forEach(c=>{const ctx=c.getContext('2d');if(ctx)ctx.clearRect(0,0,c.width,c.height);});showT('Form cleared','info');}
+function syncClientName(){const n=document.getElementById('global-client-name').value;['veh-client','auto-client','home-client','truck-client','cont-client','auth-name'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=n;});}
+function downloadAuthPDF(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'pt',format:'letter'});
+  const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();
+  const navy=[26,74,74],gold=[200,146,42],muted=[107,101,96],white=[255,255,255];
+  const M=50,CW=W-M*2,FOOT=55;
+  let y=M;
+
+  function newPage(){doc.addPage();y=M;}
+  function chk(n){if(y+(n||40)>H-FOOT)newPage();}
+  function gvl(id){const el=document.getElementById(id);return(el?el.value:'')||'';}
+
+  // Logo (crop whitespace)
+  try{
+    const img=document.querySelector('.nav-logo');
+    const cv=document.createElement('canvas');cv.width=img.naturalWidth;cv.height=img.naturalHeight;
+    const ctx=cv.getContext('2d');ctx.drawImage(img,0,0);
+    const pd=ctx.getImageData(0,0,img.naturalWidth,img.naturalHeight).data;
+    let t=img.naturalHeight,b=0,l=img.naturalWidth,r=0;
+    for(let row=0;row<img.naturalHeight;row++){for(let col=0;col<img.naturalWidth;col++){
+      const i=(row*img.naturalWidth+col)*4;
+      if(pd[i+3]>30&&!(pd[i]>240&&pd[i+1]>240&&pd[i+2]>240)){if(row<t)t=row;if(row>b)b=row;if(col<l)l=col;if(col>r)r=col;}
+    }}
+    const p=6,cw2=r-l+p*2,ch2=b-t+p*2;
+    const cv2=document.createElement('canvas');cv2.width=cw2;cv2.height=ch2;
+    cv2.getContext('2d').drawImage(cv,l-p,t-p,cw2,ch2,0,0,cw2,ch2);
+    const sc=Math.min(72/cw2,44/ch2);
+    doc.addImage(cv2.toDataURL('image/png'),'PNG',M,y,cw2*sc,ch2*sc);
+  }catch(e){}
+
+  // Title
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...navy);
+  doc.text('THIRD-PARTY AUTHORIZATION & E&O ACKNOWLEDGMENT FORM',M+88,y+14);
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...muted);
+  doc.text('FORMULARIO DE AUTORIZACION DE TERCEROS Y RECONOCIMIENTO DE E&O',M+88,y+28);
+  y+=54;
+  doc.setFillColor(...gold);doc.rect(M,y,CW,1.5,'F');
+  y+=14;
+
+  // Section header — always checks page first, then draws, then adds safe gap below
+  function sh(num,title){
+    chk(60); // ensure room for header + at least one line of content
+    doc.setFillColor(...navy);doc.rect(M,y,CW,20,'F');
+    doc.setFillColor(...gold);doc.rect(M,y,3,20,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(...white);
+    doc.text(num+'. '+title,M+8,y+13);
+    y+=28; // 20pt bar + 8pt gap below before any content
+  }
+
+  // Two-column fields — label above, value below, underline at bottom
+  function twoFields(l1,v1,l2,v2){
+    const hw=(CW-14)/2;
+    const x1=M, x2=M+hw+14;
+    doc.setFontSize(9);
+    const v1lines=v1&&v1.trim()?doc.splitTextToSize(v1.trim(),hw-4):[];
+    const v2lines=v2&&v2.trim()?doc.splitTextToSize(v2.trim(),hw-4):[];
+    // Total height: label(9) + value lines(11 each) + underline gap(4) + bottom gap(10)
+    const colH=function(lines){return 9+3+(lines.length>0?lines.length*11+3:0)+4+10;};
+    const rowH=Math.max(colH(v1lines),colH(v2lines),34);
+    chk(rowH);
+    const rs=y;
+
+    function drawCol(x,label,lines){
+      let cy=rs;
+      doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...muted);
+      doc.text(label,x,cy+8);
+      cy+=12;
+      if(lines.length>0){
+        doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(26,26,26);
+        doc.text(lines,x,cy+9);
+        cy+=lines.length*11+3;
+      }
+      doc.setDrawColor(...navy);doc.setLineWidth(0.4);
+      doc.line(x,cy+10,x+hw,cy+10);
+    }
+    drawCol(x1,l1,v1lines);
+    drawCol(x2,l2,v2lines);
+    y=rs+rowH;
+  }
+
+  // Checkbox — y is the BASELINE for the first line of text
+  // We always start text 10pt below current y to ensure clearance from section header
+  function cb(label,checked){
+    doc.setFontSize(8);
+    const ls=doc.splitTextToSize(label,CW-22);
+    const rowH=Math.max(16,ls.length*10+4)+5;
+    chk(rowH+4);
+    const ty=y+12; // text baseline — 12pt below y gives clearance
+    // Checkbox box centered vertically with first text line
+    const bx=M+4, by=ty-9;
+    if(checked){
+      doc.setFillColor(...navy);doc.rect(bx,by,9,9,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...white);
+      doc.text('v',bx+1.5,by+7);
+    }else{
+      doc.setFillColor(248,248,248);doc.rect(bx,by,9,9,'F');
+      doc.setDrawColor(180,180,180);doc.setLineWidth(0.4);doc.rect(bx,by,9,9,'S');
+    }
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(26,26,26);
+    doc.text(ls,M+18,ty);
+    y+=rowH;
+  }
+
+  // SECTION 1
+  sh('1','Named Insured Information / Informacion del Asegurado');
+  twoFields('Insured Name / Nombre del Asegurado',gvl('auth-name'),'Policy Number(s) / Numero(s) de Poliza',gvl('auth-policy'));
+  y+=6;
+  twoFields('Phone / Telefono',gvl('auth-phone'),'Email / Correo Electronico',gvl('auth-email'));
+  y+=10;
+
+  // SECTION 2
+  sh('2','Authorized Representative / Representante Autorizado');
+  doc.setFont('helvetica','italic');doc.setFontSize(7.5);doc.setTextColor(...muted);
+  doc.text('I authorize the following individual to act on my behalf. / Autorizo a la siguiente persona a actuar en mi nombre.',M,y,{maxWidth:CW});
+  y+=16;
+  twoFields('Full Name / Nombre Completo',gvl('auth-rep-name'),'Relationship / Relacion',gvl('auth-rep-rel'));
+  y+=6;
+  twoFields('Phone / Telefono',gvl('auth-rep-phone'),'Email / Correo Electronico',gvl('auth-rep-email'));
+  y+=10;
+
+  // SECTION 3
+  sh('3','Scope of Authorization / Alcance de la Autorizacion');
+  doc.setFont('helvetica','italic');doc.setFontSize(7.5);doc.setTextColor(...muted);
+  doc.text('The authorized representative may (initial all that apply): / El representante autorizado puede:',M,y,{maxWidth:CW});
+  y+=16;
+  [['auth-s1','Request policy changes / Solicitar cambios en la poliza'],
+   ['auth-s2','Add or remove coverage / Agregar o eliminar cobertura'],
+   ['auth-s3','Receive policy information / Recibir informacion de la poliza'],
+   ['auth-s4','Discuss billing and payments / Hablar sobre facturacion y pagos'],
+   ['auth-s5','Request certificates or documents / Solicitar certificados o documentos']
+  ].forEach(function(p){cb(p[1],!!(document.getElementById(p[0])&&document.getElementById(p[0]).checked));});
+  const s6el=document.getElementById('auth-s6');
+  cb('Other / Otro: '+(gvl('auth-s6-other')||'______________________________'),!!(s6el&&s6el.checked));
+  y+=10;
+
+  // SECTION 4
+  sh('4','E&O Acknowledgment / Reconocimiento de E&O');
+  doc.setFont('helvetica','italic');doc.setFontSize(7.5);doc.setTextColor(...muted);
+  doc.text('I understand and agree to the following: / Entiendo y acepto lo siguiente:',M,y,{maxWidth:CW});
+  y+=16;
+  ['I am responsible for reviewing all coverage, limits, deductibles, and policy details. / Soy responsable de revisar toda la cobertura, limites, deducibles y detalles de la poliza.',
+   'Any changes requested by my authorized representative will be considered as if requested directly by me. / Cualquier cambio solicitado por mi representante autorizado sera considerado como si yo lo hubiera solicitado directamente.',
+   'I understand that coverage is subject to policy terms, conditions, and carrier approval. / Entiendo que la cobertura esta sujeta a los terminos, condiciones de la poliza y aprobacion de la aseguradora.',
+   'I understand that failure to maintain adequate coverage may result in uncovered losses. / Entiendo que no mantener cobertura adecuada puede resultar en perdidas no cubiertas.',
+   'I acknowledge that the agency is not responsible for gaps in coverage resulting from my or my representatives instructions. / Reconozco que la agencia no es responsable por vacios en cobertura derivados de mis instrucciones o las de mi representante.'
+  ].forEach(function(a,i){
+    const el=document.querySelectorAll('#f-auth .sec:nth-child(4) input[type=checkbox]')[i];
+    cb(a,!!(el&&el.checked));
+  });
+  y+=10;
+
+  // SECTION 5
+  sh('5','Duration of Authorization / Duracion de la Autorizacion');
+  const dpEl=document.getElementById('auth-dur-perm'),deEl=document.getElementById('auth-dur-exp');
+  cb('This authorization remains in effect until revoked in writing. / Esta autorizacion permanece vigente hasta ser revocada por escrito.',!!(dpEl&&dpEl.checked));
+  cb('This authorization expires on / Esta autorizacion vence el: '+(gvl('auth-expires')||'______________'),!!(deEl&&deEl.checked));
+  y+=10;
+
+  // SECTION 6
+  sh('6','Communication Authorization / Autorizacion de Comunicacion');
+  const cmEl=document.getElementById('auth-comm');
+  cb('I authorize the agency to communicate with my representative via phone, email, and text, including sharing policy-related documents. / Autorizo a la agencia a comunicarse con mi representante por telefono, correo electronico y mensajes de texto, incluyendo compartir documentos relacionados con la poliza.',!!(cmEl&&cmEl.checked));
+  y+=14;
+
+  // SECTION 7: Signature — force onto same page if possible, else new page
+  chk(160);
+  sh('7','Signature / Firma');
+  y+=10; // extra breathing room after header
+
+  const lx=M, rx=M+CW/2+10, sw2=CW/2-14;
+  const sigC=document.getElementById('s-auth-c'), sigA=document.getElementById('s-auth-a');
+
+  // Signature canvas images
+  if(sigC&&sigC.width>0){try{doc.addImage(sigC.toDataURL('image/png'),'PNG',lx,y,sw2,50);}catch(e){}}
+  if(sigA&&sigA.width>0){try{doc.addImage(sigA.toDataURL('image/png'),'PNG',rx,y,sw2,50);}catch(e){}}
+  y+=54;
+
+  // Signature line
+  doc.setDrawColor(...navy);doc.setLineWidth(0.6);
+  doc.line(lx,y,lx+sw2,y); doc.line(rx,y,rx+sw2,y);
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...navy);
+  doc.text('NAMED INSURED SIGNATURE / FIRMA DEL ASEGURADO',lx,y+10);
+  doc.text('AGENT SIGNATURE / FIRMA DEL AGENTE',rx,y+10);
+  y+=30; // more space
+
+  // Print name line
+  const pn=gvl('auth-print');
+  if(pn){doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(26,26,26);doc.text(pn,lx,y-2);}
+  doc.setDrawColor(...muted);doc.setLineWidth(0.4);
+  doc.line(lx,y,lx+sw2,y); doc.line(rx,y,rx+sw2,y);
+  doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...muted);
+  doc.text('Print Name / Nombre en Molde',lx,y+10);
+  doc.text('Print Name / Nombre en Molde',rx,y+10);
+  y+=30; // more space
+
+  // Date line
+  const sd=gvl('auth-sig-date');
+  if(sd){doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(26,26,26);doc.text(sd,lx,y-2);}
+  doc.setDrawColor(...muted);doc.setLineWidth(0.4);
+  doc.line(lx,y,lx+sw2/2,y); doc.line(rx,y,rx+sw2/2,y);
+  doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...muted);
+  doc.text('Date / Fecha',lx,y+10);
+  doc.text('Date / Fecha',rx,y+10);
+
+  // Footer on all pages
+  const pages=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i);
+    doc.setFillColor(...gold);doc.rect(M,H-22,CW,1,'F');
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...muted);
+    doc.text('Columbia Basin Insurance | Quincy Alliance Insurance LLC DBA Columbia Basin Insurance',M,H-10);
+    doc.text('Page '+i+' of '+pages,W-M,H-10,{align:'right'});
+  }
+  doc.save('Auth-EO-'+(gvl('auth-name')||'Client').replace(/\s+/g,'-')+'.pdf');
+  showT('PDF downloaded!','success');
+}
+function collectCoverages(gridId){return Array.from(document.querySelectorAll('#'+gridId+' .cov-card')).map(card=>{const name=card.dataset.name||'';const off=card.querySelector('.tb.offered');const dec=card.querySelector('.tb.declined');const status=off?'offered':dec?'declined':'not_set';const inputs=card.querySelectorAll('.combo-input');return{name,status,recommended:inputs[0]?.value||'',selected:inputs[1]?.value||''};});}
+function submitForm(formType,prefix){
+  const btn=document.getElementById('submit-'+prefix);
+  btn.disabled=true;btn.textContent='Generating PDF…';
+  const gv=id=>(document.getElementById(id)||{}).value||'';
+  const FORM_LABELS2={vehicle_removal:'Vehicle Removal E&O Acknowledgment',auto_cov:'Auto Coverage Recommendation',home_cov:'Homeowners Coverage Recommendation',trucking_cov:'Trucking Coverage Recommendation',contractor_cov:'Contractor Coverage Recommendation'};
+  try{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({unit:'pt',format:'letter'});
+    const W=doc.internal.pageSize.getWidth();
+    const navy=[26,74,74];
+    const gold=[200,146,42];
+    const muted=[107,101,96];
+    const date=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+    let y=50;
+    function chk(){if(y>700){doc.addPage();y=50;}}
+    function hdr(){
+      // Gold top bar
+      doc.setFillColor(...gold);doc.rect(40,36,W-80,4,'F');
+      // Logo on right
+      try{doc.addImage('/logo.jpg','JPEG',W-130,44,80,55);}catch(e){}
+      // Agency name
+      doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(...navy);
+      doc.text('Columbia Basin Insurance',40,68);
+      doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...muted);
+      doc.text('Quincy Alliance Insurance LLC DBA Columbia Basin Insurance',40,82);
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...gold);
+      doc.text('Auto  •  Home  •  Commercial  •  Farms',40,94);
+      // Form title
+      doc.setFillColor(...navy);doc.rect(40,104,W-80,22,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(255,255,255);
+      doc.text(FORM_LABELS2[formType]||formType,46,119);
+      doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...muted);
+      doc.text('Date: '+date+'   |   Agent: '+(gv('global-agent-name')||''),40,138);
+      doc.setDrawColor(220,220,214);doc.line(40,144,W-40,144);
+      y=158;
+    }
+    function secTitle(t){
+      chk();
+      doc.setFillColor(240,246,240);doc.rect(40,y,W-80,18,'F');
+      doc.setDrawColor(...gold);doc.rect(40,y,3,18,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...navy);
+      doc.text(t.toUpperCase(),50,y+12);y+=24;
+    }
+    function row(label,val){
+      chk();
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...muted);
+      doc.text(label,46,y+10);
+      doc.setFont('helvetica','normal');doc.setTextColor(26,26,26);
+      doc.text(val||'—',220,y+10);
+      y+=18;
+    }
+    function twoRow(pairs){
+      const half=Math.ceil(pairs.length/2);
+      const left=pairs.slice(0,half);const right=pairs.slice(half);
+      const sy=y;
+      left.forEach(([l,v])=>{chk();doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...muted);doc.text(l,46,y+10);doc.setFont('helvetica','normal');doc.setTextColor(26,26,26);doc.text(v||'—',200,y+10);y+=18;});
+      const ly=y;y=sy;
+      right.forEach(([l,v])=>{chk();doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...muted);doc.text(l,310,y+10);doc.setFont('helvetica','normal');doc.setTextColor(26,26,26);doc.text(v||'—',460,y+10);y+=18;});
+      y=Math.max(ly,y)+4;
+    }
+    hdr();
+    if(formType==='vehicle_removal'){
+      secTitle('Policy Information / Información de Póliza');
+      twoRow([['Named insured',gv('veh-client')],['Policy #',gv('veh-policy')],['Carrier',gv('veh-carrier')],['Date of request',gv('veh-req-date')],['Effective date of removal',gv('veh-eff-date')]]);
+      secTitle('Vehicle Details / Detalles del Vehículo');
+      twoRow([['Year / Año',gv('veh-year')],['Make / Marca',gv('veh-make')],['Model / Modelo',gv('veh-model')],['VIN (last 4)',gv('veh-vin')]]);
+      secTitle('Reason for Removal / Motivo de Eliminación');
+      row('Other reason',gv('veh-reason-other'));
+      secTitle('Client Acknowledgments / Reconocimientos');
+      const acks=['I have requested the removal of the above vehicle from my policy.','Once removed, this vehicle will no longer have any insurance coverage.','If operated after removal, I am personally responsible for any damages.','My agent has explained the risks involved.','I was offered the opportunity to keep coverage but chose to remove it.'];
+      acks.forEach(a=>{chk();doc.setFillColor(255,255,255);doc.rect(46,y,8,8,'S');doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(26,26,26);doc.text(a,62,y+7,{maxWidth:W-100});y+=18;});
+    }else{
+      const clientField=prefix+'-client';
+      const policyField=prefix+'-policy';
+      const carrierField=prefix+'-carrier';
+      const effField=prefix+'-eff';
+      secTitle('Policy Information / Información de Póliza');
+      twoRow([['Named insured',gv(clientField)],['Policy #',gv(policyField)],['Carrier',gv(carrierField)],['Effective date',gv(effField)]]);
+      const gridMap={auto_cov:'auto-grid',home_cov:'home-grid',trucking_cov:'truck-grid',contractor_cov:'cont-grid'};
+      const covs=collectCoverages(gridMap[formType]);
+      // Coverage definitions in English and Spanish
+      const COV_DEFS={
+        'Bodily injury liability':'Pays for injuries you cause to others in an accident. / Paga por lesiones que cause a otros en un accidente.',
+        'Property damage liability':'Pays for damage you cause to others property. / Paga por daños que cause a la propiedad de otros.',
+        'UM/UIM bodily injury':'Covers your injuries if hit by an uninsured or underinsured driver. / Cubre sus lesiones si es golpeado por un conductor sin seguro o con seguro insuficiente.',
+        'Un/Underinsured motorist – bodily injury':'Covers your injuries if hit by an uninsured or underinsured driver. / Cubre sus lesiones si es golpeado por un conductor sin seguro o con seguro insuficiente.',
+        'Un/Underinsured motorist – property damage':'Covers your vehicle damage if hit by an uninsured driver. / Cubre daños a su vehículo si es golpeado por un conductor sin seguro.',
+        'UM/UIM property damage':'Covers your vehicle damage if hit by an uninsured driver. / Cubre daños a su vehículo si es golpeado por un conductor sin seguro.',
+        'Personal injury protection':'Pays your medical bills and lost wages regardless of fault. / Paga sus facturas médicas y salarios perdidos sin importar la culpa.',
+        'Comprehensive':'Covers non-collision damage: theft, weather, fire, vandalism. / Cubre daños sin colisión: robo, clima, fuego, vandalismo.',
+        'Collision':'Covers your vehicle when you collide with another car or object. / Cubre su vehículo cuando choca con otro auto u objeto.',
+        'Medical payments':'Pays medical bills for you and passengers after an accident. / Paga facturas médicas para usted y pasajeros después de un accidente.',
+        'Rental reimbursement':'Pays for a rental car while your vehicle is being repaired. / Paga un auto de alquiler mientras su vehículo es reparado.',
+        'Roadside assistance':'Covers towing, flat tires, lockouts, and battery jumps. / Cubre remolque, llantas ponchadas, llaves olvidadas y arranque de batería.',
+        'Gap / loan-lease coverage':'Pays the difference between your cars value and loan balance if totaled. / Paga la diferencia entre el valor de su auto y el saldo del préstamo si es pérdida total.',
+        'Dwelling – Coverage A':'Covers the cost to rebuild your home if damaged or destroyed. / Cubre el costo de reconstruir su hogar si es dañado o destruido.',
+        'Other structures – Coverage B':'Covers detached structures like garages and fences. / Cubre estructuras separadas como garajes y cercas.',
+        'Personal property – Coverage C':'Covers your belongings inside the home if stolen or damaged. / Cubre sus pertenencias dentro del hogar si son robadas o dañadas.',
+        'Loss of use – Coverage D':'Pays living expenses if you must leave your home due to a covered loss. / Paga gastos de vida si debe abandonar su hogar por una pérdida cubierta.',
+        'Personal liability – Coverage E':'Protects you if someone is injured on your property or you cause damage. / Lo protege si alguien se lesiona en su propiedad o usted causa daños.',
+        'Medical payments – Coverage F':'Pays medical bills for guests injured on your property. / Paga facturas médicas para invitados lesionados en su propiedad.',
+        'Flood insurance':'Covers flood damage not included in standard home policies. / Cubre daños por inundación no incluidos en pólizas estándar de hogar.',
+        'Earthquake endorsement':'Covers damage caused by earthquakes. / Cubre daños causados por terremotos.',
+        'Scheduled personal property':'Covers high-value items like jewelry or art with specific limits. / Cubre artículos de alto valor como joyas o arte con límites específicos.',
+        'Umbrella / excess liability':'Provides extra liability coverage above your other policy limits. / Proporciona cobertura de responsabilidad adicional sobre sus otros límites.',
+        'Auto liability':'Covers injuries and property damage you cause while driving. / Cubre lesiones y daños a la propiedad que cause al conducir.',
+        'General liability':'Covers third-party bodily injury and property damage claims. / Cubre reclamaciones de lesiones corporales y daños a la propiedad de terceros.',
+        'Physical damage':'Covers damage to your owned vehicles. / Cubre daños a sus vehículos propios.',
+        'Motor truck cargo':'Covers freight you are hauling if it is lost or damaged. / Cubre la carga que transporta si se pierde o daña.',
+        'Trailer interchange':'Covers non-owned trailers while in your possession. / Cubre remolques no propios mientras están en su posesión.',
+        'Bobtail / non-trucking liability':'Covers your truck when used for non-business purposes. / Cubre su camión cuando se usa para fines no comerciales.',
+        'Occupational accident':'Covers drivers for work-related injuries similar to workers comp. / Cubre a conductores por lesiones laborales similar a compensación laboral.',
+        'Workers compensation':'Required coverage for employee work-related injuries and illnesses. / Cobertura requerida para lesiones y enfermedades laborales de empleados.',
+        'Non-owned trailer':'Covers trailers you use but do not own. / Cubre remolques que usa pero no posee.',
+        'General liability (CGL)':'Covers claims of bodily injury and property damage from operations. / Cubre reclamaciones de lesiones y daños a la propiedad por operaciones.',
+        'Products and completed operations':'Covers claims arising from your completed work or products. / Cubre reclamaciones derivadas de su trabajo completado o productos.',
+        'Commercial auto':'Covers vehicles used for business purposes. / Cubre vehículos utilizados para fines comerciales.',
+        'Builders risk':'Covers buildings under construction against damage or loss. / Cubre edificios en construcción contra daños o pérdidas.',
+        'Tools and equipment':'Covers your tools and equipment if stolen or damaged. / Cubre sus herramientas y equipo si son robados o dañados.',
+        'Professional liability':'Covers claims of errors or negligence in your professional services. / Cubre reclamaciones de errores o negligencia en sus servicios profesionales.',
+        'Pollution liability':'Covers costs from pollution or contamination you cause. / Cubre costos por contaminación que cause.',
+        'Surety / contractor bond':'Guarantees you will complete a job per contract terms. / Garantiza que completará un trabajo según los términos del contrato.',
+      };
+      function getCovDef(name){
+        const n=(name||'').toLowerCase();
+        for(const key of Object.keys(COV_DEFS)){
+          if(n.includes(key.toLowerCase().split(' ')[0]) && n.includes(key.toLowerCase().split(' ').pop())){
+            return COV_DEFS[key];
+          }
+        }
+        for(const key of Object.keys(COV_DEFS)){
+          if(n.includes(key.toLowerCase().split(' ')[0])){
+            return COV_DEFS[key];
+          }
+        }
+        return '';
+      }
+      if(covs.length){
+        secTitle('Coverage Selections / Selecciones de Cobertura');
+        // Column layout: cov+def | status | rec | selected
+        // Status gets its own full column with no overlap
+        const colCov=44,colStatus=252,colRec=338,colSel=462;
+        const wCov=202,wStatus=80,wRec=118,wSel=W-50-colSel;
+        // Header
+        doc.setFillColor(...navy);doc.rect(40,y,W-80,16,'F');
+        doc.setFillColor(...gold);doc.rect(40,y,3,16,'F');
+        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(255,255,255);
+        doc.text('Coverage / Cobertura',colCov+4,y+10);
+        doc.text('Status / Estado',colStatus,y+10);
+        doc.text('Recommended / Recomendado',colRec,y+10);
+        doc.text('Client Selected / Seleccionado',colSel,y+10);
+        y+=18;
+        covs.forEach((cov,i)=>{
+          const def=getCovDef(cov.name);
+          doc.setFontSize(7);
+          const nameLines=doc.splitTextToSize((cov.name||'—'),wCov);
+          const defLines=def?doc.splitTextToSize(def,wCov):[];
+          const statusLines=doc.splitTextToSize(cov.status==='offered'?'Offered /\nOfrecido':cov.status==='declined'?'Declined /\nRechazado':'—',wStatus);
+          const recLines=doc.splitTextToSize(cov.recommended||'—',wRec);
+          const selLines=doc.splitTextToSize(cov.selected||'—',wSel);
+          const covTotalLines=nameLines.length+(defLines.length>0?defLines.length+0.3:0);
+          const maxLines=Math.max(covTotalLines,statusLines.length,recLines.length,selLines.length);
+          const rowH=Math.max(20,Math.ceil(maxLines)*9+8);
+          chk();
+          doc.setFillColor(i%2===0?255:248,i%2===0?255:250,i%2===0?255:248);
+          doc.rect(40,y,W-80,rowH,'F');
+          // Vertical dividers
+          doc.setDrawColor(220,220,214);
+          doc.line(colStatus-4,y,colStatus-4,y+rowH);
+          doc.line(colRec-4,y,colRec-4,y+rowH);
+          doc.line(colSel-4,y,colSel-4,y+rowH);
+          const sc=cov.status==='offered'?[22,163,74]:cov.status==='declined'?[220,38,38]:muted;
+          const textY=y+8;
+          // Coverage name bold
+          doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(26,26,26);
+          doc.text(nameLines,colCov+4,textY);
+          // Definition italic gray below name
+          if(def){
+            const defY=textY+nameLines.length*8;
+            doc.setFont('helvetica','italic');doc.setFontSize(6);doc.setTextColor(...muted);
+            doc.text(defLines,colCov+4,defY);
+          }
+          // Status - bold colored, stacked EN/ES
+          doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...sc);
+          const statusEN=cov.status==='offered'?'Offered':cov.status==='declined'?'Declined':'—';
+          const statusES=cov.status==='offered'?'Ofrecido':cov.status==='declined'?'Rechazado':'';
+          doc.text(statusEN,colStatus,textY);
+          if(statusES){doc.setFont('helvetica','italic');doc.setFontSize(6.5);doc.text(statusES,colStatus,textY+8);}
+          // Recommended
+          doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(26,26,26);
+          doc.text(recLines,colRec,textY);
+          // Client selected
+          doc.text(selLines,colSel,textY);
+          doc.setDrawColor(220,220,214);doc.line(40,y+rowH,W-40,y+rowH);
+          y+=rowH;
+        });
+        y+=8;
+      }
+      const notes=gv(prefix+'-notes');
+      if(notes){secTitle('Notes / Notas');chk();doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(26,26,26);doc.text(notes,46,y+10,{maxWidth:W-90});y=doc.getTextDimensions(notes,{maxWidth:W-90}).h+y+20;}
+      const otherProductsContainer=document.getElementById(prefix+'-other-products');
+      const otherProducts=otherProductsContainer?Array.from(otherProductsContainer.children).map(row=>{
+        const sels=row.querySelectorAll('select');const input=row.querySelector('input[type="text"]');
+        return {product:sels[0]?sels[0].value:'',status:sels[1]?sels[1].value:'',notes:input?input.value:''};
+      }).filter(p=>p.product):[];
+      if(otherProducts.length){
+        secTitle('Other Products Offered / Otros Productos Ofrecidos');
+        const statusLabel={quoted:'Quote provided',accepted:'Accepted',declined:'Declined'};
+        otherProducts.forEach(p=>{
+          chk();
+          doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(26,26,26);
+          doc.text(p.product,46,y+10);
+          doc.setFont('helvetica','normal');doc.setTextColor(...muted);
+          doc.text(statusLabel[p.status]||p.status,220,y+10);
+          if(p.notes)doc.text(p.notes,320,y+10,{maxWidth:W-360});
+          y+=18;
+        });
+        y+=4;
+      }
+    }
+    chk();y+=10;
+    secTitle('Acknowledgment & Signature / Reconocimiento y Firma');
+    const ackText=[
+      'I acknowledge that the insurance coverages, limits, and options available to me have been explained, including recommended limits and optional coverages that may better protect my assets and exposures. I understand that choosing lower limits or declining certain coverages may result in insufficient protection in the event of a loss.',
+      'Reconozco que las coberturas de seguro, límites y opciones disponibles me han sido explicadas, incluyendo los límites recomendados y coberturas opcionales que pueden proteger mejor mis bienes. Entiendo que elegir límites más bajos o rechazar ciertas coberturas puede resultar en protección insuficiente en caso de una pérdida.',
+      'I have had the opportunity to ask questions and request additional information regarding my insurance program. I understand that my agent/broker does not guarantee coverage for all potential losses and that it is my responsibility to select appropriate limits and coverages based on my individual needs.',
+      'He tenido la oportunidad de hacer preguntas y solicitar información adicional sobre mi programa de seguro. Entiendo que mi agente/corredor no garantiza cobertura para todas las pérdidas posibles y que es mi responsabilidad seleccionar los límites y coberturas apropiados según mis necesidades individuales.',
+      'I further understand that failure to carry adequate liability limits, uninsured/underinsured motorist coverage, or physical damage coverage may expose me to significant financial risk, including out-of-pocket expenses, legal liability, and loss of personal or business assets.',
+      'Además entiendo que no tener límites de responsabilidad adecuados, cobertura de motorista no asegurado/insuficiente, o cobertura de daño físico puede exponerme a un riesgo financiero significativo, incluyendo gastos de bolsillo, responsabilidad legal y pérdida de bienes personales o comerciales.',
+      'By signing below, I confirm that I have reviewed the coverage options presented and have made my selections knowingly, including any coverages I have declined or limits I have chosen that are lower than those recommended.',
+      'Al firmar a continuación, confirmo que he revisado las opciones de cobertura presentadas y he hecho mis selecciones conscientemente, incluyendo cualquier cobertura que haya rechazado o límites que haya elegido que sean menores a los recomendados.',
+    ];
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(26,26,26);
+    ackText.forEach((para,idx)=>{
+      chk();
+      // Spanish paragraphs in slightly smaller italic
+      const isSpanish=idx%2===1;
+      if(isSpanish){doc.setFont('helvetica','italic');doc.setFontSize(7.5);doc.setTextColor(...muted);}
+      else{doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(26,26,26);}
+      const lines=doc.splitTextToSize(para,W-92);
+      doc.text(lines,46,y);
+      y+=lines.length*(isSpanish?9:10)+(isSpanish?3:8);
+    });
+    y+=10;
+    if(y>630){doc.addPage();y=50;}
+    const sigC=document.getElementById('s-'+prefix+'-c');
+    const sigA=document.getElementById('s-'+prefix+'-a');
+    const leftX=46;const rightX=316;const sigW=210;const sigH=48;
+    if(sigC&&sigC.width>0){try{doc.addImage(sigC.toDataURL('image/png'),'PNG',leftX,y,sigW,sigH);}catch(e){}}
+    if(sigA&&sigA.width>0){try{doc.addImage(sigA.toDataURL('image/png'),'PNG',rightX,y,sigW,sigH);}catch(e){}}
+    y+=sigH+8;
+    doc.setDrawColor(...navy);
+    doc.line(leftX,y,leftX+sigW,y);doc.line(rightX,y,rightX+sigW,y);
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...navy);
+    doc.text('CLIENT SIGNATURE / FIRMA DEL CLIENTE',leftX,y+10);
+    doc.text('AGENT SIGNATURE / FIRMA DEL AGENTE',rightX,y+10);
+    y+=32;
+    doc.setDrawColor(...navy);
+    doc.line(leftX,y,leftX+sigW,y);doc.line(rightX,y,rightX+sigW,y);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(...muted);
+    doc.text('Date / Fecha',leftX,y+10);doc.text('Date / Fecha',rightX,y+10);
+    y+=32;
+    doc.setDrawColor(...navy);
+    doc.line(leftX,y,leftX+sigW,y);doc.line(rightX,y,rightX+sigW,y);
+    doc.text('Print Name / Nombre en Letra de Molde',leftX,y+10);
+    doc.text('Print Name / Nombre en Letra de Molde',rightX,y+10);
+    y+=20;
+    const pages=doc.internal.getNumberOfPages();
+    for(let i=1;i<=pages;i++){
+      doc.setPage(i);
+      // Footer gold bar
+      doc.setFillColor(...gold);doc.rect(40,756,W-80,1,'F');
+      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...muted);
+      doc.text('Columbia Basin Insurance  |  Auto • Home • Commercial • Farms  |  '+date+'  |  Page '+i+' of '+pages,W/2,768,{align:'center'});
+    }
+    const clientName=gv(prefix+'-client')||gv('veh-client')||'form';
+    doc.save('EO-'+formType+'-'+clientName.replace(/\s+/g,'-')+'-'+date.replace(/,?\s+/g,'-')+'.pdf');
+    showT('PDF downloaded!','success');
+  }catch(e){showT('PDF error: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='Save & Download PDF';}
+}
+async function loadHistory(){
+  try{
+    const search=document.getElementById('hist-search').value;
+    const r=await fetch('/api/forms/history?limit=20&search='+encodeURIComponent(search));
+    if(!r.ok)return;
+    const rows=await r.json();
+    const tbody=document.getElementById('hist-body');
+    const FL={vehicle_removal:'Vehicle Removal E&O',auto_cov:'Auto Coverage',home_cov:'Home Coverage',trucking_cov:'Trucking Coverage',contractor_cov:'Contractor Coverage'};
+    if(!rows.length){tbody.innerHTML='<tr><td colspan="7" style="color:var(--hint);padding:14px 10px">No submissions yet</td></tr>';return;}
+    tbody.innerHTML=rows.map(s=>'<tr><td style="color:var(--muted)">#'+s.id+'</td><td>'+(FL[s.form_type]||s.form_type)+'</td><td style="font-weight:500">'+(s.client_name||'--')+'</td><td>'+(s.policy_number||'--')+'</td><td>'+(s.agent_name||'--')+'</td><td>'+new Date(s.submitted_at).toLocaleDateString()+'</td><td><a class="dl-link" href="/api/forms/'+s.id+'/pdf">Download PDF</a></td></tr>').join('');
+  }catch(e){}
+}
+fetch('/api/me').then(r=>r.json()).then(d=>{
+  document.getElementById('nav-agent').textContent=d.agentName||'';
+  if(d.role==='admin'){const al=document.getElementById('admin-link');if(al)al.style.display='';}
+  const aa=document.getElementById('global-agent-name');if(aa&&!aa.value)aa.value=d.agentName||'';
+}).catch(()=>{});
+loadHistory();
+
+async function handleUpload(input){const file=input.files[0];if(!file)return;const btn=document.getElementById('upload-btn');const bar=document.getElementById('upload-bar');const prog=document.getElementById('upload-progress');const result=document.getElementById('upload-result');btn.disabled=true;btn.textContent='Reading...';prog.style.display='block';bar.style.width='20%';result.style.display='none';try{const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});bar.style.width='50%';const resp=await fetch('/api/autofill',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pdf:b64})});bar.style.width='80%';const data=await resp.json();if(!data.success)throw new Error(data.error||'Failed');const d=data.fields;bar.style.width='100%';const tabMap={vehicle_removal:'veh',auto_cov:'auto',home_cov:'home',trucking_cov:'truck',contractor_cov:'cont'};const ft=d.formType||'auto_cov';ST(tabMap[ft]||'auto');if(d.clientName){document.getElementById('global-client-name').value=d.clientName;syncClientName();}if(d.clientEmail)document.getElementById('global-client-email').value=d.clientEmail;const p=tabMap[ft]||'auto';const sf=(id,val)=>{if(val){const el=document.getElementById(id);if(el&&!el.readOnly)el.value=val;}};sf(p+'-client',d.clientName);sf(p+'-policy',d.policyNumber);sf(p+'-carrier',d.carrier);sf(p+'-eff',d.effectiveDate);if(ft==='home_cov')sf('home-addr',d.propertyAddress);if(ft==='trucking_cov'){sf('truck-dot',d.dotNumber);sf('truck-mc',d.mcNumber);sf('truck-radius',d.radius);sf('truck-commodity',d.commodity);}if(ft==='contractor_cov'){sf('cont-trade',d.trade);sf('cont-lic',d.licenseNumber);}const vp=(ft==='trucking_cov')?'truck':'auto';const vl=document.getElementById(vp+'-vehicles-list');if(vl&&d.vehicles&&d.vehicles.length){vl.innerHTML='';d.vehicles.forEach(function(v){addVehicle(vp,v);});}const dl=document.getElementById(vp+'-drivers-list');if(dl&&d.drivers&&d.drivers.length){dl.innerHTML='';d.drivers.forEach(function(dr){addDriver(vp,dr);});}const gridMap={auto_cov:'auto-grid',home_cov:'home-grid',trucking_cov:'truck-grid',contractor_cov:'cont-grid'};const grid=document.getElementById(gridMap[ft]);if(grid&&d.coverages&&d.coverages.length){grid.querySelectorAll('.cov-card').forEach(function(card){const name=(card.dataset.name||'').toLowerCase();const match=d.coverages.find(function(cv){return name.includes((cv.name||'').toLowerCase().split(' ')[0]);});if(match){const inputs=card.querySelectorAll('.combo-input');if(match.recommended&&inputs[0])inputs[0].value=match.recommended;if(match.selected&&inputs[1])inputs[1].value=match.selected;const tog=card.querySelector('.tog');if(tog&&match.status){tog.querySelectorAll('.tb').forEach(function(b){b.className='tb';});const target=tog.querySelector(match.status==='declined'?'.tb:last-child':'.tb:first-child');if(target)target.classList.add(match.status==='declined'?'declined':'offered');}}});}result.style.cssText='margin-top:10px;font-size:12px;padding:8px 12px;border-radius:8px;display:block;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0';result.textContent='Policy read! Fields filled.';showT('Policy autofilled!','success');}catch(err){result.style.cssText='margin-top:10px;font-size:12px;padding:8px 12px;border-radius:8px;display:block;background:#fef2f2;color:#dc2626;border:1px solid #fecaca';result.textContent='Error: '+err.message;showT('Upload failed: '+err.message,'error');}finally{btn.disabled=false;btn.textContent='Upload Policy PDF';bar.style.width='0%';setTimeout(function(){prog.style.display='none';},500);input.value='';}}
+function addVehicle(prefix,v){var cont=document.getElementById(prefix+'-vehicles-list');if(!cont)return;var row=document.createElement('div');row.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center';[{ph:'Year',val:(v&&v.year)||''},{ph:'Make',val:(v&&v.make)||''},{ph:'Model',val:(v&&v.model)||''},{ph:'VIN (last 4)',val:(v&&v.vin)||''},{ph:'Use',val:(v&&v.use)||''}].forEach(function(f){var inp=document.createElement('input');inp.type='text';inp.placeholder=f.ph;inp.value=f.val;inp.style.cssText='padding:6px 8px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;width:100%';row.appendChild(inp);});var rm=document.createElement('button');rm.textContent='x';rm.style.cssText='padding:4px 8px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit';rm.onclick=function(){cont.removeChild(row);};row.appendChild(rm);cont.appendChild(row);}
+function addDriver(prefix,d){var cont=document.getElementById(prefix+'-drivers-list');if(!cont)return;var row=document.createElement('div');row.style.cssText='display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center';[{ph:'Full name / Nombre',val:(d&&d.name)||''},{ph:'Relationship / Relacion',val:(d&&d.relationship)||''}].forEach(function(f){var inp=document.createElement('input');inp.type='text';inp.placeholder=f.ph;inp.value=f.val;inp.style.cssText='padding:6px 8px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;width:100%';row.appendChild(inp);});var rm=document.createElement('button');rm.textContent='x';rm.style.cssText='padding:4px 8px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit';rm.onclick=function(){cont.removeChild(row);};row.appendChild(rm);cont.appendChild(row);}
+const OTHER_PRODUCTS=['Auto / Vehiculo','Home / Hogar','Life / Vida','Commercial Auto / Auto Comercial','Trucking / Camiones','General Liability / Responsabilidad General','Workers Comp / Compensacion Laboral','Umbrella / Paraguas','Flood / Inundacion','Earthquake / Terremoto','Bonds / Fianzas','Health / Salud','Other / Otro'];
+function addOtherProduct(prefix){const container=document.getElementById(prefix+'-other-products');if(!container)return;const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap';const sel=document.createElement('select');sel.style.cssText='padding:6px 9px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;flex:1;min-width:160px';sel.innerHTML='<option value="">Select product</option>'+OTHER_PRODUCTS.map(p=>'<option>'+p+'</option>').join('');const statusSel=document.createElement('select');statusSel.style.cssText='padding:6px 9px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;min-width:140px';statusSel.innerHTML='<option value="quoted">Quote provided</option><option value="accepted">Accepted</option><option value="declined">Declined</option>';const notes=document.createElement('input');notes.type='text';notes.placeholder='Notes (optional)';notes.style.cssText='padding:6px 9px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;flex:2;min-width:140px';const removeBtn=document.createElement('button');removeBtn.textContent='x';removeBtn.style.cssText='padding:4px 8px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit';removeBtn.onclick=()=>container.removeChild(row);row.appendChild(sel);row.appendChild(statusSel);row.appendChild(notes);row.appendChild(removeBtn);container.appendChild(row);}
+function showT(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),4000);}
+</script>
+</body>
+</html>
