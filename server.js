@@ -96,14 +96,31 @@ app.post('/api/generate-quote', async (req, res) => {
       });
     }
 
+    const jsonSchema = '{"clientName":"","businessAddress":"","businessType":"","quoteNumber":"","quoteDate":"","effectiveDate":"","expirationDate":"","validDays":45,"carrier":"","carrierRating":"","surplusLines":false,"agentName":"Columbia Basin Insurance","annualPremium":"","policyFee":"","totalPremium":"","minimumEarnedPremium":"","minimumEarnedPct":"","coverages":[{"name":"","limit":"","deductible":"","premium":""}],"businessClassifications":[{"code":"","description":"","exposure":"","rate":""}],"exclusions":[""],"additionalFeatures":[""],"conditions":[""],"auditInfo":"","disclaimer":""}';
     const prompt = isSpanish
-      ? `Eres un experto en seguros de Columbia Basin Insurance. Lee este texto extraído de una cotización de seguro y extrae TODA la información. Devuelve SOLO un objeto JSON (sin markdown) con esta estructura:
-{"clientName":"","businessAddress":"","businessType":"","quoteNumber":"","quoteDate":"","effectiveDate":"","expirationDate":"","validDays":45,"carrier":"","carrierRating":"","surplusLines":false,"agentName":"Columbia Basin Insurance","annualPremium":"","policyFee":"","totalPremium":"","minimumEarnedPremium":"","minimumEarnedPct":"","coverages":[{"name":"","limit":"","deductible":"","premium":""}],"businessClassifications":[{"code":"","description":"","exposure":"","rate":""}],"exclusions":["exclusión 1","exclusión 2"],"additionalFeatures":["característica 1"],"conditions":["requisito 1"],"auditInfo":"","disclaimer":""}
+      ? `Eres un experto en seguros de Columbia Basin Insurance. Lee este texto extraído de una cotización de seguro y extrae TODA la información disponible.
+
+INSTRUCCIONES IMPORTANTES:
+- Devuelve SOLO un objeto JSON válido (sin markdown, sin texto adicional).
+- Traduce AL ESPAÑOL todos los nombres de coberturas, exclusiones, características adicionales, condiciones, tipo de negocio, descripciones de clasificación y cualquier otro texto descriptivo. Los valores numéricos, fechas, montos y números de póliza déjalos como están.
+- Si un campo no está disponible en el documento, usa "" para texto o [] para listas.
+- Para "validDays" usa 45 si no se especifica.
+
+ESTRUCTURA JSON:
+${jsonSchema}
 
 TEXTO DE LA COTIZACIÓN:
 ${pdfText}`
-      : `You are an insurance expert at Columbia Basin Insurance. Read this extracted text from an insurance quote and extract ALL information. Return ONLY a JSON object (no markdown) with this structure:
-{"clientName":"","businessAddress":"","businessType":"","quoteNumber":"","quoteDate":"","effectiveDate":"","expirationDate":"","validDays":45,"carrier":"","carrierRating":"","surplusLines":false,"agentName":"Columbia Basin Insurance","annualPremium":"","policyFee":"","totalPremium":"","minimumEarnedPremium":"","minimumEarnedPct":"","coverages":[{"name":"","limit":"","deductible":"","premium":""}],"businessClassifications":[{"code":"","description":"","exposure":"","rate":""}],"exclusions":["exclusion 1","exclusion 2"],"additionalFeatures":["feature 1"],"conditions":["requirement 1"],"auditInfo":"","disclaimer":""}
+      : `You are an insurance expert at Columbia Basin Insurance. Read this extracted text from an insurance quote and extract ALL available information.
+
+IMPORTANT INSTRUCTIONS:
+- Return ONLY a valid JSON object (no markdown, no extra text).
+- Extract all coverage names, exclusions, features, conditions, and descriptions exactly as written in English.
+- If a field is not available in the document, use "" for text fields or [] for arrays.
+- For "validDays" use 45 if not specified.
+
+JSON STRUCTURE:
+${jsonSchema}
 
 QUOTE TEXT:
 ${pdfText}`;

@@ -71,18 +71,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
     <span class="nav-agent" id="nav-agent"></span>
     <a href="/admin/agents" class="nav-link" id="admin-link" style="display:none">Agents</a>
-    <form method="POST" action="/logout" style="margin:0"><button type="submit" class="nav-link">Sign out</button></form>
+    <form method="POST" action="/logout" style="margin:0"><button type="submit" class="nav-link" id="signout-btn">Sign out</button></form>
   </div>
 </nav>
 
 <div class="wrap">
   <div class="hero">
-    <div class="hero-title">Quote Proposal Generator</div>
-    <div class="hero-sub">Upload any quote or proposal PDF. Claude AI reads it and generates a professional branded Columbia Basin Insurance proposal.</div>
+    <div class="hero-title" id="hero-title">Quote Proposal Generator</div>
+    <div class="hero-sub" id="hero-sub">Upload any quote or proposal PDF. Claude AI reads it and generates a professional branded Columbia Basin Insurance proposal.</div>
   </div>
 
   <div class="card">
-    <div class="card-title">Step 1 — Language / Idioma</div>
+    <div class="card-title" id="step1-title">Step 1 — Language / Idioma</div>
     <div class="lang-sel">
       <button class="lang-btn active" id="lang-en" onclick="setLang('en')">🇺🇸 English</button>
       <button class="lang-btn" id="lang-es" onclick="setLang('es')">🇲🇽 Español</button>
@@ -90,28 +90,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 
   <div class="card">
-    <div class="card-title">Step 2 — Upload Quote PDF</div>
+    <div class="card-title" id="step2-title">Step 2 — Upload Quote PDF</div>
     <div class="upload-zone" id="upload-zone"
       onclick="document.getElementById('qfile').click()"
       ondragover="ev(event,true)" ondragleave="ev(event,false)" ondrop="drop(event)">
       <div class="upload-icon">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a4a4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
       </div>
-      <div class="upload-title">Drop your quote PDF here</div>
-      <div class="upload-sub">or <span>click to browse</span></div>
+      <div class="upload-title" id="upload-title">Drop your quote PDF here</div>
+      <div class="upload-sub" id="upload-sub">or <span id="upload-browse">click to browse</span></div>
       <div class="file-badge" id="fname" style="display:none"></div>
     </div>
     <input type="file" id="qfile" accept=".pdf" style="display:none" onchange="picked(this)">
   </div>
 
-  <button class="gen-btn" id="gbtn" onclick="go()" disabled>✦ Generate Proposal PDF</button>
+  <button class="gen-btn" id="gbtn" onclick="go()" disabled>✦ <span id="gbtn-text">Generate Proposal PDF</span></button>
 
   <div class="steps" id="steps" style="display:none">
-    <div class="step" id="s1"><div class="step-num">1</div>Reading PDF</div>
+    <div class="step" id="s1"><div class="step-num">1</div><span id="step-label-1">Reading PDF</span></div>
     <div class="step-arr">›</div>
-    <div class="step" id="s2"><div class="step-num">2</div>AI Processing</div>
+    <div class="step" id="s2"><div class="step-num">2</div><span id="step-label-2">AI Processing</span></div>
     <div class="step-arr">›</div>
-    <div class="step" id="s3"><div class="step-num">3</div>Building PDF</div>
+    <div class="step" id="s3"><div class="step-num">3</div><span id="step-label-3">Building PDF</span></div>
   </div>
   <div class="progress" id="prog"><div class="progress-bar" id="bar"></div></div>
   <div class="status" id="st"></div>
@@ -125,7 +125,56 @@ fetch('/api/me').then(r=>r.json()).then(d=>{
   if(d.role==='admin'){const a=document.getElementById('admin-link');if(a)a.style.display='';}
 }).catch(()=>{});
 
-function setLang(l){lang=l;['en','es'].forEach(x=>document.getElementById('lang-'+x).classList.toggle('active',x===l));}
+const T={
+  en:{
+    'hero-title':'Quote Proposal Generator',
+    'hero-sub':'Upload any quote or proposal PDF. Claude AI reads it and generates a professional branded Columbia Basin Insurance proposal.',
+    'step1-title':'Step 1 — Language / Idioma',
+    'step2-title':'Step 2 — Upload Quote PDF',
+    'upload-title':'Drop your quote PDF here',
+    'upload-sub-pre':'or ',
+    'upload-browse':'click to browse',
+    'gbtn-text':'Generate Proposal PDF',
+    'step-label-1':'Reading PDF',
+    'step-label-2':'AI Processing',
+    'step-label-3':'Building PDF',
+    'signout-btn':'Sign out',
+    'status-reading':'Reading your PDF...',
+    'status-processing':'Claude AI is processing the quote...',
+    'status-building':'Building the PDF...',
+    'status-done':'Proposal generated! Check your downloads.',
+  },
+  es:{
+    'hero-title':'Generador de Propuestas de Cotización',
+    'hero-sub':'Sube cualquier PDF de cotización o propuesta. La IA de Claude lo lee y genera una propuesta profesional de Columbia Basin Insurance.',
+    'step1-title':'Paso 1 — Idioma',
+    'step2-title':'Paso 2 — Subir PDF de Cotización',
+    'upload-title':'Suelta tu PDF de cotización aquí',
+    'upload-sub-pre':'o ',
+    'upload-browse':'haz clic para buscar',
+    'gbtn-text':'Generar Propuesta PDF',
+    'step-label-1':'Leyendo PDF',
+    'step-label-2':'Procesando con IA',
+    'step-label-3':'Construyendo PDF',
+    'signout-btn':'Cerrar sesión',
+    'status-reading':'Leyendo el PDF...',
+    'status-processing':'Claude IA está procesando la cotización...',
+    'status-building':'Construyendo el PDF...',
+    'status-done':'¡Propuesta generada! Revise sus descargas.',
+  }
+};
+function setLang(l){
+  lang=l;
+  ['en','es'].forEach(x=>document.getElementById('lang-'+x).classList.toggle('active',x===l));
+  const t=T[l];
+  ['hero-title','hero-sub','step1-title','step2-title','upload-title','gbtn-text',
+   'step-label-1','step-label-2','step-label-3','signout-btn'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.textContent=t[id];
+  });
+  const sub=document.getElementById('upload-sub');
+  if(sub){sub.childNodes[0].textContent=t['upload-sub-pre'];const br=document.getElementById('upload-browse');if(br)br.textContent=t['upload-browse'];}
+  document.documentElement.lang=l;
+}
 function ev(e,on){e.preventDefault();document.getElementById('upload-zone').classList.toggle('drag',on);}
 function drop(e){e.preventDefault();document.getElementById('upload-zone').classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&f.type==='application/pdf')setFile(f);}
 function picked(i){if(i.files[0])setFile(i.files[0]);}
@@ -142,21 +191,22 @@ async function go(){
   document.getElementById('steps').style.display='flex';
   document.getElementById('prog').style.display='block';
   try{
+    const t=T[lang];
     step(1);setBar(15);
-    status(lang==='es'?'Leyendo el PDF...':'Reading your PDF...','loading');
+    status(t['status-reading'],'loading');
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
     step(2);setBar(45);
-    status(lang==='es'?'Claude IA está procesando la cotización...':'Claude AI is processing the quote...','loading');
+    status(t['status-processing'],'loading');
     const resp=await fetch('/api/generate-quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pdf:b64,language:lang})});
     setBar(80);
     const data=await resp.json();
     if(!data.success)throw new Error(data.error||'Generation failed');
     step(3);setBar(92);
-    status(lang==='es'?'Construyendo el PDF...':'Building the PDF...','loading');
+    status(t['status-building'],'loading');
     await new Promise(r=>setTimeout(r,200));
     buildPDF(data.quote,lang);
     setBar(100);step(4);
-    status(lang==='es'?'¡Propuesta generada! Revise sus descargas.':'Proposal generated! Check your downloads.','success');
+    status(t['status-done'],'success');
   }catch(e){status('Error: '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent='✦ Generate Proposal PDF';setTimeout(()=>{document.getElementById('prog').style.display='none';setBar(0);},2000);}
 }
