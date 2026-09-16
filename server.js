@@ -153,8 +153,8 @@ app.post('/api/autofill', async (req, res) => {
         content: [
           { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf } },
           { type: 'text', text: `Read this insurance policy and return ONLY a JSON object (no markdown) with these fields:
-{"formType":"auto_cov|home_cov|trucking_cov|contractor_cov|vehicle_removal","clientName":"","clientEmail":"","policyNumber":"","carrier":"","effectiveDate":"YYYY-MM-DD","propertyAddress":"","year":"","make":"","model":"","vin":"last 4 only","dotNumber":"","mcNumber":"","radius":"","commodity":"","trade":"","licenseNumber":"","vehicles":[{"year":"","make":"","model":"","vin":"last 4","use":""}],"drivers":[{"name":"","dob":"MM/DD/YYYY","license":"","relationship":""}],"coverages":[{"name":"","status":"offered|declined","recommended":"","selected":""}]}
-Extract ALL vehicles and ALL drivers listed in the policy. Detect formType from content. Use null for unknown fields. Return only JSON.` }
+{"formType":"auto_cov|home_cov|trucking_cov|contractor_cov|vehicle_removal","clientName":"","clientEmail":"","policyNumber":"","carrier":"","effectiveDate":"YYYY-MM-DD","expirationDate":"YYYY-MM-DD","annualPremium":"","lineOfBusiness":"","propertyAddress":"","year":"","make":"","model":"","vin":"last 4 only","dotNumber":"","mcNumber":"","radius":"","commodity":"","trade":"","licenseNumber":"","vehicles":[{"year":"","make":"","model":"","vin":"last 4","use":""}],"drivers":[{"name":"","dob":"MM/DD/YYYY","license":"","relationship":""}],"coverages":[{"name":"","status":"offered|declined","recommended":"","selected":""}]}
+Extract ALL vehicles and ALL drivers listed in the policy. Detect formType from content. For "carrier" give the insurer's full legal name as printed. For "annualPremium" give the annual or full-term premium as a plain number with no currency symbol. For "lineOfBusiness" give a short description such as "Personal auto", "Homeowners" or "Commercial auto". Use null for unknown fields. Return only JSON.` }
         ]
       }]
     });

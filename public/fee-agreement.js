@@ -23,6 +23,22 @@ var navBtn = document.getElementById('nav-fee');
 var navEO  = document.getElementById('nav-eo');
 var AGENCY_OIC = '1329935';   // WA business entity license — fixed, not editable
 
+// Licensed producers. Selecting a name fills that producer's WAOIC number.
+var PRODUCERS = [
+  { name: 'ALFREDO AGUILAR-ROBLES', oic: '1102040' },
+  { name: 'ENRIQUE HERNANDEZ',      oic: '863041'  },
+  { name: 'JESUS ALBERTO QUINTERO', oic: '1214266' }
+];
+function producerByName(v){
+  v = (v || '').trim().toLowerCase();
+  if(!v) return null;
+  for(var i=0;i<PRODUCERS.length;i++){
+    var n = PRODUCERS[i].name.toLowerCase();
+    if(n === v || n.indexOf(v) === 0 || v.indexOf(n) === 0) return PRODUCERS[i];
+  }
+  return null;
+}
+
 var css = document.createElement('style');
 css.textContent = [
   '.fee-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}',
@@ -53,8 +69,8 @@ var html =
   '<div class="sec"><div class="sec-title">Agreement parties / Partes del acuerdo</div><div class="g2">' +
     fld('Agency / Agencia', '<div class="fee-fixed">Quincy Alliance Insurance LLC DBA Columbia Basin Insurance</div>') +
     fld('WA business entity license / Licencia de entidad', '<div class="fee-fixed">WAOIC #' + AGENCY_OIC + '</div>') +
-    fld('Producer name / Nombre del productor', txt('fee-producer','Producer full name')) +
-    fld('Producer WA license / Licencia WA del productor', txt('fee-producer-lic','WAOIC #')) +
+    fld('Producer name / Nombre del productor', '<select id="fee-producer"><option value="">Select producer</option>' + PRODUCERS.map(function(pr){ return '<option value="'+pr.name+'">'+pr.name+'</option>'; }).join('') + '</select>') +
+    fld('Producer WA license / Licencia WA del productor', '<input type="text" id="fee-producer-lic" readonly placeholder="Set by producer">') +
     fld('Client / Cliente', txt('fee-client','Client full legal name'), true) +
   '</div></div>' +
 
@@ -181,9 +197,23 @@ document.getElementById('fee-client').addEventListener('input', function(){
   var v=this.value; ['fee-tx-client','fee-client-print'].forEach(function(id){ document.getElementById(id).value=v; });
 });
 // producer name -> print name; global agent -> producer
-document.getElementById('fee-producer').addEventListener('input', function(){ document.getElementById('fee-producer-print').value=this.value; });
+document.getElementById('fee-producer').addEventListener('change', function(){
+  var pr = producerByName(this.value);
+  document.getElementById('fee-producer-print').value = this.value;
+  document.getElementById('fee-producer-lic').value = pr ? pr.oic : '';
+});
+function setProducer(name){
+  var pr = producerByName(name);
+  if(!pr) return false;
+  document.getElementById('fee-producer').value = pr.name;
+  document.getElementById('fee-producer-lic').value = pr.oic;
+  document.getElementById('fee-producer-print').value = pr.name;
+  return true;
+}
 var ga=document.getElementById('global-agent-name');
-if(ga){ ga.addEventListener('input', function(){ var p=document.getElementById('fee-producer'); if(p && !p.value){ p.value=ga.value; document.getElementById('fee-producer-print').value=ga.value; } }); }
+if(ga){ ga.addEventListener('input', function(){ var p=document.getElementById('fee-producer'); if(p && !p.value) setProducer(ga.value); }); }
+var navAgent=document.getElementById('nav-agent');
+if(navAgent && navAgent.textContent) setProducer(navAgent.textContent);
 // Transaction processing fee: $3.50 per $100 of premium, never below $3.50.
 var PROC_RATE = 0.035, PROC_MIN = 3.50;
 function premiumValue(){
@@ -208,6 +238,51 @@ function renderProcessingFee(){
 }
 document.getElementById('fee-premium').addEventListener('input', renderProcessingFee);
 renderProcessingFee();
+
+/* --------------------------------------------------------------------------
+   Policy upload autofill. index.html hands us the fields Claude extracted from
+   the uploaded PDF; we fill the agreement from them.
+   -------------------------------------------------------------------------- */
+var LOB_BY_FORM = {
+  auto_cov:       'Personal auto',
+  home_cov:       'Homeowners',
+  trucking_cov:   'Commercial auto',
+  contractor_cov: 'Commercial general liability'
+};
+function usDate(iso){
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((iso || '').trim());
+  return m ? m[2] + '/' + m[3] + '/' + m[1] : (iso || '').trim();
+}
+function setIfValue(id, val){
+  if(val === null || val === undefined) return;
+  val = String(val).trim();
+  if(!val || val === 'null') return;
+  var el = document.getElementById(id);
+  if(el) el.value = val;
+}
+window.feeAutofill = function(d){
+  if(!d) return;
+  setIfValue('fee-client', d.clientName);
+  setIfValue('fee-tx-client', d.clientName);
+  setIfValue('fee-client-print', d.clientName);
+  setIfValue('fee-insurer', d.carrier);
+  setIfValue('fee-policy', d.policyNumber);
+  setIfValue('fee-lob', d.lineOfBusiness || LOB_BY_FORM[d.formType]);
+  setIfValue('fee-premium', d.annualPremium);
+
+  var eff = usDate(d.effectiveDate), exp = usDate(d.expirationDate);
+  if(eff) setIfValue('fee-term', exp ? eff + ' \u2013 ' + exp : eff);
+
+  // A policy number on the document means this is an existing policy renewing.
+  var tx = document.querySelector('#f-fee input[name="fee-tx"][value="' +
+           (d.policyNumber ? 'Renewal' : 'New policy') + '"]');
+  if(tx && !document.querySelector('#f-fee input[name="fee-tx"]:checked')){
+    tx.checked = true;
+    tx.closest('.rp').classList.add('sel');
+  }
+
+  renderProcessingFee();
+};
 // radio pill highlighting
 document.querySelectorAll('#f-fee .rp input[type=radio]').forEach(function(r){ r.addEventListener('change', function(){
   document.querySelectorAll('#f-fee .rp input[name="'+r.name+'"]').forEach(function(o){ o.closest('.rp').classList.toggle('sel', o.checked); });
