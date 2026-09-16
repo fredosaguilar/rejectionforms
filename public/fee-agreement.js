@@ -17,12 +17,11 @@ var tabsEl = document.querySelector('.tabs');
 var lastForm = document.getElementById('f-auth') || document.querySelector('.fc:last-of-type');
 if(!tabsEl || !lastForm){ console.warn('fee-agreement.js: tabs/form container not found'); return; }
 
-var tabBtn = document.createElement('button');
-tabBtn.className = 'tab';
-tabBtn.id = 'tab-fee';
-tabBtn.textContent = 'Fee Agreement / Acuerdo de Tarifas';
-tabBtn.onclick = function(){ ST('fee'); };
-tabsEl.appendChild(tabBtn);
+/* The agreement is reached from the top navigation ('/fee-agreement'), not from
+   the form tab strip, so no tab button is added to .tabs. */
+var navBtn = document.getElementById('nav-fee');
+var navEO  = document.getElementById('nav-eo');
+var AGENCY_OIC = '1329935';   // WA business entity license — fixed, not editable
 
 var css = document.createElement('style');
 css.textContent = [
@@ -53,7 +52,7 @@ var html =
   // Parties
   '<div class="sec"><div class="sec-title">Agreement parties / Partes del acuerdo</div><div class="g2">' +
     fld('Agency / Agencia', '<div class="fee-fixed">Quincy Alliance Insurance LLC DBA Columbia Basin Insurance</div>') +
-    fld('WA business entity license / Licencia de entidad', txt('fee-agency-lic','WAOIC #')) +
+    fld('WA business entity license / Licencia de entidad', '<div class="fee-fixed">WAOIC #' + AGENCY_OIC + '</div>') +
     fld('Producer name / Nombre del productor', txt('fee-producer','Producer full name')) +
     fld('Producer WA license / Licencia WA del productor', txt('fee-producer-lic','WAOIC #')) +
     fld('Client / Cliente', txt('fee-client','Client full legal name'), true) +
@@ -72,9 +71,9 @@ var html =
       '<tr><td>Personal umbrella</td><td>$20</td><td>$20</td></tr>' +
     '</tbody></table>' +
     '<table class="fee-table"><thead><tr><th>Commercial policy or service</th><th>Agency fee</th><th>When charged</th></tr></thead><tbody>' +
-      '<tr><td>Commercial auto – standard or admitted</td><td>$10 per month</td><td>While policy is active</td></tr>' +
-      '<tr><td>Commercial auto – surplus lines or nonstandard</td><td>$150 initial + $10 per month</td><td>At placement and while active</td></tr>' +
-      '<tr><td>Businessowners policy or commercial general liability</td><td>$10 per month</td><td>While policy is active</td></tr>' +
+      '<tr><td>Commercial auto – standard or admitted</td><td>$100 per year</td><td>At placement and each annual renewal</td></tr>' +
+      '<tr><td>Commercial auto – surplus lines or nonstandard</td><td>$150 per year</td><td>At placement and each annual renewal</td></tr>' +
+      '<tr><td>Businessowners policy or commercial general liability</td><td>$50 per year</td><td>At placement and each annual renewal</td></tr>' +
       '<tr><td>Workers\' compensation</td><td>$100 per initiation</td><td>At initial placement</td></tr>' +
       '<tr><td>Surety bond</td><td>$50 per year</td><td>At issuance and each annual renewal</td></tr>' +
       '<tr><td>Add seasonal vehicle(s) or unit(s)</td><td>$150 per request</td><td>Before requested change</td></tr>' +
@@ -95,13 +94,12 @@ var html =
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
       '<div class="fld"><div class="lbl">Transaction / Transacción</div><div class="rr">' + radio('fee-tx','New policy','New policy') + radio('fee-tx','Renewal','Renewal') + radio('fee-tx','Other','Other') + '</div>' + txt('fee-tx-other','If other, describe',' style="margin-top:6px"') + '</div>' +
-      '<div class="fld"><div class="lbl">Payment basis / Base de pago</div><div class="rr">' + radio('fee-basis','One-time fee','One-time fee') + radio('fee-basis','$10 monthly','$10 monthly') + radio('fee-basis','$50 yearly','$50 yearly') + radio('fee-basis','Other','Other') + '</div>' + txt('fee-basis-other','If other, amount $',' style="margin-top:6px"') + '</div>' +
+      '<div class="fld"><div class="lbl">Payment basis / Base de pago</div><div class="rr">' + radio('fee-basis','One-time fee','One-time fee') + radio('fee-basis','Annual fee','Annual fee') + radio('fee-basis','Other','Other') + '</div>' + txt('fee-basis-other','If other, amount $',' style="margin-top:6px"') + '</div>' +
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
     fld('Full agency fee for this policy transaction / Tarifa total', txt('fee-total','$')) +
-    fld('Agency processing fee (if any) and purpose / Cargo de procesamiento', txt('fee-processing','Amount and purpose, or None')) +
+    fld('Transaction processing fee / Cargo de procesamiento', '<div class="fee-fixed" id="fee-processing-box">Enter the premium above to calculate</div><div class="fee-note" style="margin:6px 0 0">$3.50 per $100 of premium, $3.50 minimum. Calculated automatically. / $3.50 por cada $100 de prima, mínimo $3.50.</div>') +
     '</div>' +
-    '<div class="fld" style="margin-top:10px"><div class="lbl">If monthly / Si es mensual</div><div class="fee-inline">$' + txt('fee-m-amt','10') + ' per month &times; ' + txt('fee-m-months','12') + ' scheduled months = $' + txt('fee-m-max','120') + ' maximum for the full policy term</div></div>' +
     '<div class="g2" style="margin-top:10px">' +
     fld('Full commission paid by insurer / Comisión de la aseguradora', txt('fee-commission','e.g. 10% of premium / $')) +
     '<div class="fld"><div class="lbl">Fee and commission relationship / Relación</div><div class="rr">' + radio('fee-offset','No offset or reimbursement','No offset or reimbursement', true) + radio('fee-offset','Offset','Offset or reimbursement') + '</div>' + txt('fee-offset-desc','Describe offset or reimbursement',' style="margin-top:6px"') + '</div>' +
@@ -147,11 +145,29 @@ window.ST = function(id){
     document.querySelectorAll('.fc').forEach(function(f){ f.classList.remove('vis'); });
     document.getElementById('f-fee').classList.add('vis');
     document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
-    tabBtn.classList.add('active');
+    setNav(true);
   } else {
-    tabBtn.classList.remove('active');
+    setNav(false);
   }
 };
+
+// The top nav links are styled inline, so swap the two that can be current.
+function setNav(feeActive){
+  if(navBtn){ navBtn.style.background = feeActive ? 'rgba(255,255,255,.15)' : 'none';
+              navBtn.style.color      = feeActive ? '#fff' : 'rgba(255,255,255,.7)'; }
+  if(navEO){  navEO.style.background  = feeActive ? 'none' : 'rgba(255,255,255,.15)';
+              navEO.style.color       = feeActive ? 'rgba(255,255,255,.7)' : '#fff'; }
+}
+
+// '/fee-agreement' serves the same page; open the agreement instead of the forms.
+if(navBtn){
+  navBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    history.pushState({}, '', '/fee-agreement');
+    ST('fee');
+  });
+}
+if(location.pathname === '/fee-agreement'){ ST('fee'); }
 
 var _sync = window.syncClientName;
 window.syncClientName = function(){
@@ -168,16 +184,30 @@ document.getElementById('fee-client').addEventListener('input', function(){
 document.getElementById('fee-producer').addEventListener('input', function(){ document.getElementById('fee-producer-print').value=this.value; });
 var ga=document.getElementById('global-agent-name');
 if(ga){ ga.addEventListener('input', function(){ var p=document.getElementById('fee-producer'); if(p && !p.value){ p.value=ga.value; document.getElementById('fee-producer-print').value=ga.value; } }); }
-// $10 monthly preset -> 10 x 12 = 120 (only fills empty boxes)
-document.querySelectorAll('#f-fee input[name="fee-basis"]').forEach(function(r){ r.addEventListener('change', function(){
-  if(r.value==='$10 monthly' && r.checked){ var a=document.getElementById('fee-m-amt'), m=document.getElementById('fee-m-months'), x=document.getElementById('fee-m-max'), t=document.getElementById('fee-total');
-    if(!a.value) a.value='10'; if(!m.value) m.value='12'; if(!x.value) x.value=String((parseFloat(a.value)||0)*(parseFloat(m.value)||0)); if(!t.value) t.value='$'+a.value+' per month ($'+x.value+' max per term)'; }
-});});
-// auto-compute monthly max
-['fee-m-amt','fee-m-months'].forEach(function(id){ document.getElementById(id).addEventListener('input', function(){
-  var a=parseFloat(document.getElementById('fee-m-amt').value)||0, m=parseFloat(document.getElementById('fee-m-months').value)||0;
-  if(a&&m) document.getElementById('fee-m-max').value=(a*m).toFixed(0);
-});});
+// Transaction processing fee: $3.50 per $100 of premium, never below $3.50.
+var PROC_RATE = 0.035, PROC_MIN = 3.50;
+function premiumValue(){
+  var raw = (document.getElementById('fee-premium').value || '').replace(/[^0-9.]/g, '');
+  var n = parseFloat(raw);
+  return isFinite(n) && n > 0 ? n : 0;
+}
+function processingFee(){
+  var p = premiumValue();
+  return p ? Math.max(PROC_MIN, p * PROC_RATE) : 0;
+}
+function processingFeeText(){
+  var f = processingFee();
+  return f ? '$' + f.toFixed(2) : '';
+}
+function renderProcessingFee(){
+  var box = document.getElementById('fee-processing-box'), p = premiumValue();
+  if(!box) return;
+  box.textContent = p
+    ? processingFeeText() + '  (on $' + p.toFixed(2) + ' premium)'
+    : 'Enter the premium above to calculate';
+}
+document.getElementById('fee-premium').addEventListener('input', renderProcessingFee);
+renderProcessingFee();
 // radio pill highlighting
 document.querySelectorAll('#f-fee .rp input[type=radio]').forEach(function(r){ r.addEventListener('change', function(){
   document.querySelectorAll('#f-fee .rp input[name="'+r.name+'"]').forEach(function(o){ o.closest('.rp').classList.toggle('sel', o.checked); });
@@ -283,12 +313,12 @@ window.buildFeeAgreementPDF = function(){
   para('This agreement explains the fees you may pay to Columbia Basin Insurance. Insurance premiums, taxes, insurer charges, premium-finance charges, and other third-party charges are separate. Complete and sign the transaction disclosure before each policy is purchased or renewed and before any separately charged service is performed.');
   y+=4;
   field('Agency', 'Quincy Alliance Insurance LLC DBA Columbia Basin Insurance');
-  field('WA business entity license', gv('fee-agency-lic'));
+  field('WA business entity license', 'WAOIC #' + AGENCY_OIC);
   field('Producer and WA license', [gv('fee-producer'), gv('fee-producer-lic')].filter(Boolean).join('  ·  '));
   field('Client', gv('fee-client'));
 
   heading('1','How fees work');
-  para('Quoting is free. A policy fee applies only if you choose to purchase or renew coverage through us. A monthly fee is charged only while the policy remains active with us. A separately listed service fee applies only when you request that service and approve the charge in advance.');
+  para('Quoting is free. A policy fee applies only if you choose to purchase or renew coverage through us. Agency fees are charged at placement and at each renewal; no agency fee is billed monthly. A separately listed service fee applies only when you request that service and approve the charge in advance.');
   para('We may receive both a fee from you and commission from an insurer. Before each policy is sold, we will disclose the exact fee, the full insurer commission, any offset or reimbursement, the insurer\'s full name, and possible incentive compensation. The completed transaction disclosure controls if it differs from this schedule.');
 
   heading('2','Personal policy fees');
@@ -315,23 +345,23 @@ window.buildFeeAgreementPDF = function(){
 
   heading('4','Commercial policy fees');
   table(['Policy or service','Agency fee','When charged'],[
-    ['Commercial auto - standard or admitted','$10 per month','While policy is active'],
-    ['Commercial auto - surplus lines or nonstandard','$150 initial fee plus $10 per month','At initial placement and while policy is active'],
-    ['Businessowners policy or commercial general liability','$10 per month','While policy is active'],
+    ['Commercial auto - standard or admitted','$100 per year','At placement and each annual renewal'],
+    ['Commercial auto - surplus lines or nonstandard','$150 per year','At placement and each annual renewal'],
+    ['Businessowners policy or commercial general liability','$50 per year','At placement and each annual renewal'],
     ['Workers\' compensation','$100 per initiation','At initial policy placement'],
     ['Surety bond','$50 per year','At issuance and each annual renewal'],
     ['Add seasonal vehicle(s) or unit(s)','$150 per request','Before requested change'],
     ['Remove or suspend seasonal vehicle(s) or unit(s)','$100 per request','Before requested change']
   ],[CW-320,150,170]);
-  paraB('Monthly-fee disclosure:', '$10 per month equals $120 for a full 12-month policy term or $60 for a full six-month term. The client owes only installments that become due while the applicable policy or service remains active, subject to the written cancellation terms below. The surety bond fee is $50 at issuance and $50 at each annual renewal.');
+  paraB('Annual-fee disclosure:', 'Commercial agency fees are annual and are charged in full at placement and again at each annual renewal. No agency fee is billed monthly and no installment balance accrues. The surety bond fee is $50 at issuance and $50 at each annual renewal.');
   font('bold',9.5,navy); doc.text('Processing fees', M, y); y+=12;
-  para('A processing fee is not included above because no amount was supplied for this schedule. It may be charged only if its exact amount and purpose are entered in the transaction disclosure and approved before the policy is purchased or the service is performed. Carrier, surplus-lines, stamping, tax, premium-finance, card, or vendor charges must be separately identified and are not agency fees.');
+  para('A transaction processing fee of $3.50 for each $100 of premium, with a minimum of $3.50, applies to every policy transaction. The exact amount is calculated from the premium and stated in the transaction disclosure before the policy is purchased. Carrier, surplus-lines, stamping, tax, premium-finance, card, or vendor charges must be separately identified and are not agency fees.');
 
   heading('5','General terms');
   paraB('No fee without disclosure.', 'The client receives the amount or calculation basis in writing before services are rendered. For every policy carrying an agency fee, the client receives and signs the policy-specific compensation disclosure before purchase.');
   paraB('Fees are not premium.', 'Agency fees are retained by the agency and do not change coverage. Insurer, governmental, association, premium-finance, card, or other third-party charges are shown separately and are paid or retained by the applicable third party.');
-  paraB('Refunds.', 'A policy-placement fee is refunded if no policy is bound or issued. If coverage is rescinded, voided, or flat-cancelled from inception, the policy-placement fee is refunded. Earned monthly fees and fees for completed separately requested services are not refunded.');
-  paraB('Monthly cancellation.', 'Monthly agency fees stop when the applicable policy, bond, or service ends. No future monthly balance or finance charge is owed. This agreement does not cancel insurance; policy cancellation must follow the insurer\'s requirements.');
+  paraB('Refunds.', 'A policy-placement fee is refunded if no policy is bound or issued. If coverage is rescinded, voided, or flat-cancelled from inception, the policy-placement fee is refunded. Fees for a completed policy term and for completed separately requested services are not refunded.');
+  paraB('Cancellation.', 'Agency fees are not charged for any term beginning after the applicable policy, bond, or service ends. No future balance or finance charge is owed. This agreement does not cancel insurance; policy cancellation must follow the insurer\'s requirements.');
   paraB('Renewals.', 'A renewal is a new policy transaction for disclosure purposes. The applicable fee and commission disclosure must be completed before the renewal is purchased.');
   paraB('Uniform treatment.', 'The schedule is applied consistently to similarly situated clients. A client may decline and seek insurance elsewhere.');
   paraB('Records and electronic transactions.', 'Signed policy disclosures are retained for at least five years. Electronic signatures and documented telephone or electronic consent may be used when allowed by Washington law.');
@@ -352,10 +382,9 @@ window.buildFeeAgreementPDF = function(){
   field('Policy term', gv('fee-term'));
   field('Annual or term premium', gv('fee-premium'));
   checks('Transaction:', ['New policy','Renewal','Other:'], rv('fee-tx')==='Other'?'Other:':rv('fee-tx'), gv('fee-tx-other'));
-  checks('Payment basis:', ['One-time fee','$10 monthly','$50 yearly','Other: $'], rv('fee-basis')==='Other'?'Other: $':rv('fee-basis'), gv('fee-basis-other'));
+  checks('Payment basis:', ['One-time fee','Annual fee','Other: $'], rv('fee-basis')==='Other'?'Other: $':rv('fee-basis'), gv('fee-basis-other'));
   field('Full agency fee for this policy transaction', gv('fee-total'), 215);
-  fieldRow([['If monthly: $', gv('fee-m-amt'), 0.28],['per month x', gv('fee-m-months'), 0.24],['scheduled months = $', gv('fee-m-max'), 0.30],['maximum for the full policy term.', '', 0.18, true]]);
-  field('Agency processing fee if any and purpose', gv('fee-processing'), 215);
+  field('Transaction processing fee ($3.50 per $100, $3.50 minimum)', processingFeeText(), 265);
   field('Full commission paid by insurer', gv('fee-commission'), 215);
   var off=rv('fee-offset');
   checks('Fee and commission relationship:', ['No offset or reimbursement','Offset or reimbursement described here:'], off==='Offset'?'Offset or reimbursement described here:':off);
@@ -398,11 +427,11 @@ window.submitFeeAgreement = async function(){
       effectiveDate:gv('fee-term'),
       coverages:[],
       formData:{
-        agencyLicense:gv('fee-agency-lic'), producer:gv('fee-producer'), producerLicense:gv('fee-producer-lic'),
+        agencyLicense:AGENCY_OIC, producer:gv('fee-producer'), producerLicense:gv('fee-producer-lic'),
         txClient:gv('fee-tx-client'), insurer:gv('fee-insurer'), lineOfBusiness:gv('fee-lob'), policyTerm:gv('fee-term'), premium:gv('fee-premium'),
         transaction:rv('fee-tx'), transactionOther:gv('fee-tx-other'), paymentBasis:rv('fee-basis'), paymentBasisOther:gv('fee-basis-other'),
-        agencyFee:gv('fee-total'), monthlyAmount:gv('fee-m-amt'), monthlyMonths:gv('fee-m-months'), monthlyMax:gv('fee-m-max'),
-        processingFee:gv('fee-processing'), commission:gv('fee-commission'), offset:rv('fee-offset'), offsetDescription:gv('fee-offset-desc'),
+        agencyFee:gv('fee-total'), processingFee:processingFeeText(),
+        commission:gv('fee-commission'), offset:rv('fee-offset'), offsetDescription:gv('fee-offset-desc'),
         chargeCarrier:gv('fee-ch-carrier'), chargeSLTax:gv('fee-ch-sltax'), chargeStamping:gv('fee-ch-stamp'), chargeOther:gv('fee-ch-other'),
         surplusLines:rv('fee-sl'), incentive:rv('fee-incent'), acknowledged:!!document.getElementById('fee-ack').checked,
         clientPrintName:gv('fee-client-print'), producerPrintName:gv('fee-producer-print'), signatureDate:gv('fee-sig-date'),

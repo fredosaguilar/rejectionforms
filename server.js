@@ -58,7 +58,7 @@ app.use('/api/forms', formRoutes);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/', requireAuth, (req, res) => {
+app.get(['/', '/fee-agreement'], requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

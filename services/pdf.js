@@ -114,7 +114,7 @@ function generatePDF(submission) {
       sectionTitle('Agreement Parties / Partes del Acuerdo');
       twoCol([
         ['Agency', 'Quincy Alliance Insurance LLC DBA Columbia Basin Insurance'],
-        ['WA business entity license', data.agencyLicense],
+        ['WA business entity license', data.agencyLicense ? 'WAOIC #' + data.agencyLicense : ''],
         ['Producer', data.producer],
         ['Producer WA license', data.producerLicense],
         ['Client', submission.client_name],
@@ -132,8 +132,7 @@ function generatePDF(submission) {
         ['Transaction', tx],
         ['Payment basis', basis],
         ['Full agency fee', data.agencyFee],
-        ['If monthly', data.monthlyAmount ? '$' + data.monthlyAmount + ' x ' + (data.monthlyMonths || '') + ' mo = $' + (data.monthlyMax || '') : ''],
-        ['Processing fee / purpose', data.processingFee],
+        ['Transaction processing fee', data.processingFee],
         ['Full insurer commission', data.commission],
         ['Fee / commission relationship', data.offset === 'Offset' ? 'Offset: ' + (data.offsetDescription || '') : data.offset],
       ]);
