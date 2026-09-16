@@ -59,7 +59,7 @@ app.use('/api/forms', formRoutes);
 // The portal pages are matched before express.static, and static is told not to
 // serve index.html on its own. Otherwise static answers '/' first and the page
 // is handed out before requireAuth ever runs.
-app.get(['/', '/index.html'], requireAuth, (req, res) => {
+app.get(['/', '/index.html', '/fee-agreement'], requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
