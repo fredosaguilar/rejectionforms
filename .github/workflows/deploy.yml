@@ -29,6 +29,9 @@ jobs:
   deploy:
     name: Deploy
     needs: validate
+    # Skipped until RAILWAY_SERVICE is set, so this workflow stays green when
+    # Railway deploys from its own GitHub source instead of from here.
+    if: vars.RAILWAY_SERVICE != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,8 +49,5 @@ jobs:
             echo "::error::RAILWAY_TOKEN secret is not set. Add it under Settings > Secrets and variables > Actions."
             exit 1
           fi
-          if [ -z "$RAILWAY_SERVICE" ]; then
-            echo "::error::RAILWAY_SERVICE variable is not set. Add it under Settings > Secrets and variables > Actions > Variables."
-            exit 1
-          fi
+
           railway up --service "$RAILWAY_SERVICE" --detach
