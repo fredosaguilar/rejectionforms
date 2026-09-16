@@ -56,15 +56,18 @@ app.get('/api/me', (req, res) => {
 
 app.use('/api/forms', formRoutes);
 
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.get(['/', '/fee-agreement'], requireAuth, (req, res) => {
+// The portal pages are matched before express.static, and static is told not to
+// serve index.html on its own. Otherwise static answers '/' first and the page
+// is handed out before requireAuth ever runs.
+app.get(['/', '/index.html', '/fee-agreement'], requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/quote', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'quote.html'));
 });
+
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 app.post('/api/generate-quote', async (req, res) => {
   const { pdf, language } = req.body;
