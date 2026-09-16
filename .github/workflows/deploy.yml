@@ -50,4 +50,4 @@ jobs:
             exit 1
           fi
 
-          railway up --service "$RAILWAY_SERVICE" --detach
+          railway up --service "$RAILWAY_SERVICE" --ci
