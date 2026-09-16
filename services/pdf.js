@@ -9,6 +9,14 @@ const FORM_LABELS = {
   fee_agreement:   'Washington Insurance Fee Agreement & Compensation Disclosure',
 };
 
+// Amounts print as currency; anything unparseable prints as stored.
+function money(v) {
+  v = (v || '').toString().trim();
+  if (!v) return '';
+  const n = parseFloat(v.replace(/[^0-9.]/g, ''));
+  return isFinite(n) ? '$' + n.toFixed(2) : v;
+}
+
 function generatePDF(submission) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -114,9 +122,9 @@ function generatePDF(submission) {
       sectionTitle('Agreement Parties / Partes del Acuerdo');
       twoCol([
         ['Agency', 'Quincy Alliance Insurance LLC DBA Columbia Basin Insurance'],
-        ['WA business entity license', data.agencyLicense ? 'WAOIC #' + data.agencyLicense : ''],
+        ['WA OIC #', data.agencyLicense],
         ['Producer', data.producer],
-        ['Producer WA license', data.producerLicense],
+        ['Producer OIC #', data.producerLicense],
         ['Client', submission.client_name],
         ['Date / Fecha', date],
       ]);
@@ -131,7 +139,7 @@ function generatePDF(submission) {
         ['Annual or term premium', data.premium],
         ['Transaction', tx],
         ['Payment basis', basis],
-        ['Full agency fee', data.agencyFee],
+        ['Full agency broker fee', money(data.agencyFee)],
         ['Transaction processing fee', data.processingFee],
         ['Full insurer commission', data.commission],
         ['Fee / commission relationship', data.offset === 'Offset' ? 'Offset: ' + (data.offsetDescription || '') : data.offset],

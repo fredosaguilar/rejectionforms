@@ -113,7 +113,7 @@ var html =
       '<div class="fld"><div class="lbl">Payment basis / Base de pago</div><div class="rr">' + radio('fee-basis','One-time fee','One-time fee') + radio('fee-basis','Annual fee','Annual fee') + radio('fee-basis','Other','Other') + '</div>' + txt('fee-basis-other','If other, amount $',' style="margin-top:6px"') + '</div>' +
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
-    fld('Full agency fee for this policy transaction / Tarifa total', txt('fee-total','$')) +
+    fld('Full agency broker fee for this policy transaction / Tarifa total', txt('fee-total','$')) +
     fld('Transaction processing fee / Cargo de procesamiento', '<div class="fee-fixed" id="fee-processing-box">Enter the agency fee above to calculate</div><div class="fee-note" style="margin:6px 0 0">$3.50 per $100 of the agency fee, $3.50 minimum. Calculated automatically. / $3.50 por cada $100 de la tarifa de agencia, mínimo $3.50.</div>') +
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
@@ -322,6 +322,13 @@ if(typeof _CF === 'function'){ window.CF = function(id){ _CF(id); if(id==='f-fee
    4. PDF — three pages mirroring the WA Fee Agreement document
    -------------------------------------------------------------------------- */
 function gv(id){ var el=document.getElementById(id); return el ? (el.value||'').trim() : ''; }
+// Amounts print as currency; anything unparseable prints as typed.
+function money(v){
+  v = (v || '').trim();
+  if(!v) return '';
+  var n = parseFloat(v.replace(/[^0-9.]/g, ''));
+  return isFinite(n) ? '$' + n.toFixed(2) : v;
+}
 function rv(name){ var el=document.querySelector('#f-fee input[name="'+name+'"]:checked'); return el ? el.value : ''; }
 function sigData(id){ var c=document.getElementById(id); return (c && c.dataset.signed) ? c.toDataURL('image/png') : null; }
 
@@ -374,7 +381,7 @@ window.buildFeeAgreementPDF = function(){
     function under(x,w,label,val){ if(val){ font('normal',9); doc.text(val, x+2, y-2); } doc.setDrawColor(line[0],line[1],line[2]); doc.setLineWidth(0.5); doc.line(x,y,x+w,y); font('normal',7.5,muted); doc.text(label, x, y+9); }
     under(lx,colW,'Print name',gv('fee-client-print')); under(rx,colW,'Print name',gv('fee-producer-print')); y+=22;
     var d=gv('fee-sig-date'); if(d){ var p=d.split('-'); if(p.length===3) d=p[1]+'/'+p[2]+'/'+p[0]; }
-    if(withLicense){ under(lx,colW,'Date',d); under(rx,colW,'Producer WA license',gv('fee-producer-lic')); y+=22; under(rx,colW,'Date',d); y+=22; }
+    if(withLicense){ under(lx,colW,'Date',d); under(rx,colW,'Producer OIC #',gv('fee-producer-lic')); y+=22; under(rx,colW,'Date',d); y+=22; }
     else { under(lx,colW,'Date',d); under(rx,colW,'Date',d); y+=22; }
   }
   function footer(){
@@ -388,8 +395,9 @@ window.buildFeeAgreementPDF = function(){
   para('This agreement explains the fees you may pay to Columbia Basin Insurance. Insurance premiums, taxes, insurer charges, premium-finance charges, and other third-party charges are separate. Complete and sign the transaction disclosure before each policy is purchased or renewed and before any separately charged service is performed.');
   y+=4;
   field('Agency', 'Quincy Alliance Insurance LLC DBA Columbia Basin Insurance');
-  field('WA business entity license', 'WAOIC #' + AGENCY_OIC);
-  field('Producer and WA license', [gv('fee-producer'), gv('fee-producer-lic')].filter(Boolean).join('  ·  '));
+  field('WA OIC #', AGENCY_OIC);
+  field('Producer', gv('fee-producer'));
+  field('Producer OIC #', gv('fee-producer-lic'));
   field('Client', gv('fee-client'));
 
   heading('1','How fees work');
@@ -458,7 +466,7 @@ window.buildFeeAgreementPDF = function(){
   field('Annual or term premium', gv('fee-premium'));
   checks('Transaction:', ['New policy','Renewal','Other:'], rv('fee-tx')==='Other'?'Other:':rv('fee-tx'), gv('fee-tx-other'));
   checks('Payment basis:', ['One-time fee','Annual fee','Other: $'], rv('fee-basis')==='Other'?'Other: $':rv('fee-basis'), gv('fee-basis-other'));
-  field('Full agency fee for this policy transaction', gv('fee-total'), 215);
+  field('Full agency broker fee for this policy transaction', money(gv('fee-total')), 255);
   field('Transaction processing fee ($3.50 per $100 of agency fee, $3.50 min)', processingFeeText(), 285);
   field('Full commission paid by insurer', gv('fee-commission'), 215);
   var off=rv('fee-offset');
