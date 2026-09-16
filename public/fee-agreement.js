@@ -322,10 +322,13 @@ if(typeof _CF === 'function'){ window.CF = function(id){ _CF(id); if(id==='f-fee
    4. PDF — three pages mirroring the WA Fee Agreement document
    -------------------------------------------------------------------------- */
 function gv(id){ var el=document.getElementById(id); return el ? (el.value||'').trim() : ''; }
-// Amounts print as currency; anything unparseable prints as typed.
+// Amounts print as currency. Only a bare number is reformatted; anything
+// carrying words or a percent sign ("10% of premium") prints as entered, so a
+// rate is never rewritten into a dollar figure.
 function money(v){
   v = (v || '').trim();
   if(!v) return '';
+  if(!/^\$?\s*[\d,]+(\.\d+)?$/.test(v)) return v;
   var n = parseFloat(v.replace(/[^0-9.]/g, ''));
   return isFinite(n) ? '$' + n.toFixed(2) : v;
 }
@@ -463,12 +466,12 @@ window.buildFeeAgreementPDF = function(){
   field('Line of business', gv('fee-lob'));
   field('Policy number or New pending', gv('fee-policy'));
   field('Policy term', gv('fee-term'));
-  field('Annual or term premium', gv('fee-premium'));
+  field('Annual or term premium', money(gv('fee-premium')));
   checks('Transaction:', ['New policy','Renewal','Other:'], rv('fee-tx')==='Other'?'Other:':rv('fee-tx'), gv('fee-tx-other'));
   checks('Payment basis:', ['One-time fee','Annual fee','Other: $'], rv('fee-basis')==='Other'?'Other: $':rv('fee-basis'), gv('fee-basis-other'));
   field('Full agency broker fee for this policy transaction', money(gv('fee-total')), 255);
   field('Transaction processing fee ($3.50 per $100 of agency fee, $3.50 min)', processingFeeText(), 285);
-  field('Full commission paid by insurer', gv('fee-commission'), 215);
+  field('Full commission paid by insurer', money(gv('fee-commission')), 215);
   var off=rv('fee-offset');
   checks('Fee and commission relationship:', ['No offset or reimbursement','Offset or reimbursement described here:'], off==='Offset'?'Offset or reimbursement described here:':off);
   field('', gv('fee-offset-desc'), 0);

@@ -9,10 +9,12 @@ const FORM_LABELS = {
   fee_agreement:   'Washington Insurance Fee Agreement & Compensation Disclosure',
 };
 
-// Amounts print as currency; anything unparseable prints as stored.
+// Amounts print as currency. Only a bare number is reformatted; anything
+// carrying words or a percent sign ("10% of premium") prints as stored.
 function money(v) {
   v = (v || '').toString().trim();
   if (!v) return '';
+  if (!/^\$?\s*[\d,]+(\.\d+)?$/.test(v)) return v;
   const n = parseFloat(v.replace(/[^0-9.]/g, ''));
   return isFinite(n) ? '$' + n.toFixed(2) : v;
 }
@@ -136,12 +138,12 @@ function generatePDF(submission) {
         ['Line of business', data.lineOfBusiness],
         ['Policy number', submission.policy_number],
         ['Policy term', data.policyTerm],
-        ['Annual or term premium', data.premium],
+        ['Annual or term premium', money(data.premium)],
         ['Transaction', tx],
         ['Payment basis', basis],
         ['Full agency broker fee', money(data.agencyFee)],
         ['Transaction processing fee', data.processingFee],
-        ['Full insurer commission', data.commission],
+        ['Full insurer commission', money(data.commission)],
         ['Fee / commission relationship', data.offset === 'Offset' ? 'Offset: ' + (data.offsetDescription || '') : data.offset],
       ]);
       sectionTitle('Other Separately Stated Charges (not retained by agency)');
