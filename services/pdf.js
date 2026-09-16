@@ -6,6 +6,7 @@ const FORM_LABELS = {
   home_cov:        'Homeowners Coverage Recommendation',
   trucking_cov:    'Trucking Coverage Recommendation',
   contractor_cov:  'Contractor Coverage Recommendation',
+  fee_agreement:   'Washington Insurance Fee Agreement & Compensation Disclosure',
 };
 
 function generatePDF(submission) {
@@ -107,6 +108,48 @@ function generatePDF(submission) {
         doc.font('Helvetica').fontSize(8).fillColor('#1a1a1a').text(a, 70, y, { width: W - 20 });
         y += 20;
       });
+
+    // ── WA Fee Agreement / Transaction Disclosure ─────────────────────────────
+    } else if (submission.form_type === 'fee_agreement') {
+      sectionTitle('Agreement Parties / Partes del Acuerdo');
+      twoCol([
+        ['Agency', 'Quincy Alliance Insurance LLC DBA Columbia Basin Insurance'],
+        ['WA business entity license', data.agencyLicense],
+        ['Producer', data.producer],
+        ['Producer WA license', data.producerLicense],
+        ['Client', submission.client_name],
+        ['Date / Fecha', date],
+      ]);
+      sectionTitle('Policy Transaction Disclosure / Divulgación de la Transacción');
+      const basis = data.paymentBasis === 'Other' ? 'Other: $' + (data.paymentBasisOther || '') : data.paymentBasis;
+      const tx = data.transaction === 'Other' ? 'Other: ' + (data.transactionOther || '') : data.transaction;
+      twoCol([
+        ['Insurer (full legal name)', data.insurer],
+        ['Line of business', data.lineOfBusiness],
+        ['Policy number', submission.policy_number],
+        ['Policy term', data.policyTerm],
+        ['Annual or term premium', data.premium],
+        ['Transaction', tx],
+        ['Payment basis', basis],
+        ['Full agency fee', data.agencyFee],
+        ['If monthly', data.monthlyAmount ? '$' + data.monthlyAmount + ' x ' + (data.monthlyMonths || '') + ' mo = $' + (data.monthlyMax || '') : ''],
+        ['Processing fee / purpose', data.processingFee],
+        ['Full insurer commission', data.commission],
+        ['Fee / commission relationship', data.offset === 'Offset' ? 'Offset: ' + (data.offsetDescription || '') : data.offset],
+      ]);
+      sectionTitle('Other Separately Stated Charges (not retained by agency)');
+      twoCol([
+        ['Carrier or vendor charge', data.chargeCarrier],
+        ['Surplus-lines tax', data.chargeSLTax],
+        ['Stamping fee', data.chargeStamping],
+        ['Other', data.chargeOther],
+        ['Surplus-lines placement', data.surplusLines],
+        ['Incentive compensation', data.incentive === 'none' ? 'No incentive compensation may be received' : 'Section 6 notice applies'],
+      ]);
+      row('Client acknowledged schedule & consent', data.acknowledged ? 'Yes' : 'No');
+      row('Client print name', data.clientPrintName);
+      row('Producer print name', data.producerPrintName);
+      row('Signature date', data.signatureDate);
 
     // ── Coverage forms ────────────────────────────────────────────────────────
     } else {
