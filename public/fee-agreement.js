@@ -114,7 +114,7 @@ var html =
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
     fld('Full agency fee for this policy transaction / Tarifa total', txt('fee-total','$')) +
-    fld('Transaction processing fee / Cargo de procesamiento', '<div class="fee-fixed" id="fee-processing-box">Enter the premium above to calculate</div><div class="fee-note" style="margin:6px 0 0">$3.50 per $100 of premium, $3.50 minimum. Calculated automatically. / $3.50 por cada $100 de prima, mínimo $3.50.</div>') +
+    fld('Transaction processing fee / Cargo de procesamiento', '<div class="fee-fixed" id="fee-processing-box">Enter the agency fee above to calculate</div><div class="fee-note" style="margin:6px 0 0">$3.50 per $100 of the agency fee, $3.50 minimum. Calculated automatically. / $3.50 por cada $100 de la tarifa de agencia, mínimo $3.50.</div>') +
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
     fld('Full commission paid by insurer / Comisión de la aseguradora', txt('fee-commission','e.g. 10% of premium / $')) +
@@ -216,27 +216,27 @@ var navAgent=document.getElementById('nav-agent');
 if(navAgent && navAgent.textContent) setProducer(navAgent.textContent);
 // Transaction processing fee: $3.50 per $100 of premium, never below $3.50.
 var PROC_RATE = 0.035, PROC_MIN = 3.50;
-function premiumValue(){
-  var raw = (document.getElementById('fee-premium').value || '').replace(/[^0-9.]/g, '');
+function brokerFeeValue(){
+  var raw = (document.getElementById('fee-total').value || '').replace(/[^0-9.]/g, '');
   var n = parseFloat(raw);
   return isFinite(n) && n > 0 ? n : 0;
 }
 function processingFee(){
-  var p = premiumValue();
-  return p ? Math.max(PROC_MIN, p * PROC_RATE) : 0;
+  var f = brokerFeeValue();
+  return f ? Math.max(PROC_MIN, f * PROC_RATE) : 0;
 }
 function processingFeeText(){
   var f = processingFee();
   return f ? '$' + f.toFixed(2) : '';
 }
 function renderProcessingFee(){
-  var box = document.getElementById('fee-processing-box'), p = premiumValue();
+  var box = document.getElementById('fee-processing-box'), f = brokerFeeValue();
   if(!box) return;
-  box.textContent = p
-    ? processingFeeText() + '  (on $' + p.toFixed(2) + ' premium)'
-    : 'Enter the premium above to calculate';
+  box.textContent = f
+    ? processingFeeText() + '  (on $' + f.toFixed(2) + ' broker fee)'
+    : 'Enter the agency fee above to calculate';
 }
-document.getElementById('fee-premium').addEventListener('input', renderProcessingFee);
+document.getElementById('fee-total').addEventListener('input', renderProcessingFee);
 renderProcessingFee();
 
 /* --------------------------------------------------------------------------
@@ -430,7 +430,7 @@ window.buildFeeAgreementPDF = function(){
   ],[CW-320,150,170]);
   paraB('Annual-fee disclosure:', 'Commercial agency fees are annual and are charged in full at placement and again at each annual renewal. No agency fee is billed monthly and no installment balance accrues. The surety bond fee is $50 at issuance and $50 at each annual renewal.');
   font('bold',9.5,navy); doc.text('Processing fees', M, y); y+=12;
-  para('A transaction processing fee of $3.50 for each $100 of premium, with a minimum of $3.50, applies to every policy transaction. The exact amount is calculated from the premium and stated in the transaction disclosure before the policy is purchased. Carrier, surplus-lines, stamping, tax, premium-finance, card, or vendor charges must be separately identified and are not agency fees.');
+  para('A transaction processing fee of $3.50 for each $100 of the agency fee, with a minimum of $3.50, applies to every policy transaction. It is calculated from the agency fee charged, not from the premium, and is stated in the transaction disclosure before the policy is purchased. Carrier, surplus-lines, stamping, tax, premium-finance, card, or vendor charges must be separately identified and are not agency fees.');
 
   heading('5','General terms');
   paraB('No fee without disclosure.', 'The client receives the amount or calculation basis in writing before services are rendered. For every policy carrying an agency fee, the client receives and signs the policy-specific compensation disclosure before purchase.');
@@ -459,7 +459,7 @@ window.buildFeeAgreementPDF = function(){
   checks('Transaction:', ['New policy','Renewal','Other:'], rv('fee-tx')==='Other'?'Other:':rv('fee-tx'), gv('fee-tx-other'));
   checks('Payment basis:', ['One-time fee','Annual fee','Other: $'], rv('fee-basis')==='Other'?'Other: $':rv('fee-basis'), gv('fee-basis-other'));
   field('Full agency fee for this policy transaction', gv('fee-total'), 215);
-  field('Transaction processing fee ($3.50 per $100, $3.50 minimum)', processingFeeText(), 265);
+  field('Transaction processing fee ($3.50 per $100 of agency fee, $3.50 min)', processingFeeText(), 285);
   field('Full commission paid by insurer', gv('fee-commission'), 215);
   var off=rv('fee-offset');
   checks('Fee and commission relationship:', ['No offset or reimbursement','Offset or reimbursement described here:'], off==='Offset'?'Offset or reimbursement described here:':off);
