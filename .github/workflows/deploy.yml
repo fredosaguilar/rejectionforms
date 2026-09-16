@@ -1,0 +1,53 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - name: Syntax-check all JavaScript
+        run: >
+          find . -path ./node_modules -prune -o -name '*.js' -print0
+          | xargs -0 -n1 node --check
+      - name: Verify server modules load
+        run: node -e "require('./services/pdf.js'); require('./routes/forms.js');"
+
+  deploy:
+    name: Deploy
+    needs: validate
+    # Skipped until RAILWAY_SERVICE is set, so this workflow stays green when
+    # Railway deploys from its own GitHub source instead of from here.
+    if: vars.RAILWAY_SERVICE != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::RAILWAY_TOKEN secret is not set. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+          railway up --service "$RAILWAY_SERVICE" --detach
