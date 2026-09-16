@@ -60,14 +60,23 @@ app.use('/api/forms', formRoutes);
 // serve index.html on its own. Otherwise static answers '/' first and the page
 // is handed out before requireAuth ever runs.
 app.get(['/', '/index.html', '/fee-agreement'], requireAuth, (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/quote', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, 'public', 'quote.html'));
 });
 
-app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+// no-cache means revalidate every time, not "don't cache": the browser still
+// gets a 304 when nothing changed, but it can never serve a stale script after
+// a deploy. Without an explicit directive browsers invent their own freshness
+// lifetime from Last-Modified and hold old files for hours.
+app.use(express.static(path.join(__dirname, 'public'), {
+  index: false,
+  setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
+}));
 
 app.post('/api/generate-quote', async (req, res) => {
   const { pdf, language } = req.body;
