@@ -90,7 +90,7 @@ var html =
       '<tr><td>Commercial auto – standard or admitted</td><td>$100 per year</td><td>At placement and each annual renewal</td></tr>' +
       '<tr><td>Commercial auto – surplus lines or nonstandard</td><td>$150 per year</td><td>At placement and each annual renewal</td></tr>' +
       '<tr><td>Businessowners policy or commercial general liability</td><td>$50 per year</td><td>At placement and each annual renewal</td></tr>' +
-      '<tr><td>Workers\' compensation</td><td>$100 per initiation</td><td>At initial placement</td></tr>' +
+      '<tr><td>Workers\' compensation</td><td>$100 per year</td><td>At placement and each annual renewal</td></tr>' +
       '<tr><td>Surety bond</td><td>$50 per year</td><td>At issuance and each annual renewal</td></tr>' +
       '<tr><td>Add seasonal vehicle(s) or unit(s)</td><td>$150 per request</td><td>Before requested change</td></tr>' +
       '<tr><td>Remove or suspend seasonal vehicle(s) or unit(s)</td><td>$100 per request</td><td>Before requested change</td></tr>' +
@@ -423,7 +423,7 @@ window.buildFeeAgreementPDF = function(){
     ['Commercial auto - standard or admitted','$100 per year','At placement and each annual renewal'],
     ['Commercial auto - surplus lines or nonstandard','$150 per year','At placement and each annual renewal'],
     ['Businessowners policy or commercial general liability','$50 per year','At placement and each annual renewal'],
-    ['Workers\' compensation','$100 per initiation','At initial policy placement'],
+    ['Workers\' compensation','$100 per year','At placement and each annual renewal'],
     ['Surety bond','$50 per year','At issuance and each annual renewal'],
     ['Add seasonal vehicle(s) or unit(s)','$150 per request','Before requested change'],
     ['Remove or suspend seasonal vehicle(s) or unit(s)','$100 per request','Before requested change']
