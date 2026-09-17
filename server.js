@@ -8,6 +8,7 @@ const db             = require('./db');
 
 const authRoutes     = require('./routes/auth');
 const formRoutes     = require('./routes/forms');
+const esign          = require('./routes/esign');
 const { requireAuth } = require('./middleware/auth');
 
 const app  = express();
@@ -55,11 +56,20 @@ app.get('/api/me', (req, res) => {
 });
 
 app.use('/api/forms', formRoutes);
+app.use('/api/esign', esign.router);
+// The signing ceremony is reached by token, not by login, so it sits outside requireAuth.
+app.use('/api/sign', esign.pub);
 
 // The portal pages are matched before express.static, and static is told not to
 // serve index.html on its own. Otherwise static answers '/' first and the page
 // is handed out before requireAuth ever runs.
-app.get(['/', '/index.html', '/fee-agreement'], requireAuth, (req, res) => {
+// Signing pages are public by design: the token in the URL is the credential.
+app.get('/sign/:token', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'views', 'sign.html'));
+});
+
+app.get(['/', '/index.html', '/fee-agreement', '/esign'], requireAuth, (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -238,6 +248,8 @@ app.listen(PORT, async () => {
       ALTER TABLE submissions DROP COLUMN IF EXISTS az_synced;
       ALTER TABLE submissions DROP COLUMN IF EXISTS az_synced_at;
     `);
+    const fs = require('fs');
+    await db.query(fs.readFileSync(path.join(__dirname, 'db', 'esign.sql'), 'utf8'));
     console.log('Schema migration complete');
   } catch(e) {
     console.log('Migration note:', e.message);
