@@ -97,3 +97,13 @@ CREATE TABLE IF NOT EXISTS envelope_fields (
 
 CREATE INDEX IF NOT EXISTS idx_fields_envelope  ON envelope_fields(envelope_id);
 CREATE INDEX IF NOT EXISTS idx_fields_recipient ON envelope_fields(recipient_id);
+
+-- Language of the transaction. ESIGN 101(c) requires the consent disclosure be
+-- given in a form the consumer can access and understand; where business is
+-- conducted in Spanish the disclosure is presented in Spanish, and the language
+-- actually used is recorded on the certificate.
+ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'en';
+
+-- Optional mobile number for SMS delivery of the signing link.
+ALTER TABLE envelope_recipients ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE envelope_recipients ADD COLUMN IF NOT EXISTS delivery TEXT NOT NULL DEFAULT 'email';  -- email|sms|both

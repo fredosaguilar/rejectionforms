@@ -2,6 +2,7 @@ const express = require('express');
 const multer  = require('multer');
 const db      = require('../db');
 const mail    = require('../services/email');
+const sms     = require('../services/sms');
 const { requireAuth } = require('../middleware/auth');
 const {
   newSigningToken, hashToken, sha256, publicId, buildSignedPdf,
@@ -102,7 +103,13 @@ router.post('/envelopes', requireAuth, upload.single('document'), async (req, re
       return res.status(400).json({ error: 'Recipients could not be read' });
     }
     recipients = (recipients || [])
-      .map((r, i) => ({ name: String(r.name || '').trim(), email: String(r.email || '').trim().toLowerCase(), order: i + 1 }))
+      .map((r, i) => ({
+        name: String(r.name || '').trim(),
+        email: String(r.email || '').trim().toLowerCase(),
+        phone: sms.normalisePhone(r.phone) || null,
+        delivery: ['email', 'sms', 'both'].includes(r.delivery) ? r.delivery : 'email',
+        order: i + 1,
+      }))
       .filter((r) => r.name && r.email);
 
     if (!recipients.length) return res.status(400).json({ error: 'At least one recipient is required' });
@@ -112,14 +119,19 @@ router.post('/envelopes', requireAuth, upload.single('document'), async (req, re
     if (new Set(emails).size !== emails.length) {
       return res.status(400).json({ error: 'Each recipient must have a different email address' });
     }
+    const noPhone = recipients.find((r) => r.delivery !== 'email' && !r.phone);
+    if (noPhone) {
+      return res.status(400).json({ error: `A mobile number is required to text ${noPhone.name}` });
+    }
+    const language = req.body.language === 'es' ? 'es' : 'en';
 
     const { rows } = await db.query(
       `INSERT INTO envelopes (public_id, agent_id, agent_name, agent_email, title, message,
-                              file_name, file_mime, file_bytes, file_sha256)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id, public_id`,
+                              file_name, file_mime, file_bytes, file_sha256, language)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, public_id`,
       [publicId(), req.session.agentId, req.session.agentName, req.session.email,
        title, (req.body.message || '').trim() || null,
-       req.file.originalname, req.file.mimetype, req.file.buffer, sha256(req.file.buffer)]
+       req.file.originalname, req.file.mimetype, req.file.buffer, sha256(req.file.buffer), language]
     );
     const envelope = rows[0];
 
@@ -129,9 +141,9 @@ router.post('/envelopes', requireAuth, upload.single('document'), async (req, re
     for (const r of recipients) {
       const token = newSigningToken();
       const { rows: rr } = await db.query(
-        `INSERT INTO envelope_recipients (envelope_id, name, email, routing_order, token_hash)
-         VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-        [envelope.id, r.name, r.email, r.order, hashToken(token)]
+        `INSERT INTO envelope_recipients (envelope_id, name, email, phone, delivery, routing_order, token_hash)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+        [envelope.id, r.name, r.email, r.phone, r.delivery, r.order, hashToken(token)]
       );
       issued.push({ ...r, id: rr[0].id, token });
     }
@@ -193,22 +205,47 @@ router.post('/envelopes/:id/send', requireAuth, async (req, res) => {
       await db.query(`UPDATE envelope_recipients SET token_hash = $1 WHERE id = $2`,
         [hashToken(token), r.id]);
       const url = `${baseUrl(req)}/sign/${token}`;
-      try {
-        await mail.send({
-          to: r.email,
-          subject: `Please sign: ${env.title}`,
-          replyTo: env.agent_email || undefined,
-          html: mail.signingRequest({
-            recipientName: r.name, agentName: env.agent_name,
-            title: env.title, message: env.message, url,
-          }),
-        });
-        sent.push(r.email);
-        await logEvent(env.id, 'sent', req, { recipientId: r.id, actor: req.session.agentName, detail: { to: r.email } });
-      } catch (err) {
-        failed.push({ email: r.email, error: err.message });
-        await logEvent(env.id, 'send_failed', req, { recipientId: r.id, detail: { to: r.email, error: err.message } });
+      const want = r.delivery || 'email';
+      let delivered = false;
+
+      if (want === 'email' || want === 'both') {
+        try {
+          await mail.send({
+            to: r.email,
+            subject: mail.copy(env.language).subjSign(env.title),
+            replyTo: env.agent_email || undefined,
+            html: mail.signingRequest({
+              recipientName: r.name, agentName: env.agent_name,
+              title: env.title, message: env.message, url, lang: env.language,
+            }),
+          });
+          delivered = true;
+          sent.push(r.email);
+          await logEvent(env.id, 'sent', req, { recipientId: r.id, actor: req.session.agentName, detail: { channel: 'email', to: r.email } });
+        } catch (err) {
+          failed.push({ email: r.email, channel: 'email', error: err.message });
+          await logEvent(env.id, 'send_failed', req, { recipientId: r.id, detail: { channel: 'email', to: r.email, error: err.message } });
+        }
       }
+
+      if ((want === 'sms' || want === 'both') && r.phone) {
+        try {
+          await sms.send({
+            to: r.phone,
+            text: sms.signingText({
+              recipientName: r.name, agentName: env.agent_name,
+              title: env.title, url, lang: env.language,
+            }),
+          });
+          delivered = true;
+          sent.push(r.phone);
+          await logEvent(env.id, 'sent', req, { recipientId: r.id, actor: req.session.agentName, detail: { channel: 'sms', to: r.phone } });
+        } catch (err) {
+          failed.push({ email: r.phone, channel: 'sms', error: err.message });
+          await logEvent(env.id, 'send_failed', req, { recipientId: r.id, detail: { channel: 'sms', to: r.phone, error: err.message } });
+        }
+      }
+      if (!delivered) { /* both channels failed; already recorded above */ }
     }
 
     if (sent.length) {
@@ -264,7 +301,7 @@ router.get('/envelopes/:id/document', requireAuth, async (req, res) => {
 async function loadByToken(token) {
   const { rows } = await db.query(
     `SELECT r.*, e.id AS env_id, e.public_id, e.title, e.message, e.status AS env_status,
-            e.file_name, e.agent_name
+            e.file_name, e.agent_name, e.language
        FROM envelope_recipients r
        JOIN envelopes e ON e.id = r.envelope_id
       WHERE r.token_hash = $1`, [hashToken(token)]);
@@ -294,7 +331,7 @@ pub.get('/:token', async (req, res) => {
       title: r.title, message: r.message, fileName: r.file_name,
       sender: r.agent_name, recipientName: r.name, recipientEmail: r.email,
       status: r.status, consented: !!r.consent_at, envelopeStatus: r.env_status,
-      fields,
+      language: r.language, fields,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -428,9 +465,9 @@ pub.post('/:token/sign', async (req, res) => {
         try {
           await mail.send({
             to: p.email,
-            subject: `Signed: ${envRows[0].title}`,
+            subject: mail.copy(envRows[0].language).subjDone(envRows[0].title),
             html: mail.completedNotice({
-              recipientName: p.name, title: envRows[0].title,
+              recipientName: p.name, title: envRows[0].title, lang: envRows[0].language,
               url: `${baseUrl(req)}/api/sign/${req.params.token}/document?signed=1`,
             }),
           });

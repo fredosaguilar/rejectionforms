@@ -108,41 +108,11 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
     <div class="card" id="consent-card">
       <div class="card-hd"><h1 style="font-size:16px">Consent to use electronic records and signatures</h1></div>
       <div class="card-bd">
-        <div class="disc">
-          <h3>What you are agreeing to</h3>
-          <p style="margin:0">You are being asked to review and sign this document electronically. If you agree,
-          your electronic signature will have the same legal effect as a handwritten one under the federal
-          ESIGN Act (15 U.S.C. ch. 96) and the Washington Uniform Electronic Transactions Act (RCW 19.360).</p>
-
-          <h3>Getting a paper copy</h3>
-          <p style="margin:0">You may request a paper copy of this document at no charge by contacting
-          Columbia Basin Insurance. Requesting a paper copy does not mean you have withdrawn your consent.</p>
-
-          <h3>Withdrawing consent</h3>
-          <p style="margin:0">You may decline to sign electronically at any time before you sign, using the
-          Decline button below. To withdraw consent after signing, or to ask for records on paper instead,
-          contact Columbia Basin Insurance. Withdrawing consent does not affect the validity of records you
-          have already signed electronically.</p>
-
-          <h3>What you need to view and keep these records</h3>
-          <ul>
-            <li>A current web browser with cookies and JavaScript enabled</li>
-            <li>A working email address — the one this request was sent to</li>
-            <li>A PDF reader, and the ability to download or print to keep a copy</li>
-          </ul>
-
-          <h3>Keeping your copy</h3>
-          <p style="margin:0">Once all parties have signed, a completed copy including a certificate of
-          completion will be emailed to you. You may download and retain it at any time.</p>
-
-          <h3>Keeping your contact details current</h3>
-          <p style="margin:0">Tell us if your email address changes, so that records can continue to reach you.</p>
-        </div>
+        <div class="disc" id="disc"></div>
 
         <label class="chk">
           <input type="checkbox" id="agree">
-          <span>I have read the disclosure above. I consent to conduct this transaction electronically and
-          to receive records electronically, and I confirm I can access documents in PDF format.</span>
+          <span id="agree-txt"></span>
         </label>
         <button class="btn btn-pri" id="consent-btn" disabled>Continue to sign</button>
       </div>
@@ -204,7 +174,7 @@ var api = '/api/sign/' + encodeURIComponent(token);
 var $ = function(id){ return document.getElementById(id); };
 
 function show(id){ ['loading','problem','done','declined','main'].forEach(function(k){ $(k).hidden = (k !== id); }); }
-function problem(h, p){ $('problem-h').textContent = h; $('problem-p').textContent = p || ''; show('problem'); }
+function problem(h, p){ $('problem-h').textContent = h || (L && L.problemH) || 'Unavailable'; $('problem-p').textContent = p || ''; show('problem'); }
 
 /* ---- signature pads ---- */
 function makePad(canvas, onDraw){
@@ -241,6 +211,146 @@ function sizePad(){ padMain.size(); padAdopt.size(); }
 $('clear').addEventListener('click', function(){ padMain.clear(); });
 $('clear2').addEventListener('click', function(){ padAdopt.clear(); });
 
+/* ---- language ---------------------------------------------------------
+   ESIGN 101(c) requires the consent disclosure be given in a form the consumer
+   can access and understand. Where the transaction is conducted in Spanish the
+   disclosure is presented in Spanish, and the language used is recorded on the
+   certificate of completion.
+   ---------------------------------------------------------------------- */
+var T = {
+  en: {
+    navSub: 'Electronic Signature',
+    consentH: 'Consent to use electronic records and signatures',
+    agree: 'I have read the disclosure above. I consent to conduct this transaction electronically and to receive records electronically, and I confirm I can access documents in PDF format.',
+    contBtn: 'Continue to sign',
+    signH: 'Sign',
+    fieldsH: 'Complete the highlighted fields',
+    fieldsSub: 'Draw your signature once below, then click each highlighted box to apply it.',
+    yourSig: 'Your signature',
+    drawOnce: 'Draw once, then click the boxes on the document.',
+    clear: 'Clear',
+    typedLbl: 'Type your full legal name',
+    typedHint: 'Typing your name records your intent to sign this document.',
+    drawLbl: 'Draw your signature',
+    drawHint: 'Draw using a mouse, trackpad or finger.',
+    submit: 'Sign document',
+    decline: 'Decline to sign',
+    signNote: 'By selecting Sign document you adopt the signature above as your electronic signature on this record. The date, time, your IP address and browser will be recorded in the certificate of completion.',
+    openTab: 'If the document doesn\'t display, ',
+    openTabLink: 'open it in a new tab',
+    doneH: 'Signed',
+    doneP: 'Thank you. A copy will be emailed to you once everyone has signed.',
+    doneAll: 'Thank you. Everyone has now signed, and a copy has been emailed to you.',
+    doneDl: 'Download signed document',
+    declinedH: 'Declined',
+    declinedP: "You've declined to sign this document. The sender has been notified.",
+    problemH: "This link isn't available",
+    already: 'You have already signed this document.',
+    needName: 'Type your full legal name to signify intent to sign.',
+    needSig: 'Draw your signature in the box above.',
+    needSigFields: 'Draw your signature in the box above the document, then apply it to the fields.',
+    needFields: function(n){ return 'Complete the ' + n + ' highlighted field(s) on the document first.'; },
+    todoLeft: function(n){ return n + (n === 1 ? ' required field left to complete.' : ' required fields left to complete.'); },
+    todoDone: 'All required fields are complete.',
+    todoLoading: 'Loading document…',
+    adoptFirst: 'Draw your signature in the box above first, then click the field.',
+    declinePrompt: 'Optionally, tell the sender why you are declining:',
+    rendering: 'Rendering document…',
+    lblSign: 'Sign here', lblInit: 'Initials', lblDate: 'Date', lblText: 'Type here',
+    disc: [
+      ['What you are agreeing to', 'You are being asked to review and sign this document electronically. If you agree, your electronic signature will have the same legal effect as a handwritten one under the federal ESIGN Act (15 U.S.C. ch. 96), the Washington Uniform Electronic Transactions Act (RCW 19.360) and the Oregon Uniform Electronic Transactions Act (ORS 84.001 to 84.061).'],
+      ['Getting a paper copy', 'You may request a paper copy of this document at no charge by contacting Columbia Basin Insurance. Requesting a paper copy does not mean you have withdrawn your consent.'],
+      ['Withdrawing consent', 'You may decline to sign electronically at any time before you sign, using the Decline button below. To withdraw consent after signing, or to ask for records on paper instead, contact Columbia Basin Insurance. Withdrawing consent does not affect the validity of records you have already signed electronically.'],
+      ['What you need to view and keep these records', ['A current web browser with cookies and JavaScript enabled', 'A working email address or mobile number — the one this request was sent to', 'A PDF reader, and the ability to download or print to keep a copy']],
+      ['Keeping your copy', 'Once all parties have signed, a completed copy including a certificate of completion will be sent to you. You may download and retain it at any time.'],
+      ['Keeping your contact details current', 'Tell us if your email address or mobile number changes, so that records can continue to reach you.'],
+    ],
+  },
+  es: {
+    navSub: 'Firma Electrónica',
+    consentH: 'Consentimiento para usar registros y firmas electrónicas',
+    agree: 'He leído la divulgación anterior. Consiento realizar esta transacción de forma electrónica y recibir registros electrónicamente, y confirmo que puedo acceder a documentos en formato PDF.',
+    contBtn: 'Continuar para firmar',
+    signH: 'Firmar',
+    fieldsH: 'Complete los campos resaltados',
+    fieldsSub: 'Dibuje su firma una vez abajo, luego haga clic en cada casilla resaltada para aplicarla.',
+    yourSig: 'Su firma',
+    drawOnce: 'Dibuje una vez, luego haga clic en las casillas del documento.',
+    clear: 'Borrar',
+    typedLbl: 'Escriba su nombre legal completo',
+    typedHint: 'Escribir su nombre registra su intención de firmar este documento.',
+    drawLbl: 'Dibuje su firma',
+    drawHint: 'Dibuje con el mouse, el trackpad o el dedo.',
+    submit: 'Firmar documento',
+    decline: 'Negarse a firmar',
+    signNote: 'Al seleccionar Firmar documento, usted adopta la firma anterior como su firma electrónica en este registro. La fecha, la hora, su dirección IP y su navegador quedarán registrados en el certificado de finalización.',
+    openTab: 'Si el documento no se muestra, ',
+    openTabLink: 'ábralo en una pestaña nueva',
+    doneH: 'Firmado',
+    doneP: 'Gracias. Se le enviará una copia cuando todos hayan firmado.',
+    doneAll: 'Gracias. Todos han firmado y se le ha enviado una copia.',
+    doneDl: 'Descargar documento firmado',
+    declinedH: 'Rechazado',
+    declinedP: 'Usted se ha negado a firmar este documento. Se ha notificado al remitente.',
+    problemH: 'Este enlace no está disponible',
+    already: 'Usted ya firmó este documento.',
+    needName: 'Escriba su nombre legal completo para indicar su intención de firmar.',
+    needSig: 'Dibuje su firma en el cuadro de arriba.',
+    needSigFields: 'Dibuje su firma en el cuadro sobre el documento y luego aplíquela a los campos.',
+    needFields: function(n){ return 'Primero complete los ' + n + ' campo(s) resaltado(s) en el documento.'; },
+    todoLeft: function(n){ return n === 1 ? 'Queda 1 campo obligatorio por completar.' : 'Quedan ' + n + ' campos obligatorios por completar.'; },
+    todoDone: 'Todos los campos obligatorios están completos.',
+    todoLoading: 'Cargando documento…',
+    adoptFirst: 'Primero dibuje su firma en el cuadro de arriba y luego haga clic en el campo.',
+    declinePrompt: 'Opcionalmente, indique al remitente por qué se niega a firmar:',
+    rendering: 'Procesando documento…',
+    lblSign: 'Firme aquí', lblInit: 'Iniciales', lblDate: 'Fecha', lblText: 'Escriba aquí',
+    disc: [
+      ['A qué está dando su consentimiento', 'Se le pide revisar y firmar este documento electrónicamente. Si acepta, su firma electrónica tendrá el mismo efecto legal que una firma manuscrita conforme a la Ley federal ESIGN (15 U.S.C. cap. 96), la Ley Uniforme de Transacciones Electrónicas de Washington (RCW 19.360) y la Ley Uniforme de Transacciones Electrónicas de Oregón (ORS 84.001 a 84.061).'],
+      ['Obtener una copia en papel', 'Puede solicitar una copia en papel de este documento sin costo alguno comunicándose con Columbia Basin Insurance. Solicitar una copia en papel no significa que haya retirado su consentimiento.'],
+      ['Retirar el consentimiento', 'Puede negarse a firmar electrónicamente en cualquier momento antes de firmar, usando el botón Negarse a firmar. Para retirar su consentimiento después de firmar, o para solicitar registros en papel, comuníquese con Columbia Basin Insurance. Retirar el consentimiento no afecta la validez de los registros que ya haya firmado electrónicamente.'],
+      ['Qué necesita para ver y conservar estos registros', ['Un navegador web actual con cookies y JavaScript habilitados', 'Un correo electrónico o número de celular activo — el mismo al que se envió esta solicitud', 'Un lector de PDF y la capacidad de descargar o imprimir para conservar una copia']],
+      ['Conservar su copia', 'Una vez que todas las partes hayan firmado, se le enviará una copia completa que incluye un certificado de finalización. Puede descargarla y conservarla en cualquier momento.'],
+      ['Mantener sus datos de contacto actualizados', 'Avísenos si cambia su correo electrónico o número de celular, para que los registros puedan seguir llegándole.'],
+    ],
+  },
+};
+var L = T.en;
+
+function applyLanguage(lang){
+  L = T[lang] || T.en;
+  document.documentElement.lang = (lang === 'es') ? 'es' : 'en';
+  document.querySelector('.nav-sub').textContent = L.navSub;
+  $('disc').innerHTML = L.disc.map(function(sec){
+    var body = Array.isArray(sec[1])
+      ? '<ul>' + sec[1].map(function(li){ return '<li>' + li + '</li>'; }).join('') + '</ul>'
+      : '<p style="margin:0">' + sec[1] + '</p>';
+    return '<h3>' + sec[0] + '</h3>' + body;
+  }).join('');
+  $('agree-txt').textContent = L.agree;
+  $('consent-btn').textContent = L.contBtn;
+  $('consent-card').querySelector('h1').textContent = L.consentH;
+  $('sign-card').querySelector('h1').textContent = L.signH;
+  var fh = $('fields-card').querySelectorAll('h1, .sub');
+  fh[0].textContent = L.fieldsH; if(fh[1]) fh[1].textContent = L.fieldsSub;
+  $('fields-card').querySelector('.lbl').textContent = L.yourSig;
+  $('fields-card').querySelector('.hint').textContent = L.drawOnce;
+  $('clear2').textContent = L.clear;
+  var labels = $('sign-card').querySelectorAll('.lbl');
+  labels[0].textContent = L.typedLbl; labels[1].textContent = L.drawLbl;
+  var hints = $('sign-card').querySelectorAll('.hint');
+  hints[0].textContent = L.typedHint; hints[1].textContent = L.drawHint;
+  $('submit').textContent = L.submit;
+  $('decline').textContent = L.decline;
+  $('sign-card').querySelector('.note').textContent = L.signNote;
+  $('done-dl').textContent = L.doneDl;
+  $('declined').querySelector('h2').textContent = L.declinedH;
+  $('declined').querySelector('p').textContent = L.declinedP;
+  $('done').querySelector('h2').textContent = L.doneH;
+  var dl = $('doc-link');
+  dl.previousSibling.textContent = L.openTab;
+}
+
 /* ---- placed fields ----------------------------------------------------
    Fields are positioned from normalised coordinates, so the overlay lines up
    with the page at whatever width it rendered.
@@ -260,16 +370,14 @@ function remaining(){
 }
 function updateTodo(){
   var n = remaining();
-  $('todo').textContent = n === 0
-    ? 'All required fields are complete.'
-    : n + (n === 1 ? ' required field left to complete.' : ' required fields left to complete.');
+  $('todo').textContent = n === 0 ? L.todoDone : L.todoLeft(n);
   $('todo').style.color = n === 0 ? 'var(--ok)' : 'var(--muted)';
 }
 
 function renderFields(){
   if(!docRendered) return;
   document.querySelectorAll('.fl').forEach(function(l){ l.innerHTML = ''; });
-  var LABEL = { signature:'Sign here', initials:'Initials', date:'Date', text:'Type here' };
+  var LABEL = { signature:L.lblSign, initials:L.lblInit, date:L.lblDate, text:L.lblText };
   FIELDS.forEach(function(f){
     var pg = document.querySelector('.pg[data-page="' + f.page + '"]');
     if(!pg) return;
@@ -300,7 +408,7 @@ function renderFields(){
           values[f.id] = { id: f.id, value: todayStr() };
         } else {
           if(!padAdopt.has()){
-            alert('Draw your signature in the box above first, then click the field.');
+            alert(L.adoptFirst);
             $('pad2').scrollIntoView({ behavior:'smooth', block:'center' });
             return;
           }
@@ -316,7 +424,7 @@ function renderFields(){
 
 async function renderDocument(){
   var host = $('pages');
-  host.innerHTML = '<div style="padding:18px;text-align:center;color:var(--muted);font-size:12.5px">Rendering document…</div>';
+  host.innerHTML = '<div style="padding:18px;text-align:center;color:var(--muted);font-size:12.5px">' + L.rendering + '</div>';
   try {
     if(!window.pdfjsLib) throw new Error('PDF viewer unavailable');
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -354,9 +462,10 @@ async function renderDocument(){
 /* ---- load ---- */
 fetch(api).then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
 .then(function(res){
-  if (!res.ok) return problem("This link isn't available", res.d.error || 'Unknown error');
+  if (!res.ok) return problem(null, res.d.error || 'Unknown error');
   var d = res.d;
-  if (d.status === 'signed')   { show('done'); $('done-p').textContent = 'You have already signed this document.'; return; }
+  applyLanguage(d.language);
+  if (d.status === 'signed')   { show('done'); $('done-p').textContent = L.already; return; }
   if (d.status === 'declined') { show('declined'); return; }
 
   $('title').textContent = d.title;
@@ -402,15 +511,13 @@ function adoptedSignature(){ return FIELDS.length ? padAdopt : padMain; }
 $('submit').addEventListener('click', function(){
   var err = $('sign-err'); err.hidden = true;
   var typed = $('typed').value.trim();
-  if (!typed)  { err.textContent = 'Type your full legal name to signify intent to sign.'; err.hidden = false; return; }
+  if (!typed)  { err.textContent = L.needName; err.hidden = false; return; }
   if (!adoptedSignature().has()) {
-    err.textContent = FIELDS.length
-      ? 'Draw your signature in the box above the document, then apply it to the fields.'
-      : 'Draw your signature in the box above.';
+    err.textContent = FIELDS.length ? L.needSigFields : L.needSig;
     err.hidden = false; return;
   }
   if (FIELDS.length && remaining() > 0) {
-    err.textContent = 'Complete the ' + remaining() + ' highlighted field(s) on the document first.';
+    err.textContent = L.needFields(remaining());
     err.hidden = false;
     $('pages').scrollIntoView({ behavior:'smooth', block:'start' });
     return;
@@ -430,7 +537,7 @@ $('submit').addEventListener('click', function(){
     if (!res.ok) throw new Error(res.d.error || 'Could not record your signature');
     show('done');
     if (res.d.completed) {
-      $('done-p').textContent = 'Thank you. Everyone has now signed, and a copy has been emailed to you.';
+      $('done-p').textContent = L.doneAll;
       var dl = $('done-dl'); dl.href = api + '/document?signed=1'; dl.hidden = false;
     }
   })
@@ -439,7 +546,7 @@ $('submit').addEventListener('click', function(){
 
 /* ---- decline ---- */
 $('decline').addEventListener('click', function(){
-  var reason = prompt('Optionally, tell the sender why you are declining:');
+  var reason = prompt(L.declinePrompt);
   if (reason === null) return;
   fetch(api + '/decline', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ reason: reason }) })
   .then(function(){ show('declined'); })

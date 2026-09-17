@@ -164,6 +164,8 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
   }
 
   // ---- Certificate of completion -----------------------------------------
+  // Always appended, whether or not fields were placed. This page is the
+  // evidentiary record of the transaction, so it is never conditional.
   const cert = pdf.addPage([612, 792]);
   let cy = 742;
 
@@ -179,6 +181,7 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
     ['Original file', envelope.file_name],
     ['Original SHA-256', originalHash],
     ['Sent by', `${envelope.agent_name || '—'} <${envelope.agent_email || '—'}>`],
+    ['Disclosure language', envelope.language === 'es' ? 'Spanish (español)' : 'English'],
     ['Created', fmt(envelope.created_at)],
     ['Sent', fmt(envelope.sent_at)],
     ['Completed', fmt(new Date())],
@@ -222,9 +225,12 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
 
   cert.drawText(
     'This certificate records an electronic signature transaction under the federal ESIGN Act',
+    { x: 48, y: 65, size: 7, font: helv, color: GREY });
+  cert.drawText(
+    '(15 U.S.C. ch. 96), the Washington Uniform Electronic Transactions Act (RCW 19.360) and the',
     { x: 48, y: 56, size: 7, font: helv, color: GREY });
   cert.drawText(
-    '(15 U.S.C. ch. 96) and the Washington Uniform Electronic Transactions Act (RCW 19.360).',
+    'Oregon Uniform Electronic Transactions Act (ORS 84.001 to 84.061).',
     { x: 48, y: 47, size: 7, font: helv, color: GREY });
 
   const out = Buffer.from(await pdf.save());
