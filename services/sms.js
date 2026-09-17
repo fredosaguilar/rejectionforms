@@ -19,6 +19,72 @@ const SERVER = (process.env.RINGCENTRAL_SERVER || 'https://platform.ringcentral.
 
 let cached = { token: null, expires: 0 };
 
+/* A JWT copied out of a JSON credentials file, or pasted into a dashboard's
+   variable editor, routinely arrives wrapped in quotes, with a trailing
+   newline, or line-wrapped. None of that is visible in the dashboard, and all
+   of it makes RingCentral answer "Unparseable assertion" before it ever looks
+   at the credentials. A real JWT contains no whitespace, so stripping it is
+   safe and saves an afternoon. */
+function cleanJwt(raw) {
+  return String(raw == null ? '' : raw)
+    .trim()
+    .replace(/^["']+|["']+$/g, '')
+    .replace(/\s+/g, '');
+}
+
+/* Explains what is wrong with the stored JWT without ever echoing it: every
+   value below is derived (a count, a length, a date), never the token itself. */
+function jwtShape() {
+  const raw = process.env.RINGCENTRAL_JWT || '';
+  const t = cleanJwt(raw);
+  const tidied = t !== raw.trim();
+
+  if (!t) return { ok: false, why: 'RINGCENTRAL_JWT is empty.' };
+
+  const parts = t.split('.');
+  if (parts.length !== 3) {
+    return { ok: false, tidied, why:
+      `RINGCENTRAL_JWT is not a JWT. A JWT is three dot-separated sections; this value has ${parts.length} ` +
+      `and is ${t.length} characters long. Copy the token itself from Credentials > JWT in the RingCentral ` +
+      'console — not the credential\'s name, and not the whole JSON file.' };
+  }
+
+  // A JWT is base64url only. Anything else here — most often a whole JSON
+  // credentials file, which happens to split into three parts on the dots of
+  // the token inside it — is not the token.
+  if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/.test(t)) {
+    return { ok: false, tidied, why:
+      'RINGCENTRAL_JWT contains characters a JWT cannot contain, so it is not the token itself — most often ' +
+      'the whole JSON credentials file. Set this variable to just the token: three dot-separated sections, ' +
+      'starting "eyJ".' };
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+  } catch {
+    return { ok: false, tidied, why:
+      'The middle section of RINGCENTRAL_JWT is not readable, so the value is truncated or mis-copied. ' +
+      'Paste the token again in full.' };
+  }
+
+  if (payload.exp && payload.exp * 1000 < Date.now()) {
+    return { ok: false, tidied, why:
+      `This JWT expired on ${new Date(payload.exp * 1000).toDateString()}. Generate a new one in the RingCentral console.` };
+  }
+
+  // The JWT is minted for one environment. A sandbox token sent to production
+  // is rejected, and the message does not say so.
+  const aud = String(payload.aud || '');
+  if (aud && !aud.includes(SERVER)) {
+    return { ok: false, tidied, why:
+      `This JWT was issued for ${aud}, but the app is calling ${SERVER}. Either generate the JWT ` +
+      'for that environment, or set RINGCENTRAL_SERVER to match.' };
+  }
+
+  return { ok: true, tidied };
+}
+
 function request({ path, method, headers, body }) {
   return new Promise((resolve, reject) => {
     const req = https.request({ hostname: SERVER, path, method, headers }, (res) => {
@@ -52,7 +118,7 @@ async function accessToken() {
   ).toString('base64');
   const body = new URLSearchParams({
     grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-    assertion: process.env.RINGCENTRAL_JWT,
+    assertion: cleanJwt(process.env.RINGCENTRAL_JWT),
   }).toString();
 
   const out = await request({
@@ -116,8 +182,12 @@ function signingText({ recipientName, agentName, title, url, lang }) {
    the credentials are wrong. Sends nothing, so it is safe to call on demand. */
 async function authCheck() {
   cached = { token: null, expires: 0 };   // never report a stale success
+  // Catch a malformed token here, where the reason can be explained, rather
+  // than letting RingCentral answer with two words.
+  const shape = jwtShape();
+  if (!shape.ok) throw new Error(shape.why);
   await accessToken();
   return true;
 }
 
-module.exports = { send, signingText, normalisePhone, configured, authCheck };
+module.exports = { send, signingText, normalisePhone, configured, authCheck, jwtShape };

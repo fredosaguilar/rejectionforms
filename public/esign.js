@@ -445,7 +445,7 @@ document.getElementById('es-smstest').addEventListener('click', async function(e
     var d = await r.json();
     if (d.success) {
       out.style.color = '#1a6b45';
-      out.textContent = 'Connected. Texts will send from ' + d.from + '.';
+      out.textContent = 'Connected. Texts will send from ' + d.from + '.' + (d.note ? '  ' + d.note : '');
     } else {
       out.style.color = '#a32219';
       out.textContent = d.missing && d.missing.length
