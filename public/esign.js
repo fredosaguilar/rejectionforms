@@ -35,16 +35,27 @@ css.textContent = [
   '#f-esign .es-declined,#f-esign .es-voided{background:#fbecea;color:#a32219}',
   '#f-esign .btn-row{display:flex;gap:8px;justify-content:flex-end;padding:1rem 1.25rem;border-top:1px solid var(--border)}',
   '#f-esign .es-link{font-size:11.5px;color:var(--navy);text-decoration:none;border:1px solid var(--border2);border-radius:20px;padding:2px 9px;white-space:nowrap}',
-  '#f-esign .es-studio{display:grid;grid-template-columns:250px 1fr;gap:14px;align-items:start}',
-  '@media(max-width:900px){#f-esign .es-studio{grid-template-columns:1fr}}',
-  '#f-esign .es-palette{border:1px solid var(--border);border-radius:var(--radius);padding:12px;background:#fff}',
+  // The field placer is a full-viewport workspace: the page it is preparing is
+  // the whole job, so it gets the whole screen rather than a band inside a
+  // form the reader has to scroll down to.
+  '#f-esign #es-place-sec{position:fixed;inset:0;z-index:600;margin:0;padding:0;border:none;border-radius:0;background:#f4f2ee;display:flex;flex-direction:column}',
+  '#f-esign #es-place-sec[hidden]{display:none}',
+  '#f-esign .es-ovbar{flex:0 0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:9px 16px;background:#fff;border-bottom:1px solid var(--border)}',
+  '#f-esign .es-ovttl{font-size:13px;font-weight:600;color:var(--navy);margin-right:auto}',
+  '#f-esign .es-studio{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:230px 1fr}',
+  '@media(max-width:900px){#f-esign .es-studio{grid-template-columns:1fr;overflow:auto}}',
+  '#f-esign .es-palette{overflow:auto;padding:14px;background:#fff;border:none;border-right:1px solid var(--border);border-radius:0}',
   '#f-esign .es-who{border-left:3px solid;padding:9px 10px;border-radius:0 var(--radius) var(--radius) 0;background:var(--bg);margin-bottom:10px}',
   '#f-esign .es-who-name{font-size:12.5px;font-weight:600;margin-bottom:7px}',
   '#f-esign .es-chips{display:flex;flex-wrap:wrap;gap:5px}',
   '#f-esign .es-chip{font-family:inherit;font-size:11px;padding:4px 9px;border-radius:20px;border:1px solid var(--border2);background:#fff;color:var(--text);cursor:pointer;white-space:nowrap}',
   '#f-esign .es-chip:hover{border-color:var(--navy)}',
   '#f-esign .es-chip.on{color:#fff}',
-  '#f-esign .es-stage{border:1px solid var(--border);border-radius:var(--radius);background:#eceae4;padding:10px;display:flex;flex-direction:column;align-items:center;gap:8px}',
+  '#f-esign .es-stage{min-width:0;min-height:0;display:flex;flex-direction:column;background:#eceae4;padding:9px;border:none;border-radius:0}',
+  '#f-esign .es-scroll{flex:1 1 auto;min-height:0;width:100%;overflow:auto;display:flex;justify-content:center;align-items:flex-start}',
+  '#f-esign .es-zoom{display:flex;gap:4px;align-items:center}',
+  '#f-esign .es-zoom button{font-family:inherit;font-size:12px;line-height:1;min-width:30px;padding:5px 10px;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;cursor:pointer}',
+  '#f-esign .es-zoom button:hover{border-color:var(--navy)}',
   '#f-esign .es-pgbar{display:flex;gap:10px;align-items:center;font-size:11.5px;color:var(--muted)}',
   '#f-esign .es-pgbar button{font-family:inherit;font-size:11.5px;padding:3px 10px;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;cursor:pointer}',
   '#f-esign .es-pgbar button:disabled{opacity:.4;cursor:default}',
@@ -83,6 +94,7 @@ var html =
       '</select>' +
       '<div style="font-size:11.5px;color:var(--muted);margin-top:5px">Sets the language of the consent disclosure, the signing page and the notifications. Recorded on the certificate.</div>' +
     '</div>' +
+    '<button class="btn btn-sec" id="es-openplace" type="button" hidden style="margin-top:12px;font-size:12px;padding:6px 14px">Place signature fields on the document</button>' +
   '</div>' +
 
   '<div class="sec"><div class="sec-title">Recipients</div>' +
@@ -95,24 +107,32 @@ var html =
     '</div>' +
   '</div>' +
 
-  '<div class="sec" id="es-place-sec" hidden><div class="sec-title">Place fields</div>' +
+  '<div class="sec" id="es-place-sec" hidden>' +
+    '<div class="es-ovbar">' +
+      '<span class="es-ovttl">Place fields</span>' +
+      '<span class="es-pgbar">' +
+        '<button id="es-prev" type="button">&larr; Previous</button>' +
+        '<span id="es-pgnum">Page 1 of 1</span>' +
+        '<button id="es-next" type="button">Next &rarr;</button>' +
+      '</span>' +
+      '<span class="es-zoom">' +
+        '<button id="es-zout" type="button" title="Smaller">&minus;</button>' +
+        '<button id="es-zfit" type="button" title="Fit the whole page">Fit</button>' +
+        '<button id="es-zin" type="button" title="Larger">+</button>' +
+        '<span id="es-zlvl" style="min-width:40px;text-align:right;font-size:11.5px;color:var(--muted)">100%</span>' +
+      '</span>' +
+      '<button class="btn btn-pri" id="es-doneplace" type="button" style="font-size:12px;padding:6px 18px">Done</button>' +
+    '</div>' +
     '<div class="es-studio">' +
       '<div class="es-palette">' +
         '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px">Click a field, then click the page</div>' +
         '<div id="es-who-list"></div>' +
         '<button class="btn btn-sec" id="es-clearfields" style="width:100%;font-size:12px;padding:6px 10px;margin-top:4px">Clear all fields</button>' +
         '<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5"><span id="es-count">0 fields</span><br>Drag a field to move it, or its corner to resize.</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Place no fields to append a signature page instead of putting signatures on the document.</div>' +
       '</div>' +
-      '<div class="es-stage">' +
-        '<div class="es-pgbar">' +
-          '<button id="es-prev" type="button">&larr; Previous</button>' +
-          '<span id="es-pgnum">Page 1 of 1</span>' +
-          '<button id="es-next" type="button">Next &rarr;</button>' +
-        '</div>' +
-        '<div id="es-stage-inner"></div>' +
-      '</div>' +
+      '<div class="es-stage"><div class="es-scroll" id="es-stage-inner"></div></div>' +
     '</div>' +
-    '<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Place no fields to append a signature page instead of putting signatures on the document.</div>' +
   '</div>' +
 
   '<div class="sec"><div class="sec-title">Sent documents</div>' +
@@ -191,6 +211,7 @@ var TYPES = [
   { id: 'text',      label: 'Text' },
 ];
 var fields = [], pdfDoc = null, curPage = 1, pageCount = 1;
+var zoom = 1;   // multiplier on the fit-to-screen scale; 1 = the whole page visible
 var pick = { recipientIndex: 0, type: 'signature' };
 var stageEl, whoListEl;
 
@@ -246,11 +267,23 @@ function loadPdfJs(){
   });
 }
 
+/* The workspace covers the page while it is open, so the page behind it is
+   frozen rather than scrolling underneath. */
+function openPlacer(){
+  document.getElementById('es-place-sec').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+function closePlacer(){
+  document.getElementById('es-place-sec').hidden = true;
+  document.body.style.overflow = '';
+  var re = document.getElementById('es-openplace');
+  if(re) re.hidden = !pdfDoc;
+}
+
 async function renderForPlacement(f){
-  var sec = document.getElementById('es-place-sec');
   stageEl = document.getElementById('es-stage-inner');
-  fields = []; curPage = 1;
-  sec.hidden = false;
+  fields = []; curPage = 1; zoom = 1;
+  openPlacer();
   stageEl.innerHTML = '<div style="padding:24px;font-size:12.5px;color:var(--muted)">Rendering document…</div>';
   refreshWho();
   try {
@@ -263,6 +296,8 @@ async function renderForPlacement(f){
     stageEl.innerHTML = '<div style="padding:16px;font-size:12.5px;color:#a32219;max-width:420px">' +
       esc(e.message) + '. You can still send the document — signatures will go on an appended page.</div>';
   }
+  var re = document.getElementById('es-openplace');
+  if(re) re.hidden = !pdfDoc;
 }
 
 // One page, scaled to fit the available box, so the whole page is reachable
@@ -272,11 +307,18 @@ async function showPage(n){
   curPage = Math.max(1, Math.min(pageCount, n));
   var page = await pdfDoc.getPage(curPage);
   var v1 = page.getViewport({ scale: 1 });
-  var availW = Math.max(320, (stageEl.parentElement.clientWidth || 700) - 28);
-  var availH = 680;
-  var vp = page.getViewport({ scale: Math.min(availW / v1.width, availH / v1.height) });
+  // A portrait page is limited by height, not width, so the working area takes
+  // as much of the viewport as the surrounding chrome allows. Zoom multiplies
+  // that fit; above 1 the stage scrolls, which is the reader's own choice.
+  // Measured, not guessed: the stage is the flex remainder of the workspace, so
+  // its own box is exactly the room the page has. Measure before clearing it.
+  var availW = Math.max(280, (stageEl.clientWidth  || 760) - 14);
+  var availH = Math.max(280, (stageEl.clientHeight || 760) - 14);
+  var fit = Math.min(availW / v1.width, availH / v1.height);
+  var vp = page.getViewport({ scale: Math.min(fit * zoom, 4) });
 
   stageEl.innerHTML = '';
+  var scroll = stageEl;
   var holder = document.createElement('div');
   holder.className = 'es-page';
   holder.dataset.page = curPage;
@@ -286,11 +328,12 @@ async function showPage(n){
   var layer = document.createElement('div');
   layer.className = 'es-layer';
   holder.appendChild(layer);
-  stageEl.appendChild(holder);
+  scroll.appendChild(holder);
 
   await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
   wireLayer(layer, curPage);
   document.getElementById('es-pgnum').textContent = 'Page ' + curPage + ' of ' + pageCount;
+  document.getElementById('es-zlvl').textContent = Math.round(zoom * 100) + '%';
   document.getElementById('es-prev').disabled = curPage <= 1;
   document.getElementById('es-next').disabled = curPage >= pageCount;
   drawFields();
@@ -395,9 +438,31 @@ function drawFields(){
   });
 }
 
+function setZoom(z){ zoom = Math.max(0.5, Math.min(3, z)); showPage(curPage); }
+document.getElementById('es-zin').addEventListener('click',  function(e){ e.preventDefault(); setZoom(zoom + 0.25); });
+document.getElementById('es-zout').addEventListener('click', function(e){ e.preventDefault(); setZoom(zoom - 0.25); });
+document.getElementById('es-zfit').addEventListener('click', function(e){ e.preventDefault(); setZoom(1); });
+
+var refitTimer = null;
+window.addEventListener('resize', function(){
+  if(!pdfDoc) return;
+  clearTimeout(refitTimer);
+  refitTimer = setTimeout(function(){ showPage(curPage); }, 180);
+});
+
 document.getElementById('es-prev').addEventListener('click', function(e){ e.preventDefault(); showPage(curPage - 1); });
 document.getElementById('es-next').addEventListener('click', function(e){ e.preventDefault(); showPage(curPage + 1); });
 document.getElementById('es-clearfields').addEventListener('click', function(e){ e.preventDefault(); fields = []; drawFields(); });
+document.getElementById('es-doneplace').addEventListener('click', function(e){ e.preventDefault(); closePlacer(); });
+document.getElementById('es-openplace').addEventListener('click', function(e){
+  e.preventDefault();
+  if(!pdfDoc) return;
+  openPlacer();
+  showPage(curPage);            // the stage had no box while hidden, so re-fit
+});
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape' && !document.getElementById('es-place-sec').hidden) closePlacer();
+});
 
 /* ---- recipients -------------------------------------------------------- */
 var rcpts = document.getElementById('es-rcpts');
@@ -510,8 +575,9 @@ function resetForm(){
   document.getElementById('es-msg').value = '';
   rcpts.innerHTML = ''; addRecipient();
   fields = [];
-  var sec = document.getElementById('es-place-sec');
-  if(sec){ sec.hidden = true; if(stageEl) stageEl.innerHTML = ''; pdfDoc = null; }
+  pdfDoc = null;
+  if(stageEl) stageEl.innerHTML = '';
+  closePlacer();
   refreshWho();
 }
 document.getElementById('es-reset').addEventListener('click', function(e){ e.preventDefault(); resetForm(); });
@@ -558,9 +624,14 @@ async function loadList(){
       var dl = e.status === 'completed'
         ? '<a class="es-link" href="/api/esign/envelopes/' + e.id + '/document?signed=1" target="_blank" rel="noopener">Signed PDF</a>'
         : '<a class="es-link" href="/api/esign/envelopes/' + e.id + '/document" target="_blank" rel="noopener">Original</a>';
+      var fail = e.last_failure
+        ? '<div style="color:#a32219;font-size:11px;margin-top:3px">Delivery failed (' +
+          esc(e.last_failure.channel || 'email') + ' to ' + esc(e.last_failure.to || '') + '): ' +
+          esc(e.last_failure.error || '') + '</div>'
+        : '';
       return '<tr>' +
         '<td><div style="font-weight:500">' + esc(e.title) + '</div>' +
-          '<div style="color:var(--muted);font-size:11.5px">' + esc(e.file_name) + '</div></td>' +
+          '<div style="color:var(--muted);font-size:11.5px">' + esc(e.file_name) + '</div>' + fail + '</td>' +
         '<td>' + who + '</td>' +
         '<td><span class="es-pill es-' + esc(e.status) + '">' + esc(e.status) + '</span></td>' +
         '<td>' + when(e.sent_at || e.created_at) + '</td>' +

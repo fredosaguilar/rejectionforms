@@ -76,7 +76,10 @@ router.get('/envelopes', requireAuth, async (req, res) => {
               COALESCE(json_agg(json_build_object(
                 'name', r.name, 'email', r.email, 'status', r.status,
                 'signed_at', r.signed_at
-              ) ORDER BY r.routing_order, r.id) FILTER (WHERE r.id IS NOT NULL), '[]') AS recipients
+              ) ORDER BY r.routing_order, r.id) FILTER (WHERE r.id IS NOT NULL), '[]') AS recipients,
+              (SELECT detail FROM envelope_events ev
+                WHERE ev.envelope_id = e.id AND ev.event = 'send_failed'
+                ORDER BY ev.at DESC LIMIT 1) AS last_failure
          FROM envelopes e
          LEFT JOIN envelope_recipients r ON r.envelope_id = e.id
         GROUP BY e.id
