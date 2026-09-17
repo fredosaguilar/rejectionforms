@@ -42,6 +42,32 @@ const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '').trim
    Agent-facing API
    ========================================================================== */
 
+/* Configuration check for SMS. Reports which variables are present and whether
+   RingCentral actually accepts them, without ever echoing a value back. */
+router.get('/sms-status', requireAuth, async (req, res) => {
+  const present = {
+    RINGCENTRAL_CLIENT_ID:     !!process.env.RINGCENTRAL_CLIENT_ID,
+    RINGCENTRAL_CLIENT_SECRET: !!process.env.RINGCENTRAL_CLIENT_SECRET,
+    RINGCENTRAL_JWT:           !!process.env.RINGCENTRAL_JWT,
+    RINGCENTRAL_FROM:          !!process.env.RINGCENTRAL_FROM,
+  };
+  const missing = Object.keys(present).filter((k) => !present[k]);
+  if (missing.length) {
+    return res.json({ success: false, configured: false, missing,
+      error: `Not set: ${missing.join(', ')}` });
+  }
+  try {
+    await sms.authCheck();
+    res.json({
+      success: true, configured: true, missing: [],
+      from: process.env.RINGCENTRAL_FROM,
+      server: process.env.RINGCENTRAL_SERVER || 'https://platform.ringcentral.com',
+    });
+  } catch (e) {
+    res.json({ success: false, configured: true, missing: [], error: e.message });
+  }
+});
+
 router.get('/envelopes', requireAuth, async (req, res) => {
   try {
     const { rows } = await db.query(

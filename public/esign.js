@@ -80,6 +80,10 @@ var html =
     '<div id="es-rcpts"></div>' +
     '<button class="btn btn-sec" id="es-add" style="margin-top:4px">Add recipient</button>' +
     '<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Each recipient gets their own signing link. The document completes once everyone has signed.</div>' +
+    '<div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+      '<button class="btn btn-sec" id="es-smstest" style="font-size:12px;padding:6px 12px">Test text messaging</button>' +
+      '<span id="es-smsres" style="font-size:11.5px;color:var(--muted)"></span>' +
+    '</div>' +
   '</div>' +
 
   '<div class="sec" id="es-place-sec" hidden><div class="sec-title">Place fields</div>' +
@@ -448,6 +452,27 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(
   return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
 
 function when(ts){ return ts ? new Date(ts).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—'; }
+
+document.getElementById('es-smstest').addEventListener('click', async function(e){
+  e.preventDefault();
+  var btn = this, out = document.getElementById('es-smsres');
+  btn.disabled = true; out.style.color = 'var(--muted)'; out.textContent = 'Checking…';
+  try {
+    var r = await fetch('/api/esign/sms-status');
+    var d = await r.json();
+    if (d.success) {
+      out.style.color = '#1a6b45';
+      out.textContent = 'Connected. Texts will send from ' + d.from + '.';
+    } else {
+      out.style.color = '#a32219';
+      out.textContent = d.missing && d.missing.length
+        ? 'Not configured — missing: ' + d.missing.join(', ')
+        : 'RingCentral rejected the credentials: ' + d.error;
+    }
+  } catch (err) {
+    out.style.color = '#a32219'; out.textContent = err.message;
+  } finally { btn.disabled = false; }
+});
 
 async function loadList(){
   var el = document.getElementById('es-list');
