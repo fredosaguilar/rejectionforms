@@ -143,6 +143,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
       <a href="/" id="nav-eo" style="padding:5px 14px;border-radius:4px;font-size:12px;background:rgba(255,255,255,.15);color:#fff;text-decoration:none">E&O Forms</a>
       <a href="/fee-agreement" id="nav-fee" style="padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none">Fee Agreement</a>
       <a href="/quote" style="padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none">Quote Proposals</a>
+      <a href="/esign" id="nav-esign" style="padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none">E-Signature</a>
     </div>
     <span class="nav-agent" id="nav-agent"></span>
     <a href="/admin/agents" class="nav-link" id="admin-link" style="display:none">Agents</a>
@@ -1146,5 +1147,6 @@ function addOtherProduct(prefix){const container=document.getElementById(prefix+
 function showT(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),4000);}
 </script>
 <script src="/fee-agreement.js"></script>
+<script src="/esign.js"></script>
 </body>
 </html>

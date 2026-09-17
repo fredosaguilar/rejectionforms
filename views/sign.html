@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Sign Document — Columbia Basin Insurance</title>
+<style>
+:root{--navy:#1a4a4a;--gold:#c8922a;--bg:#f7f5f0;--card:#fff;--border:#e0dcd4;--border2:#d4cfc6;
+      --text:#1a1a1a;--muted:#6b6560;--radius:8px;--ok:#1a6b45;--bad:#a32219}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.nav{background:var(--navy);padding:14px 20px;display:flex;align-items:center;gap:12px}
+.nav-brand{color:#fff;font-size:14px;font-weight:500;line-height:1.2}
+.nav-sub{color:var(--gold);font-size:10px;letter-spacing:.07em;text-transform:uppercase}
+.wrap{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px}
+.card-hd{padding:14px 18px;border-bottom:1px solid var(--border)}
+.card-bd{padding:18px}
+h1{font-size:19px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:12.5px;margin:0}
+.msg{background:var(--bg);border-left:3px solid var(--gold);padding:11px 14px;font-size:13px;margin:0 0 16px;border-radius:0 4px 4px 0}
+.doc{width:100%;height:600px;border:1px solid var(--border2);border-radius:6px;background:#fff}
+@media(max-width:640px){.doc{height:420px}}
+.disc{font-size:12.5px;line-height:1.7;color:var(--text);background:var(--bg);border:1px solid var(--border);
+      border-radius:6px;padding:14px 16px;max-height:260px;overflow-y:auto;margin-bottom:14px}
+.disc h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin:14px 0 5px}
+.disc h3:first-child{margin-top:0}
+.disc ul{margin:5px 0;padding-left:18px}
+label.chk{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;cursor:pointer;margin-bottom:14px}
+label.chk input{width:16px;height:16px;margin-top:2px;flex-shrink:0;accent-color:var(--navy)}
+.fld{margin-bottom:14px}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:5px}
+input[type=text]{width:100%;padding:9px 11px;font:inherit;font-size:14px;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;color:var(--text)}
+input[type=text]:focus{outline:none;border-color:var(--navy)}
+canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radius:var(--radius);background:#fff;touch-action:none;display:block}
+.sigrow{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.hint{font-size:11.5px;color:var(--muted)}
+.btn{padding:11px 20px;font:inherit;font-size:14px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--border2);background:#fff;color:var(--text)}
+.btn-pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn-pri:disabled{opacity:.45;cursor:not-allowed}
+.btn-link{background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;font:inherit;font-size:12.5px;padding:0}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.note{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6}
+.state{text-align:center;padding:48px 20px}
+.state .ico{font-size:34px;margin-bottom:10px}
+.state h2{font-size:18px;margin:0 0 6px}
+.state p{color:var(--muted);font-size:13.5px;margin:0 auto;max-width:44ch}
+.err{background:#fbecea;border:1px solid #f0c8c3;color:var(--bad);padding:10px 13px;border-radius:6px;font-size:13px;margin-bottom:14px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div>
+    <div class="nav-brand">Columbia Basin Insurance</div>
+    <div class="nav-sub">Electronic Signature</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="loading" class="state"><p>Loading document…</p></div>
+
+  <div id="problem" class="state" hidden>
+    <div class="ico">⚠️</div>
+    <h2 id="problem-h">This link isn't available</h2>
+    <p id="problem-p"></p>
+  </div>
+
+  <div id="done" class="state" hidden>
+    <div class="ico">✓</div>
+    <h2>Signed</h2>
+    <p id="done-p">Thank you. A copy will be emailed to you once everyone has signed.</p>
+    <p style="margin-top:18px"><a id="done-dl" class="btn" href="#" hidden>Download signed document</a></p>
+  </div>
+
+  <div id="declined" class="state" hidden>
+    <div class="ico">—</div>
+    <h2>Declined</h2>
+    <p>You've declined to sign this document. The sender has been notified.</p>
+  </div>
+
+  <main id="main" hidden>
+    <div class="card">
+      <div class="card-hd">
+        <h1 id="title"></h1>
+        <p class="sub" id="sub"></p>
+      </div>
+      <div class="card-bd">
+        <p class="msg" id="msg" hidden></p>
+        <iframe class="doc" id="doc" title="Document to sign"></iframe>
+        <p class="note">If the document doesn't display, <a id="doc-link" href="#" target="_blank" rel="noopener">open it in a new tab</a>.</p>
+      </div>
+    </div>
+
+    <!-- ESIGN 101(c): affirmative consent, captured before signing is possible -->
+    <div class="card" id="consent-card">
+      <div class="card-hd"><h1 style="font-size:16px">Consent to use electronic records and signatures</h1></div>
+      <div class="card-bd">
+        <div class="disc">
+          <h3>What you are agreeing to</h3>
+          <p style="margin:0">You are being asked to review and sign this document electronically. If you agree,
+          your electronic signature will have the same legal effect as a handwritten one under the federal
+          ESIGN Act (15 U.S.C. ch. 96) and the Washington Uniform Electronic Transactions Act (RCW 19.360).</p>
+
+          <h3>Getting a paper copy</h3>
+          <p style="margin:0">You may request a paper copy of this document at no charge by contacting
+          Columbia Basin Insurance. Requesting a paper copy does not mean you have withdrawn your consent.</p>
+
+          <h3>Withdrawing consent</h3>
+          <p style="margin:0">You may decline to sign electronically at any time before you sign, using the
+          Decline button below. To withdraw consent after signing, or to ask for records on paper instead,
+          contact Columbia Basin Insurance. Withdrawing consent does not affect the validity of records you
+          have already signed electronically.</p>
+
+          <h3>What you need to view and keep these records</h3>
+          <ul>
+            <li>A current web browser with cookies and JavaScript enabled</li>
+            <li>A working email address — the one this request was sent to</li>
+            <li>A PDF reader, and the ability to download or print to keep a copy</li>
+          </ul>
+
+          <h3>Keeping your copy</h3>
+          <p style="margin:0">Once all parties have signed, a completed copy including a certificate of
+          completion will be emailed to you. You may download and retain it at any time.</p>
+
+          <h3>Keeping your contact details current</h3>
+          <p style="margin:0">Tell us if your email address changes, so that records can continue to reach you.</p>
+        </div>
+
+        <label class="chk">
+          <input type="checkbox" id="agree">
+          <span>I have read the disclosure above. I consent to conduct this transaction electronically and
+          to receive records electronically, and I confirm I can access documents in PDF format.</span>
+        </label>
+        <button class="btn btn-pri" id="consent-btn" disabled>Continue to sign</button>
+      </div>
+    </div>
+
+    <div class="card" id="sign-card" hidden>
+      <div class="card-hd"><h1 style="font-size:16px">Sign</h1></div>
+      <div class="card-bd">
+        <div class="err" id="sign-err" hidden></div>
+
+        <div class="fld">
+          <div class="lbl">Type your full legal name</div>
+          <input type="text" id="typed" autocomplete="name" placeholder="Full legal name">
+          <p class="hint" style="margin:6px 0 0">Typing your name records your intent to sign this document.</p>
+        </div>
+
+        <div class="fld">
+          <div class="lbl">Draw your signature</div>
+          <canvas class="sig" id="pad"></canvas>
+          <div class="sigrow">
+            <span class="hint">Draw using a mouse, trackpad or finger.</span>
+            <button class="btn-link" id="clear">Clear</button>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:18px">
+          <button class="btn btn-pri" id="submit">Sign document</button>
+          <button class="btn-link" id="decline">Decline to sign</button>
+        </div>
+        <p class="note">By selecting Sign document you adopt the signature above as your electronic signature
+        on this record. The date, time, your IP address and browser will be recorded in the certificate of
+        completion.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+'use strict';
+var token = location.pathname.split('/').filter(Boolean).pop();
+var api = '/api/sign/' + encodeURIComponent(token);
+var $ = function(id){ return document.getElementById(id); };
+
+function show(id){ ['loading','problem','done','declined','main'].forEach(function(k){ $(k).hidden = (k !== id); }); }
+function problem(h, p){ $('problem-h').textContent = h; $('problem-p').textContent = p || ''; show('problem'); }
+
+/* ---- signature pad ---- */
+var pad = $('pad'), ctx = pad.getContext('2d'), drawing = false, signed = false;
+function sizePad(){
+  var r = pad.getBoundingClientRect();
+  if (!r.width) return;
+  var data = signed ? pad.toDataURL() : null;
+  pad.width = Math.round(r.width); pad.height = Math.round(r.height);
+  ctx = pad.getContext('2d');
+  ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1a1a1a';
+  if (data) { var img = new Image(); img.onload = function(){ ctx.drawImage(img, 0, 0, pad.width, pad.height); }; img.src = data; }
+}
+function pos(e){
+  var r = pad.getBoundingClientRect(), p = e.touches ? e.touches[0] : e;
+  return { x: (p.clientX - r.left) * (pad.width / r.width), y: (p.clientY - r.top) * (pad.height / r.height) };
+}
+function start(e){ drawing = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+function move(e){ if(!drawing) return; var p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); signed = true; e.preventDefault(); }
+function end(){ drawing = false; }
+pad.addEventListener('mousedown', start); pad.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+pad.addEventListener('touchstart', start, {passive:false}); pad.addEventListener('touchmove', move, {passive:false}); pad.addEventListener('touchend', end);
+$('clear').addEventListener('click', function(){ ctx.clearRect(0,0,pad.width,pad.height); signed = false; });
+window.addEventListener('resize', sizePad);
+
+/* ---- load ---- */
+fetch(api).then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+.then(function(res){
+  if (!res.ok) return problem("This link isn't available", res.d.error || 'Unknown error');
+  var d = res.d;
+  if (d.status === 'signed')   { show('done'); $('done-p').textContent = 'You have already signed this document.'; return; }
+  if (d.status === 'declined') { show('declined'); return; }
+
+  $('title').textContent = d.title;
+  $('sub').textContent = (d.sender ? 'Sent by ' + d.sender + ' · ' : '') + 'For ' + d.recipientName + ' (' + d.recipientEmail + ')';
+  if (d.message) { $('msg').textContent = d.message; $('msg').hidden = false; }
+  $('doc').src = api + '/document';
+  $('doc-link').href = api + '/document';
+  document.title = d.title + ' — Sign';
+  show('main');
+  sizePad();
+  if (d.consented) { $('consent-card').hidden = true; $('sign-card').hidden = false; sizePad(); }
+})
+.catch(function(e){ problem('Could not load this document', e.message); });
+
+/* ---- consent ---- */
+$('agree').addEventListener('change', function(){ $('consent-btn').disabled = !this.checked; });
+$('consent-btn').addEventListener('click', function(){
+  var b = this; b.disabled = true; b.textContent = 'Saving…';
+  fetch(api + '/consent', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ agree: true }) })
+  .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+  .then(function(res){
+    if (!res.ok) throw new Error(res.d.error || 'Could not record consent');
+    $('consent-card').hidden = true; $('sign-card').hidden = false; sizePad();
+    $('typed').focus();
+  })
+  .catch(function(e){ b.disabled = false; b.textContent = 'Continue to sign'; alert(e.message); });
+});
+
+/* ---- sign ---- */
+$('submit').addEventListener('click', function(){
+  var err = $('sign-err'); err.hidden = true;
+  var typed = $('typed').value.trim();
+  if (!typed)  { err.textContent = 'Type your full legal name to signify intent to sign.'; err.hidden = false; return; }
+  if (!signed) { err.textContent = 'Draw your signature in the box above.'; err.hidden = false; return; }
+
+  var b = this; b.disabled = true; b.textContent = 'Signing…';
+  fetch(api + '/sign', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ typedName: typed, signaturePng: pad.toDataURL('image/png') })
+  })
+  .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+  .then(function(res){
+    if (!res.ok) throw new Error(res.d.error || 'Could not record your signature');
+    show('done');
+    if (res.d.completed) {
+      $('done-p').textContent = 'Thank you. Everyone has now signed, and a copy has been emailed to you.';
+      var dl = $('done-dl'); dl.href = api + '/document?signed=1'; dl.hidden = false;
+    }
+  })
+  .catch(function(e){ b.disabled = false; b.textContent = 'Sign document'; err.textContent = e.message; err.hidden = false; });
+});
+
+/* ---- decline ---- */
+$('decline').addEventListener('click', function(){
+  var reason = prompt('Optionally, tell the sender why you are declining:');
+  if (reason === null) return;
+  fetch(api + '/decline', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ reason: reason }) })
+  .then(function(){ show('declined'); })
+  .catch(function(e){ alert(e.message); });
+});
+})();
+</script>
+</body>
+</html>

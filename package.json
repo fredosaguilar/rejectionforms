@@ -1,7 +1,7 @@
 {
   "name": "columbia-basin-eo-forms",
   "version": "1.0.0",
-  "description": "E&O Forms & Coverage Recommendations — Columbia Basin Insurance",
+  "description": "E&O Forms & Coverage Recommendations \u2014 Columbia Basin Insurance",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -15,7 +15,8 @@
     "express-session": "^1.17.3",
     "helmet": "^7.1.0",
     "morgan": "^1.10.0",
-    "pdf-parse": "^2.4.5",
+    "multer": "^1.4.5-lts.1",
+    "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdfkit": "^0.15.0",
     "pg": "^8.11.3"
