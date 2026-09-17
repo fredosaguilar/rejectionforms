@@ -112,4 +112,12 @@ function signingText({ recipientName, agentName, title, url, lang }) {
   return `${first}: ${agentName || 'Columbia Basin Insurance'} sent you "${title}" to sign electronically. Sign here: ${url}\n\nDo not share this link. Reply STOP to opt out.`;
 }
 
-module.exports = { send, signingText, normalisePhone, configured };
+/* Exchanges the JWT for a token and throws with the provider's own message if
+   the credentials are wrong. Sends nothing, so it is safe to call on demand. */
+async function authCheck() {
+  cached = { token: null, expires: 0 };   // never report a stale success
+  await accessToken();
+  return true;
+}
+
+module.exports = { send, signingText, normalisePhone, configured, authCheck };
