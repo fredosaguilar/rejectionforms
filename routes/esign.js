@@ -58,10 +58,14 @@ router.get('/sms-status', requireAuth, async (req, res) => {
   }
   try {
     await sms.authCheck();
+    const shape = sms.jwtShape();
     res.json({
       success: true, configured: true, missing: [],
       from: process.env.RINGCENTRAL_FROM,
       server: process.env.RINGCENTRAL_SERVER || 'https://platform.ringcentral.com',
+      note: shape.tidied
+        ? 'The stored JWT had stray quotes or line breaks, which were ignored. Worth tidying in Railway.'
+        : undefined,
     });
   } catch (e) {
     res.json({ success: false, configured: true, missing: [], error: e.message });
