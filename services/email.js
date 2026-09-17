@@ -61,34 +61,61 @@ function shell(inner) {
 </div>`;
 }
 
-function signingRequest({ recipientName, agentName, title, message, url }) {
-  return shell(`
+const COPY = {
+  en: {
+    sent: (a, t) => `${a} has sent you a document to review and sign electronically: <strong>${t}</strong>.`,
+    cta: 'Review &amp; sign document',
+    foot: 'You will be asked to consent to using electronic records before signing. You may decline, and you may request a paper copy at no charge.',
+    doneLead: (t) => `<strong>${t}</strong> has been signed by all parties. Your completed copy, including the certificate of completion, is available here:`,
+    doneCta: 'Download signed document',
+    doneFoot: 'Please retain this for your records.',
+    subjSign: (t) => `Please sign: ${t}`,
+    subjDone: (t) => `Signed: ${t}`,
+    noForward: 'This link is unique to you. Please do not forward it — anyone holding it can sign in your name.',
+  },
+  es: {
+    sent: (a, t) => `${a} le ha enviado un documento para revisar y firmar electrónicamente: <strong>${t}</strong>.`,
+    cta: 'Revisar y firmar documento',
+    foot: 'Antes de firmar se le pedirá su consentimiento para usar registros electrónicos. Puede negarse a firmar y puede solicitar una copia en papel sin costo alguno.',
+    doneLead: (t) => `<strong>${t}</strong> ha sido firmado por todas las partes. Su copia completa, incluido el certificado de finalización, está disponible aquí:`,
+    doneCta: 'Descargar documento firmado',
+    doneFoot: 'Conserve este documento para sus registros.',
+    subjSign: (t) => `Por favor firme: ${t}`,
+    subjDone: (t) => `Firmado: ${t}`,
+    noForward: 'Este enlace es exclusivo para usted. No lo reenvíe — cualquier persona que lo tenga puede firmar en su nombre.',
+  },
+};
+const copy = (lang) => COPY[lang] || COPY.en;
+
+function shellL(inner, lang) {
+  return shell(inner).replace(
+    'This link is unique to you. Please do not forward it — anyone holding it can sign in your name.',
+    esc(copy(lang).noForward));
+}
+
+function signingRequest({ recipientName, agentName, title, message, url, lang }) {
+  const c = copy(lang);
+  return shellL(`
     <p style="margin:0 0 14px;font-size:14px">${esc(recipientName)},</p>
     <p style="margin:0 0 14px;font-size:14px;line-height:1.6">
-      ${esc(agentName || 'Columbia Basin Insurance')} has sent you a document to review and sign electronically:
-      <strong>${esc(title)}</strong>.
+      ${c.sent(esc(agentName || 'Columbia Basin Insurance'), esc(title))}
     </p>
     ${message ? `<p style="margin:0 0 18px;padding:12px 14px;background:#f7f5f0;border-left:3px solid #c8922a;font-size:13px;line-height:1.6">${esc(message)}</p>` : ''}
     <p style="margin:0 0 22px">
-      <a href="${esc(url)}" style="display:inline-block;background:#1a4a4a;color:#fff;text-decoration:none;padding:11px 22px;border-radius:6px;font-size:14px">Review &amp; sign document</a>
+      <a href="${esc(url)}" style="display:inline-block;background:#1a4a4a;color:#fff;text-decoration:none;padding:11px 22px;border-radius:6px;font-size:14px">${c.cta}</a>
     </p>
-    <p style="margin:0;font-size:12px;color:#6b6560;line-height:1.6">
-      You will be asked to consent to using electronic records before signing. You may decline, and you may
-      request a paper copy at no charge.
-    </p>`);
+    <p style="margin:0;font-size:12px;color:#6b6560;line-height:1.6">${esc(c.foot)}</p>`, lang);
 }
 
-function completedNotice({ recipientName, title, url }) {
-  return shell(`
+function completedNotice({ recipientName, title, url, lang }) {
+  const c = copy(lang);
+  return shellL(`
     <p style="margin:0 0 14px;font-size:14px">${esc(recipientName)},</p>
-    <p style="margin:0 0 18px;font-size:14px;line-height:1.6">
-      <strong>${esc(title)}</strong> has been signed by all parties. Your completed copy, including the
-      certificate of completion, is available here:
-    </p>
+    <p style="margin:0 0 18px;font-size:14px;line-height:1.6">${c.doneLead(esc(title))}</p>
     <p style="margin:0 0 22px">
-      <a href="${esc(url)}" style="display:inline-block;background:#1a4a4a;color:#fff;text-decoration:none;padding:11px 22px;border-radius:6px;font-size:14px">Download signed document</a>
+      <a href="${esc(url)}" style="display:inline-block;background:#1a4a4a;color:#fff;text-decoration:none;padding:11px 22px;border-radius:6px;font-size:14px">${c.doneCta}</a>
     </p>
-    <p style="margin:0;font-size:12px;color:#6b6560">Please retain this for your records.</p>`);
+    <p style="margin:0;font-size:12px;color:#6b6560">${esc(c.doneFoot)}</p>`, lang);
 }
 
-module.exports = { send, signingRequest, completedNotice, esc };
+module.exports = { send, signingRequest, completedNotice, esc, copy };

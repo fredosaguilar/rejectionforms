@@ -44,6 +44,9 @@ css.textContent = [
   '#f-esign .es-layer{position:absolute;inset:0;cursor:crosshair}',
   '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:move;user-select:none}',
   '#f-esign .es-fld .es-del{position:absolute;top:-9px;right:-9px;width:18px;height:18px;border-radius:50%;background:#a32219;color:#fff;font-size:12px;line-height:18px;text-align:center;cursor:pointer}',
+  '#f-esign .es-fld .es-rz{position:absolute;right:-5px;bottom:-5px;width:12px;height:12px;border-radius:2px;background:#fff;border:1.5px solid currentColor;cursor:nwse-resize}',
+  '#f-esign .es-rcpt3{display:grid;grid-template-columns:1fr 1fr 150px 120px auto;gap:8px;margin-bottom:8px;align-items:center}',
+  '@media(max-width:900px){#f-esign .es-rcpt3{grid-template-columns:1fr}}',
   '#f-esign .es-pgnum{text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px}'
 ].join('');
 document.head.appendChild(css);
@@ -64,6 +67,12 @@ var html =
     '<div class="es-grid" style="margin-top:12px">' +
       '<div class="fld"><div class="lbl">Document title</div><input type="text" id="es-title" placeholder="e.g. Broker fee agreement — G. Ayala"></div>' +
       '<div class="fld"><div class="lbl">Message to recipients (optional)</div><input type="text" id="es-msg" placeholder="Shown in the email and on the signing page"></div>' +
+    '</div>' +
+    '<div class="fld" style="margin-top:10px;max-width:320px"><div class="lbl">Signing language / Idioma de firma</div>' +
+      '<select id="es-lang" style="width:100%;padding:7px 9px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;background:#fff">' +
+        '<option value="en">English</option><option value="es">Español</option>' +
+      '</select>' +
+      '<div style="font-size:11.5px;color:var(--muted);margin-top:5px">Sets the language of the consent disclosure, the signing page and the notifications. Recorded on the certificate.</div>' +
     '</div>' +
   '</div>' +
 
@@ -294,13 +303,30 @@ function drawFields(){
     var who = (whoEl.querySelector('option[value="' + f.recipientIndex + '"]') || {}).textContent || '';
     el.innerHTML = '<span style="pointer-events:none;padding:0 4px;text-align:center;line-height:1.2">' +
       esc(LABEL[f.type] || f.type) + '<br><span style="opacity:.75;font-size:9px">' + esc(who) + '</span></span>' +
-      '<span class="es-del" title="Remove">&times;</span>';
+      '<span class="es-del" title="Remove">&times;</span>' +
+      '<span class="es-rz" title="Resize"></span>';
     el.querySelector('.es-del').addEventListener('mousedown', function(e){
       e.stopPropagation(); fields.splice(idx, 1); drawFields();
     });
+    // drag the corner handle to resize
+    el.querySelector('.es-rz').addEventListener('mousedown', function(e){
+      e.stopPropagation(); e.preventDefault();
+      var lr = layer.getBoundingClientRect();
+      function move(ev){
+        // keep a usable minimum and stay inside the page
+        var nw = Math.max(0.03, Math.min(1 - f.x, (ev.clientX - lr.left) / lr.width  - f.x));
+        var nh = Math.max(0.012, Math.min(1 - f.y, (ev.clientY - lr.top)  / lr.height - f.y));
+        f.w = nw; f.h = nh;
+        el.style.width  = (f.w * lr.width) + 'px';
+        el.style.height = (f.h * lr.height) + 'px';
+      }
+      function up(){ window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); }
+      window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+    });
+
     // drag to reposition
     el.addEventListener('mousedown', function(e){
-      if(e.target.classList.contains('es-del')) return;
+      if(e.target.classList.contains('es-del') || e.target.classList.contains('es-rz')) return;
       e.stopPropagation(); e.preventDefault();
       var lr = layer.getBoundingClientRect();
       var offX = e.clientX - (lr.left + f.x * lr.width);
@@ -326,9 +352,13 @@ function drawFields(){
 var rcpts = document.getElementById('es-rcpts');
 function addRecipient(name, email){
   var row = document.createElement('div');
-  row.className = 'es-rcpt';
+  row.className = 'es-rcpt es-rcpt3';
   row.innerHTML = '<input type="text" class="es-name" placeholder="Full name">' +
                   '<input type="text" class="es-email" placeholder="email@example.com">' +
+                  '<input type="text" class="es-phone" placeholder="Mobile (for text)">' +
+                  '<select class="es-deliv" style="padding:6px 8px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;background:#fff">' +
+                    '<option value="email">Email</option><option value="sms">Text</option><option value="both">Email + text</option>' +
+                  '</select>' +
                   '<button class="es-x" type="button" title="Remove">&times;</button>';
   row.querySelector('.es-x').addEventListener('click', function(){
     if(rcpts.children.length > 1){ rcpts.removeChild(row); refreshWho(); }
@@ -364,7 +394,8 @@ document.getElementById('es-send').addEventListener('click', async function(){
   var list = [];
   rcpts.querySelectorAll('.es-rcpt').forEach(function(r){
     var n = r.querySelector('.es-name').value.trim(), e = r.querySelector('.es-email').value.trim();
-    if(n && e) list.push({ name: n, email: e });
+    var ph = r.querySelector('.es-phone').value.trim(), dv = r.querySelector('.es-deliv').value;
+    if(n && e) list.push({ name: n, email: e, phone: ph, delivery: dv });
   });
   if(!list.length){ showT('Add at least one recipient with a name and email','error'); return; }
 
@@ -376,6 +407,7 @@ document.getElementById('es-send').addEventListener('click', async function(){
     fd.append('message', document.getElementById('es-msg').value.trim());
     fd.append('recipients', JSON.stringify(list));
     fd.append('fields', JSON.stringify(fields));
+    fd.append('language', document.getElementById('es-lang').value);
 
     var r = await fetch('/api/esign/envelopes', { method: 'POST', body: fd });
     var d = await r.json();
