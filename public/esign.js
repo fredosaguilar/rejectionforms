@@ -34,7 +34,17 @@ css.textContent = [
   '#f-esign .es-completed{background:#e9f3ec;color:#1a6b45}',
   '#f-esign .es-declined,#f-esign .es-voided{background:#fbecea;color:#a32219}',
   '#f-esign .btn-row{display:flex;gap:8px;justify-content:flex-end;padding:1rem 1.25rem;border-top:1px solid var(--border)}',
-  '#f-esign .es-link{font-size:11.5px;color:var(--navy);text-decoration:none;border:1px solid var(--border2);border-radius:20px;padding:2px 9px;white-space:nowrap}'
+  '#f-esign .es-link{font-size:11.5px;color:var(--navy);text-decoration:none;border:1px solid var(--border2);border-radius:20px;padding:2px 9px;white-space:nowrap}',
+  '#f-esign .es-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;position:sticky;top:64px;z-index:20}',
+  '#f-esign .es-tools select{padding:6px 9px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;background:#fff}',
+  '#f-esign .es-tools .es-tip{font-size:11.5px;color:var(--muted)}',
+  '#f-esign .es-pages{max-height:620px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);background:#eceae4;padding:12px}',
+  '#f-esign .es-page{position:relative;margin:0 auto 12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14);width:fit-content}',
+  '#f-esign .es-page canvas{display:block}',
+  '#f-esign .es-layer{position:absolute;inset:0;cursor:crosshair}',
+  '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:move;user-select:none}',
+  '#f-esign .es-fld .es-del{position:absolute;top:-9px;right:-9px;width:18px;height:18px;border-radius:50%;background:#a32219;color:#fff;font-size:12px;line-height:18px;text-align:center;cursor:pointer}',
+  '#f-esign .es-pgnum{text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px}'
 ].join('');
 document.head.appendChild(css);
 
@@ -61,6 +71,23 @@ var html =
     '<div id="es-rcpts"></div>' +
     '<button class="btn btn-sec" id="es-add" style="margin-top:4px">Add recipient</button>' +
     '<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Each recipient gets their own signing link. The document completes once everyone has signed.</div>' +
+  '</div>' +
+
+  '<div class="sec" id="es-place-sec" hidden><div class="sec-title">Place fields</div>' +
+    '<div class="es-tools">' +
+      '<span class="es-tip">Add for</span>' +
+      '<select id="es-who"></select>' +
+      '<select id="es-type">' +
+        '<option value="signature">Signature</option>' +
+        '<option value="initials">Initials</option>' +
+        '<option value="date">Date signed</option>' +
+        '<option value="text">Text</option>' +
+      '</select>' +
+      '<span class="es-tip">Drag on the page to place. Drag a field to move it, click &times; to remove.</span>' +
+      '<span class="es-tip" style="margin-left:auto" id="es-count">0 fields</span>' +
+    '</div>' +
+    '<div class="es-pages" id="es-pages"></div>' +
+    '<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Leave this empty to append a signature page instead of placing signatures on the document.</div>' +
   '</div>' +
 
   '<div class="sec"><div class="sec-title">Sent documents</div>' +
@@ -120,6 +147,179 @@ function setFile(f){
   document.getElementById('es-file').textContent = f.name + '  (' + Math.round(f.size/1024) + ' KB)';
   var t = document.getElementById('es-title');
   if(!t.value) t.value = f.name.replace(/\.pdf$/i, '');
+  renderForPlacement(f);
+}
+
+/* ---- field placement --------------------------------------------------
+   Coordinates are stored normalised against each page, so they survive
+   whatever width the page happened to be rendered at here.
+   ---------------------------------------------------------------------- */
+var COLORS = ['#1a4a4a','#a35a19','#3b5aa3','#6b2f6b','#1a6b45'];
+var fields = [];
+var pagesEl, whoEl, typeEl;
+
+function refreshWho(){
+  if(!whoEl) return;
+  var prev = whoEl.value;
+  var opts = [];
+  rcpts.querySelectorAll('.es-rcpt').forEach(function(r, i){
+    var nm = r.querySelector('.es-name').value.trim() || ('Recipient ' + (i+1));
+    opts.push('<option value="' + i + '">' + esc(nm) + '</option>');
+  });
+  whoEl.innerHTML = opts.join('');
+  if(prev && whoEl.querySelector('option[value="' + prev + '"]')) whoEl.value = prev;
+  // A removed recipient must not leave fields pointing at nothing.
+  var max = rcpts.querySelectorAll('.es-rcpt').length;
+  fields = fields.filter(function(f){ return f.recipientIndex < max; });
+  drawFields();
+}
+
+function loadPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise(function(res, rej){
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = function(){
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      res(window.pdfjsLib);
+    };
+    s.onerror = function(){ rej(new Error('Could not load the PDF viewer')); };
+    document.head.appendChild(s);
+  });
+}
+
+async function renderForPlacement(f){
+  var sec = document.getElementById('es-place-sec');
+  pagesEl = document.getElementById('es-pages');
+  whoEl = document.getElementById('es-who');
+  typeEl = document.getElementById('es-type');
+  fields = [];
+  sec.hidden = false;
+  pagesEl.innerHTML = '<div style="padding:20px;text-align:center;font-size:12.5px;color:var(--muted)">Rendering document…</div>';
+  refreshWho();
+
+  try {
+    var pdfjs = await loadPdfJs();
+    var buf = await f.arrayBuffer();
+    var doc = await pdfjs.getDocument({ data: buf }).promise;
+    pagesEl.innerHTML = '';
+    for(var i = 1; i <= doc.numPages; i++){
+      var page = await doc.getPage(i);
+      var vp0 = page.getViewport({ scale: 1 });
+      var scale = Math.min(680 / vp0.width, 2);
+      var vp = page.getViewport({ scale: scale });
+
+      var wrapNum = document.createElement('div');
+      wrapNum.className = 'es-pgnum';
+      wrapNum.textContent = 'Page ' + i + ' of ' + doc.numPages;
+      pagesEl.appendChild(wrapNum);
+
+      var holder = document.createElement('div');
+      holder.className = 'es-page';
+      holder.dataset.page = i;
+      var cv = document.createElement('canvas');
+      cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+      holder.appendChild(cv);
+      var layer = document.createElement('div');
+      layer.className = 'es-layer';
+      holder.appendChild(layer);
+      pagesEl.appendChild(holder);
+
+      await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+      wireLayer(layer, i);
+    }
+  } catch(e){
+    pagesEl.innerHTML = '<div style="padding:16px;font-size:12.5px;color:#a32219">' + esc(e.message) +
+      '. You can still send the document — signatures will go on an appended signature page.</div>';
+  }
+}
+
+function wireLayer(layer, pageNum){
+  var start = null, ghost = null;
+  layer.addEventListener('mousedown', function(e){
+    if(e.target !== layer) return;            // dragging an existing field
+    var r = layer.getBoundingClientRect();
+    start = { x: e.clientX - r.left, y: e.clientY - r.top };
+    ghost = document.createElement('div');
+    ghost.className = 'es-fld';
+    ghost.style.borderColor = COLORS[whoEl.value % COLORS.length];
+    ghost.style.background = 'rgba(26,74,74,.10)';
+    layer.appendChild(ghost);
+    e.preventDefault();
+  });
+  layer.addEventListener('mousemove', function(e){
+    if(!start || !ghost) return;
+    var r = layer.getBoundingClientRect();
+    var cx = e.clientX - r.left, cy = e.clientY - r.top;
+    ghost.style.left = Math.min(start.x, cx) + 'px';
+    ghost.style.top = Math.min(start.y, cy) + 'px';
+    ghost.style.width = Math.abs(cx - start.x) + 'px';
+    ghost.style.height = Math.abs(cy - start.y) + 'px';
+  });
+  window.addEventListener('mouseup', function(e){
+    if(!start || !ghost) return;
+    var r = layer.getBoundingClientRect();
+    var cx = e.clientX - r.left, cy = e.clientY - r.top;
+    var x = Math.min(start.x, cx), y = Math.min(start.y, cy);
+    var w = Math.abs(cx - start.x), h = Math.abs(cy - start.y);
+    ghost.remove(); ghost = null; start = null;
+    // A click rather than a drag gets a sensible default box.
+    if(w < 12 || h < 8){ w = 170; h = 40; }
+    if(x + w > r.width) x = Math.max(0, r.width - w);
+    if(y + h > r.height) y = Math.max(0, r.height - h);
+    fields.push({
+      page: pageNum, type: typeEl.value, recipientIndex: parseInt(whoEl.value, 10) || 0,
+      x: x / r.width, y: y / r.height, w: w / r.width, h: h / r.height,
+    });
+    drawFields();
+  });
+}
+
+function drawFields(){
+  if(!pagesEl) return;
+  pagesEl.querySelectorAll('.es-layer').forEach(function(l){ l.innerHTML = ''; });
+  var LABEL = { signature: 'Signature', initials: 'Initials', date: 'Date signed', text: 'Text' };
+  fields.forEach(function(f, idx){
+    var holder = pagesEl.querySelector('.es-page[data-page="' + f.page + '"]');
+    if(!holder) return;
+    var layer = holder.querySelector('.es-layer');
+    var r = layer.getBoundingClientRect();
+    var color = COLORS[f.recipientIndex % COLORS.length];
+    var el = document.createElement('div');
+    el.className = 'es-fld';
+    el.style.cssText = 'left:' + (f.x * r.width) + 'px;top:' + (f.y * r.height) + 'px;' +
+      'width:' + (f.w * r.width) + 'px;height:' + (f.h * r.height) + 'px;' +
+      'border-color:' + color + ';background:' + color + '1a;color:' + color;
+    var who = (whoEl.querySelector('option[value="' + f.recipientIndex + '"]') || {}).textContent || '';
+    el.innerHTML = '<span style="pointer-events:none;padding:0 4px;text-align:center;line-height:1.2">' +
+      esc(LABEL[f.type] || f.type) + '<br><span style="opacity:.75;font-size:9px">' + esc(who) + '</span></span>' +
+      '<span class="es-del" title="Remove">&times;</span>';
+    el.querySelector('.es-del').addEventListener('mousedown', function(e){
+      e.stopPropagation(); fields.splice(idx, 1); drawFields();
+    });
+    // drag to reposition
+    el.addEventListener('mousedown', function(e){
+      if(e.target.classList.contains('es-del')) return;
+      e.stopPropagation(); e.preventDefault();
+      var lr = layer.getBoundingClientRect();
+      var offX = e.clientX - (lr.left + f.x * lr.width);
+      var offY = e.clientY - (lr.top + f.y * lr.height);
+      function move(ev){
+        var nx = (ev.clientX - offX - lr.left) / lr.width;
+        var ny = (ev.clientY - offY - lr.top) / lr.height;
+        f.x = Math.max(0, Math.min(1 - f.w, nx));
+        f.y = Math.max(0, Math.min(1 - f.h, ny));
+        el.style.left = (f.x * lr.width) + 'px';
+        el.style.top  = (f.y * lr.height) + 'px';
+      }
+      function up(){ window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); }
+      window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+    });
+    layer.appendChild(el);
+  });
+  var c = document.getElementById('es-count');
+  if(c) c.textContent = fields.length + (fields.length === 1 ? ' field' : ' fields');
 }
 
 /* ---- recipients -------------------------------------------------------- */
@@ -131,13 +331,14 @@ function addRecipient(name, email){
                   '<input type="text" class="es-email" placeholder="email@example.com">' +
                   '<button class="es-x" type="button" title="Remove">&times;</button>';
   row.querySelector('.es-x').addEventListener('click', function(){
-    if(rcpts.children.length > 1) rcpts.removeChild(row);
+    if(rcpts.children.length > 1){ rcpts.removeChild(row); refreshWho(); }
   });
+  row.querySelector('.es-name').addEventListener('input', refreshWho);
   if(name)  row.querySelector('.es-name').value = name;
   if(email) row.querySelector('.es-email').value = email;
   rcpts.appendChild(row);
 }
-document.getElementById('es-add').addEventListener('click', function(e){ e.preventDefault(); addRecipient(); });
+document.getElementById('es-add').addEventListener('click', function(e){ e.preventDefault(); addRecipient(); refreshWho(); });
 addRecipient();
 
 // Prefill from the client details already on the page, when they're there.
@@ -174,6 +375,7 @@ document.getElementById('es-send').addEventListener('click', async function(){
     fd.append('title', title);
     fd.append('message', document.getElementById('es-msg').value.trim());
     fd.append('recipients', JSON.stringify(list));
+    fd.append('fields', JSON.stringify(fields));
 
     var r = await fetch('/api/esign/envelopes', { method: 'POST', body: fd });
     var d = await r.json();
@@ -202,6 +404,10 @@ function resetForm(){
   document.getElementById('es-title').value = '';
   document.getElementById('es-msg').value = '';
   rcpts.innerHTML = ''; addRecipient();
+  fields = [];
+  var sec = document.getElementById('es-place-sec');
+  if(sec){ sec.hidden = true; document.getElementById('es-pages').innerHTML = ''; }
+  refreshWho();
 }
 document.getElementById('es-reset').addEventListener('click', function(e){ e.preventDefault(); resetForm(); });
 
