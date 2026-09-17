@@ -47,6 +47,17 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
 .state h2{font-size:18px;margin:0 0 6px}
 .state p{color:var(--muted);font-size:13.5px;margin:0 auto;max-width:44ch}
 .err{background:#fbecea;border:1px solid #f0c8c3;color:var(--bad);padding:10px 13px;border-radius:6px;font-size:13px;margin-bottom:14px}
+.pages{max-height:640px;overflow-y:auto;background:#eceae4;border:1px solid var(--border);border-radius:6px;padding:12px}
+.pg{position:relative;margin:0 auto 12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14);width:fit-content}
+.pg canvas{display:block}
+.fl{position:absolute;inset:0;pointer-events:none}
+.fb{position:absolute;pointer-events:auto;border:1.5px dashed var(--navy);background:rgba(26,74,74,.08);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--navy);cursor:pointer;overflow:hidden;text-align:center;padding:1px}
+.fb.done{border-style:solid;background:rgba(26,107,69,.10);border-color:var(--ok);color:var(--ok);cursor:default}
+.fb img{max-width:100%;max-height:100%;object-fit:contain}
+.fb input{width:100%;height:100%;border:none;background:transparent;font:inherit;font-size:12px;text-align:center;color:var(--text)}
+.fb input:focus{outline:none}
+.pgn{text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px}
+.todo{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:12.5px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -137,6 +148,21 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
       </div>
     </div>
 
+    <div class="card" id="fields-card" hidden>
+      <div class="card-hd"><h1 style="font-size:16px">Complete the highlighted fields</h1>
+        <p class="sub">Draw your signature once below, then click each highlighted box to apply it.</p></div>
+      <div class="card-bd">
+        <div class="todo" id="todo">Loading document…</div>
+        <div class="fld">
+          <div class="lbl">Your signature</div>
+          <canvas class="sig" id="pad2"></canvas>
+          <div class="sigrow"><span class="hint">Draw once, then click the boxes on the document.</span>
+            <button class="btn-link" id="clear2">Clear</button></div>
+        </div>
+        <div class="pages" id="pages"></div>
+      </div>
+    </div>
+
     <div class="card" id="sign-card" hidden>
       <div class="card-hd"><h1 style="font-size:16px">Sign</h1></div>
       <div class="card-bd">
@@ -148,7 +174,7 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
           <p class="hint" style="margin:6px 0 0">Typing your name records your intent to sign this document.</p>
         </div>
 
-        <div class="fld">
+        <div class="fld" id="main-pad-fld">
           <div class="lbl">Draw your signature</div>
           <canvas class="sig" id="pad"></canvas>
           <div class="sigrow">
@@ -169,6 +195,7 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
   </main>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 (function(){
 'use strict';
@@ -179,28 +206,150 @@ var $ = function(id){ return document.getElementById(id); };
 function show(id){ ['loading','problem','done','declined','main'].forEach(function(k){ $(k).hidden = (k !== id); }); }
 function problem(h, p){ $('problem-h').textContent = h; $('problem-p').textContent = p || ''; show('problem'); }
 
-/* ---- signature pad ---- */
-var pad = $('pad'), ctx = pad.getContext('2d'), drawing = false, signed = false;
-function sizePad(){
-  var r = pad.getBoundingClientRect();
-  if (!r.width) return;
-  var data = signed ? pad.toDataURL() : null;
-  pad.width = Math.round(r.width); pad.height = Math.round(r.height);
-  ctx = pad.getContext('2d');
-  ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1a1a1a';
-  if (data) { var img = new Image(); img.onload = function(){ ctx.drawImage(img, 0, 0, pad.width, pad.height); }; img.src = data; }
+/* ---- signature pads ---- */
+function makePad(canvas, onDraw){
+  var ctx = canvas.getContext('2d'), drawing = false, has = false;
+  function size(){
+    var r = canvas.getBoundingClientRect();
+    if(!r.width) return;
+    var data = has ? canvas.toDataURL() : null;
+    canvas.width = Math.round(r.width); canvas.height = Math.round(r.height);
+    ctx = canvas.getContext('2d');
+    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1a1a1a';
+    if(data){ var i = new Image(); i.onload = function(){ ctx.drawImage(i,0,0,canvas.width,canvas.height); }; i.src = data; }
+  }
+  function pos(e){
+    var r = canvas.getBoundingClientRect(), p = e.touches ? e.touches[0] : e;
+    return { x: (p.clientX - r.left) * (canvas.width / r.width), y: (p.clientY - r.top) * (canvas.height / r.height) };
+  }
+  function down(e){ drawing = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
+  function mv(e){ if(!drawing) return; var p = pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); has = true; e.preventDefault(); }
+  function up(){ if(drawing && has && onDraw) onDraw(); drawing = false; }
+  canvas.addEventListener('mousedown', down); canvas.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+  canvas.addEventListener('touchstart', down, {passive:false}); canvas.addEventListener('touchmove', mv, {passive:false}); canvas.addEventListener('touchend', up);
+  window.addEventListener('resize', size);
+  return {
+    size: size,
+    has: function(){ return has; },
+    data: function(){ return canvas.toDataURL('image/png'); },
+    clear: function(){ ctx.clearRect(0,0,canvas.width,canvas.height); has = false; if(onDraw) onDraw(); }
+  };
 }
-function pos(e){
-  var r = pad.getBoundingClientRect(), p = e.touches ? e.touches[0] : e;
-  return { x: (p.clientX - r.left) * (pad.width / r.width), y: (p.clientY - r.top) * (pad.height / r.height) };
+var padMain = makePad($('pad'));
+var padAdopt = makePad($('pad2'), function(){ renderFields(); });
+function sizePad(){ padMain.size(); padAdopt.size(); }
+$('clear').addEventListener('click', function(){ padMain.clear(); });
+$('clear2').addEventListener('click', function(){ padAdopt.clear(); });
+
+/* ---- placed fields ----------------------------------------------------
+   Fields are positioned from normalised coordinates, so the overlay lines up
+   with the page at whatever width it rendered.
+   ---------------------------------------------------------------------- */
+var FIELDS = [], values = {}, docRendered = false;
+
+function todayStr(){
+  var d = new Date();
+  return ('0'+(d.getMonth()+1)).slice(-2) + '/' + ('0'+d.getDate()).slice(-2) + '/' + d.getFullYear();
 }
-function start(e){ drawing = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
-function move(e){ if(!drawing) return; var p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); signed = true; e.preventDefault(); }
-function end(){ drawing = false; }
-pad.addEventListener('mousedown', start); pad.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
-pad.addEventListener('touchstart', start, {passive:false}); pad.addEventListener('touchmove', move, {passive:false}); pad.addEventListener('touchend', end);
-$('clear').addEventListener('click', function(){ ctx.clearRect(0,0,pad.width,pad.height); signed = false; });
-window.addEventListener('resize', sizePad);
+function remaining(){
+  return FIELDS.filter(function(f){
+    if(!f.required) return false;
+    var v = values[f.id];
+    return !(v && (v.valuePng || (v.value && String(v.value).trim())));
+  }).length;
+}
+function updateTodo(){
+  var n = remaining();
+  $('todo').textContent = n === 0
+    ? 'All required fields are complete.'
+    : n + (n === 1 ? ' required field left to complete.' : ' required fields left to complete.');
+  $('todo').style.color = n === 0 ? 'var(--ok)' : 'var(--muted)';
+}
+
+function renderFields(){
+  if(!docRendered) return;
+  document.querySelectorAll('.fl').forEach(function(l){ l.innerHTML = ''; });
+  var LABEL = { signature:'Sign here', initials:'Initials', date:'Date', text:'Type here' };
+  FIELDS.forEach(function(f){
+    var pg = document.querySelector('.pg[data-page="' + f.page + '"]');
+    if(!pg) return;
+    var layer = pg.querySelector('.fl'), r = layer.getBoundingClientRect();
+    var el = document.createElement('div');
+    el.className = 'fb';
+    el.style.cssText = 'left:' + (f.x*r.width) + 'px;top:' + (f.y*r.height) + 'px;' +
+                       'width:' + (f.w*r.width) + 'px;height:' + (f.h*r.height) + 'px';
+    var v = values[f.id];
+
+    if(v && v.valuePng){
+      el.className = 'fb done';
+      el.innerHTML = '<img alt="signature" src="' + v.valuePng + '">';
+    } else if(v && v.value){
+      el.className = 'fb done';
+      el.textContent = v.value;
+    } else if(f.type === 'text'){
+      var inp = document.createElement('input');
+      inp.type = 'text'; inp.placeholder = f.label || 'Type here';
+      inp.addEventListener('input', function(){
+        values[f.id] = { id: f.id, value: this.value }; updateTodo();
+      });
+      el.appendChild(inp);
+    } else {
+      el.textContent = LABEL[f.type] || f.type;
+      el.addEventListener('click', function(){
+        if(f.type === 'date'){
+          values[f.id] = { id: f.id, value: todayStr() };
+        } else {
+          if(!padAdopt.has()){
+            alert('Draw your signature in the box above first, then click the field.');
+            $('pad2').scrollIntoView({ behavior:'smooth', block:'center' });
+            return;
+          }
+          values[f.id] = { id: f.id, valuePng: padAdopt.data() };
+        }
+        renderFields();
+      });
+    }
+    layer.appendChild(el);
+  });
+  updateTodo();
+}
+
+async function renderDocument(){
+  var host = $('pages');
+  host.innerHTML = '<div style="padding:18px;text-align:center;color:var(--muted);font-size:12.5px">Rendering document…</div>';
+  try {
+    if(!window.pdfjsLib) throw new Error('PDF viewer unavailable');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    var doc = await pdfjsLib.getDocument(api + '/document').promise;
+    host.innerHTML = '';
+    for(var i = 1; i <= doc.numPages; i++){
+      var page = await doc.getPage(i);
+      var v0 = page.getViewport({ scale: 1 });
+      var vp = page.getViewport({ scale: Math.min(680 / v0.width, 2) });
+      var num = document.createElement('div');
+      num.className = 'pgn'; num.textContent = 'Page ' + i + ' of ' + doc.numPages;
+      host.appendChild(num);
+      var holder = document.createElement('div');
+      holder.className = 'pg'; holder.dataset.page = i;
+      var cv = document.createElement('canvas');
+      cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+      holder.appendChild(cv);
+      var fl = document.createElement('div'); fl.className = 'fl'; holder.appendChild(fl);
+      host.appendChild(holder);
+      await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    }
+    docRendered = true;
+    padAdopt.size();
+    renderFields();
+  } catch(e){
+    // Falling back keeps the document signable even if rendering fails.
+    host.innerHTML = '<div class="err">Could not display the document for field placement (' +
+      e.message + '). You can still sign below; your signature will be recorded.</div>';
+    FIELDS = [];
+    $('fields-card').hidden = true;
+    updateTodo();
+  }
+}
 
 /* ---- load ---- */
 fetch(api).then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
@@ -218,7 +367,8 @@ fetch(api).then(function(r){ return r.json().then(function(d){ return { ok: r.ok
   document.title = d.title + ' — Sign';
   show('main');
   sizePad();
-  if (d.consented) { $('consent-card').hidden = true; $('sign-card').hidden = false; sizePad(); }
+  FIELDS = d.fields || [];
+  if (d.consented) { $('consent-card').hidden = true; afterConsent(); }
 })
 .catch(function(e){ problem('Could not load this document', e.message); });
 
@@ -230,23 +380,50 @@ $('consent-btn').addEventListener('click', function(){
   .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
   .then(function(res){
     if (!res.ok) throw new Error(res.d.error || 'Could not record consent');
-    $('consent-card').hidden = true; $('sign-card').hidden = false; sizePad();
-    $('typed').focus();
+    $('consent-card').hidden = true; afterConsent();
   })
   .catch(function(e){ b.disabled = false; b.textContent = 'Continue to sign'; alert(e.message); });
 });
+
+function afterConsent(){
+  $('sign-card').hidden = false;
+  if(FIELDS.length){
+    $('fields-card').hidden = false;
+    // The signature adopted for the fields is the signature; don't ask twice.
+    $('main-pad-fld').hidden = true;
+    renderDocument();
+  }
+  sizePad();
+  if(!FIELDS.length) $('typed').focus();
+}
+function adoptedSignature(){ return FIELDS.length ? padAdopt : padMain; }
 
 /* ---- sign ---- */
 $('submit').addEventListener('click', function(){
   var err = $('sign-err'); err.hidden = true;
   var typed = $('typed').value.trim();
   if (!typed)  { err.textContent = 'Type your full legal name to signify intent to sign.'; err.hidden = false; return; }
-  if (!signed) { err.textContent = 'Draw your signature in the box above.'; err.hidden = false; return; }
+  if (!adoptedSignature().has()) {
+    err.textContent = FIELDS.length
+      ? 'Draw your signature in the box above the document, then apply it to the fields.'
+      : 'Draw your signature in the box above.';
+    err.hidden = false; return;
+  }
+  if (FIELDS.length && remaining() > 0) {
+    err.textContent = 'Complete the ' + remaining() + ' highlighted field(s) on the document first.';
+    err.hidden = false;
+    $('pages').scrollIntoView({ behavior:'smooth', block:'start' });
+    return;
+  }
 
   var b = this; b.disabled = true; b.textContent = 'Signing…';
   fetch(api + '/sign', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ typedName: typed, signaturePng: pad.toDataURL('image/png') })
+    body: JSON.stringify({
+      typedName: typed,
+      signaturePng: adoptedSignature().data(),
+      fields: Object.keys(values).map(function(k){ return values[k]; })
+    })
   })
   .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
   .then(function(res){

@@ -70,3 +70,30 @@ CREATE INDEX IF NOT EXISTS idx_env_public     ON envelopes(public_id);
 CREATE INDEX IF NOT EXISTS idx_rcpt_envelope  ON envelope_recipients(envelope_id);
 CREATE INDEX IF NOT EXISTS idx_rcpt_token     ON envelope_recipients(token_hash);
 CREATE INDEX IF NOT EXISTS idx_events_env     ON envelope_events(envelope_id, at);
+
+-- Placed fields.
+--
+-- Coordinates are normalised 0..1 against the page box with a TOP-LEFT origin,
+-- matching how the browser lays the placement overlay out. pdf-lib draws from
+-- the bottom left, so the flip happens once, at stamping time. Storing
+-- normalised values keeps placement correct whatever zoom the agent used and
+-- whatever size the page turns out to be.
+CREATE TABLE IF NOT EXISTS envelope_fields (
+  id            SERIAL PRIMARY KEY,
+  envelope_id   INTEGER NOT NULL REFERENCES envelopes(id) ON DELETE CASCADE,
+  recipient_id  INTEGER REFERENCES envelope_recipients(id) ON DELETE CASCADE,
+  page          INTEGER NOT NULL,          -- 1-based
+  x             REAL NOT NULL,
+  y             REAL NOT NULL,
+  w             REAL NOT NULL,
+  h             REAL NOT NULL,
+  type          TEXT NOT NULL,             -- signature|initials|date|text
+  label         TEXT,
+  required      BOOLEAN NOT NULL DEFAULT TRUE,
+  value         TEXT,                      -- typed text, or the date as stamped
+  value_png     TEXT,                      -- signature/initials image
+  filled_at     TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_fields_envelope  ON envelope_fields(envelope_id);
+CREATE INDEX IF NOT EXISTS idx_fields_recipient ON envelope_fields(recipient_id);

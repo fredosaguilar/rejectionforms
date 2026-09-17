@@ -52,15 +52,56 @@ function fmt(ts) {
    signature is drawn into the document itself, and a certificate page binds the
    signatures to the SHA-256 of the exact bytes that were signed.
    ------------------------------------------------------------------------- */
-async function buildSignedPdf({ envelope, recipients, events }) {
+async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
   const pdf = await PDFDocument.load(envelope.file_bytes);
   const helv = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
+  // ---- Placed fields ------------------------------------------------------
+  // Stamped in place before any page is appended, so page numbers still refer
+  // to the document the signer actually saw.
+  const pages = pdf.getPages();
+  for (const f of fields) {
+    if (!f.filled_at) continue;
+    const page = pages[(f.page || 1) - 1];
+    if (!page) continue;
+    const { width: pw, height: ph } = page.getSize();
+
+    // Stored top-left origin -> pdf-lib's bottom-left origin.
+    const x = f.x * pw;
+    const w = f.w * pw;
+    const h = f.h * ph;
+    const y = ph - (f.y * ph) - h;
+
+    if (f.value_png) {
+      try {
+        const raw = String(f.value_png).replace(/^data:image\/png;base64,/, '');
+        const img = await pdf.embedPng(Buffer.from(raw, 'base64'));
+        // Fit inside the box without distorting the drawn signature.
+        const scale = Math.min(w / img.width, h / img.height);
+        const dw = img.width * scale, dh = img.height * scale;
+        page.drawImage(img, { x: x + (w - dw) / 2, y: y + (h - dh) / 2, width: dw, height: dh });
+      } catch (e) {
+        page.drawText('[signature]', { x, y: y + 2, size: 8, font: helv, color: GREY });
+      }
+    } else if (f.value) {
+      // Shrink to fit rather than overflow into neighbouring content.
+      let size = Math.min(12, h * 0.7);
+      while (size > 5 && helv.widthOfTextAtSize(String(f.value), size) > w) size -= 0.5;
+      page.drawText(String(f.value), {
+        x, y: y + (h - size) / 2 + 1, size, font: helv, color: INK,
+      });
+    }
+  }
+
   // ---- Signature page -----------------------------------------------------
-  const sigPage = pdf.addPage([612, 792]);
+  // Skipped when the sender placed fields: the signatures are already on the
+  // pages where they belong, and a second copy would be misleading.
+  const placed = fields.some((f) => f.filled_at);
+  const sigPage = placed ? null : pdf.addPage([612, 792]);
   let y = 742;
 
+  if (sigPage) {
   sigPage.drawText('ELECTRONIC SIGNATURES', {
     x: 48, y, size: 14, font: bold, color: NAVY,
   });
@@ -119,6 +160,7 @@ async function buildSignedPdf({ envelope, recipients, events }) {
       x: 48, y, size: 8.5, font: helv, color: GREY,
     });
     y -= 28;
+  }
   }
 
   // ---- Certificate of completion -----------------------------------------

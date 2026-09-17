@@ -136,9 +136,31 @@ router.post('/envelopes', requireAuth, upload.single('document'), async (req, re
       issued.push({ ...r, id: rr[0].id, token });
     }
 
+    // Placed fields, if the sender used the placement editor. Each references a
+    // recipient by index into the list above.
+    let fields = [];
+    try { fields = JSON.parse(req.body.fields || '[]') || []; } catch { fields = []; }
+    const TYPES = new Set(['signature', 'initials', 'date', 'text']);
+    let placedCount = 0;
+    for (const f of fields) {
+      const ri = Number(f.recipientIndex);
+      const target = issued[ri];
+      if (!target) continue;                       // unassigned field is dropped
+      if (!TYPES.has(f.type)) continue;
+      const num = (v) => Math.min(1, Math.max(0, Number(v) || 0));
+      const page = Math.max(1, parseInt(f.page, 10) || 1);
+      await db.query(
+        `INSERT INTO envelope_fields (envelope_id, recipient_id, page, x, y, w, h, type, label, required)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [envelope.id, target.id, page, num(f.x), num(f.y), num(f.w), num(f.h),
+         f.type, (f.label || '').slice(0, 80) || null, f.required !== false]
+      );
+      placedCount++;
+    }
+
     await logEvent(envelope.id, 'created', req, {
       actor: req.session.agentName,
-      detail: { title, recipients: emails, sha256: sha256(req.file.buffer) },
+      detail: { title, recipients: emails, sha256: sha256(req.file.buffer), fields: placedCount },
     });
 
     res.json({ success: true, envelopeId: envelope.id, publicId: envelope.public_id,
@@ -261,11 +283,18 @@ pub.get('/:token', async (req, res) => {
       await db.query(`UPDATE envelope_recipients SET status='viewed', viewed_at=NOW() WHERE id=$1 AND status='pending'`, [r.id]);
       await logEvent(r.env_id, 'viewed', req, { recipientId: r.id, actor: r.email });
     }
+    const { rows: fields } = await db.query(
+      `SELECT id, page, x, y, w, h, type, label, required
+         FROM envelope_fields
+        WHERE envelope_id = $1 AND recipient_id = $2
+        ORDER BY page, y, x`, [r.env_id, r.id]);
+
     res.json({
       success: true,
       title: r.title, message: r.message, fileName: r.file_name,
       sender: r.agent_name, recipientName: r.name, recipientEmail: r.email,
       status: r.status, consented: !!r.consent_at, envelopeStatus: r.env_status,
+      fields,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -333,6 +362,39 @@ pub.post('/:token/sign', async (req, res) => {
     if (!typed) return res.status(400).json({ error: 'Type your full name to signify intent to sign.' });
     if (!/^data:image\/png;base64,/.test(sig)) return res.status(400).json({ error: 'A drawn signature is required.' });
 
+    // Every required field this recipient owns must be filled before the
+    // signature is accepted, checked here rather than trusted from the browser.
+    const { rows: myFields } = await db.query(
+      `SELECT id, type, required FROM envelope_fields
+        WHERE envelope_id = $1 AND recipient_id = $2`, [r.env_id, r.id]);
+
+    if (myFields.length) {
+      const supplied = new Map();
+      for (const f of (Array.isArray(req.body.fields) ? req.body.fields : [])) {
+        supplied.set(Number(f.id), f);
+      }
+      const missing = myFields.filter((f) => {
+        if (!f.required) return false;
+        const v = supplied.get(f.id);
+        if (!v) return true;
+        return !(String(v.valuePng || '').startsWith('data:image/png;base64,') || String(v.value || '').trim());
+      });
+      if (missing.length) {
+        return res.status(400).json({ error: `Please complete all required fields (${missing.length} remaining).` });
+      }
+
+      for (const f of myFields) {
+        const v = supplied.get(f.id);
+        if (!v) continue;
+        const png = String(v.valuePng || '').startsWith('data:image/png;base64,') ? v.valuePng : null;
+        const val = png ? null : String(v.value || '').slice(0, 300);
+        await db.query(
+          `UPDATE envelope_fields SET value = $2, value_png = $3, filled_at = NOW()
+            WHERE id = $1 AND recipient_id = $4`,
+          [f.id, val, png, r.id]);
+      }
+    }
+
     await db.query(
       `UPDATE envelope_recipients
           SET status='signed', signed_at=NOW(), signed_ip=$2, signed_ua=$3,
@@ -349,12 +411,14 @@ pub.post('/:token/sign', async (req, res) => {
     let completed = false;
     if (outstanding[0].n === 0) {
       completed = true;
-      const [{ rows: envRows }, { rows: recips }, { rows: events }] = await Promise.all([
+      const [{ rows: envRows }, { rows: recips }, { rows: events }, { rows: allFields }] = await Promise.all([
         db.query(`SELECT * FROM envelopes WHERE id=$1`, [r.env_id]),
         db.query(`SELECT * FROM envelope_recipients WHERE envelope_id=$1 ORDER BY routing_order, id`, [r.env_id]),
         db.query(`SELECT event, actor, ip, at FROM envelope_events WHERE envelope_id=$1 ORDER BY at`, [r.env_id]),
+        db.query(`SELECT * FROM envelope_fields WHERE envelope_id=$1 ORDER BY page, y, x`, [r.env_id]),
       ]);
-      const { bytes, hash } = await buildSignedPdf({ envelope: envRows[0], recipients: recips, events });
+      const { bytes, hash } = await buildSignedPdf({
+        envelope: envRows[0], recipients: recips, events, fields: allFields });
       await db.query(
         `UPDATE envelopes SET status='completed', completed_at=NOW(), signed_bytes=$2, signed_sha256=$3
           WHERE id=$1`, [r.env_id, bytes, hash]);
