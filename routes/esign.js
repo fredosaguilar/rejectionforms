@@ -268,7 +268,7 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
 
     // Placed fields, if the sender used the placement editor. Each references a
     // recipient by index into the list above.
-    const TYPES = new Set(['signature', 'initials', 'date', 'text']);
+    const TYPES = new Set(['signature', 'initials', 'date', 'checkbox', 'text']);
     let placedCount = 0;
     for (const f of fields) {
       const ri = Number(f.recipientIndex);
