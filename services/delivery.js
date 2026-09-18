@@ -14,6 +14,34 @@ const { newSigningToken, hashToken } = require('./esign');
  * recorded as null rather than faked.
  */
 
+/* The address every signing link is built from.
+ *
+ * Trimmed and de-slashed: a value pasted with a trailing slash or a stray
+ * space is invisible in a dashboard and produces links that do not work.
+ * `source` is reported so it is possible to tell a configured address from the
+ * fallback, which was otherwise only visible by reading a link.
+ */
+function portalBase(req = null) {
+  const set = String(process.env.APP_BASE_URL || '').trim().replace(/\/+$/, '');
+  if (set) {
+    const out = { url: set, source: 'APP_BASE_URL', configured: true };
+    // The app lives at the root, so a path here is always a mistake — and one
+    // that produces links like /esign/sign/<token>, which 404 quietly.
+    const path = set.replace(/^https?:\/\/[^/]+/i, '');
+    if (path) out.warning = `APP_BASE_URL ends in "${path}". It should be the address only, with no path.`;
+    if (!/^https?:\/\//i.test(set)) out.warning = 'APP_BASE_URL does not start with https://, so the links will not work.';
+    return out;
+  }
+  if (req) {
+    return {
+      url: `${req.protocol}://${req.get('host')}`,
+      source: 'the address this page was opened on, because APP_BASE_URL is not set',
+      configured: false,
+    };
+  }
+  return { url: '', source: 'nothing — APP_BASE_URL is not set', configured: false };
+}
+
 function clientIp(req) {
   return req ? (req.ip || '').replace(/^::ffff:/, '') : null;
 }
@@ -89,4 +117,4 @@ async function deliverSigningLinks({ env, recipients, baseUrl, req = null, actor
   return { sent, failed };
 }
 
-module.exports = { deliverSigningLinks, pendingRecipients, logEvent, clientIp };
+module.exports = { deliverSigningLinks, pendingRecipients, logEvent, clientIp, portalBase };
