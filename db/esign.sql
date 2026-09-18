@@ -107,3 +107,9 @@ ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'e
 -- Optional mobile number for SMS delivery of the signing link.
 ALTER TABLE envelope_recipients ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE envelope_recipients ADD COLUMN IF NOT EXISTS delivery TEXT NOT NULL DEFAULT 'email';  -- email|sms|both
+
+-- Daily reminders. Opt-in per envelope, capped so a client is nudged rather
+-- than harassed, and stopped by the signing flow the moment everyone signs.
+ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminders_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminder_last_at  TIMESTAMPTZ;
+ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminder_count    INTEGER NOT NULL DEFAULT 0;

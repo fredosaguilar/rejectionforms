@@ -254,4 +254,8 @@ app.listen(PORT, async () => {
   } catch(e) {
     console.log('Migration note:', e.message);
   }
+
+  // Started after the migration, so the first pass cannot read columns that
+  // do not exist yet.
+  require('./services/reminders').start();
 });
