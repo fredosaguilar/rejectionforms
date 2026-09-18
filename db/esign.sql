@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS envelope_fields (
   y             REAL NOT NULL,
   w             REAL NOT NULL,
   h             REAL NOT NULL,
-  type          TEXT NOT NULL,             -- signature|initials|date|text
+  type          TEXT NOT NULL,             -- signature|initials|date|checkbox|text
   label         TEXT,
   required      BOOLEAN NOT NULL DEFAULT TRUE,
   value         TEXT,                      -- typed text, or the date as stamped

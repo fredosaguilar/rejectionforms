@@ -398,6 +398,7 @@ var TYPES = [
   { id: 'signature', label: 'Signature' },
   { id: 'initials',  label: 'Initials'  },
   { id: 'date',      label: 'Date signed' },
+  { id: 'checkbox',  label: 'Checkbox' },
   { id: 'text',      label: 'Text' },
 ];
 var fields = [], pdfDoc = null, curPage = 1, pageCount = 1;
