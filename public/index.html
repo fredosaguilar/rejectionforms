@@ -47,7 +47,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
 .sec{margin-bottom:1.5rem}
 .sec-title{font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border)}
 .cov-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.cov-card{border:1px solid var(--border);border-radius:var(--radius);padding:11px 12px;overflow:visible}
+.cov-card{border:1px solid var(--border);border-radius:var(--radius);padding:11px 12px;overflow:visible;min-width:0}
 .cov-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px}
 .cov-names{flex:1}
 .cov-en{font-size:13px;font-weight:500;color:var(--text)}
@@ -126,7 +126,33 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
 .toast.success{background:#16a34a;color:#fff}
 .toast.error{background:#dc2626;color:#fff}
 .toast.info{background:var(--navy);color:#fff}
-@media(max-width:600px){.g2,.g3,.g4,.cov-grid{grid-template-columns:1fr!important}}
+@media(max-width:600px){.g2,.g3,.g4{grid-template-columns:1fr!important}}
+/* A grid item defaults to min-width:auto, so the widest child — the
+   offered/declined toggle — was forcing each column wider than the page and
+   pushing the whole form sideways. */
+.cov-grid>*{min-width:0}
+.tog{flex-wrap:wrap}
+@media(max-width:760px){
+  .cov-grid{grid-template-columns:1fr!important}
+  /* The coverage name and its offered/declined toggle no longer compete for
+     one row; the toggle drops underneath instead of pushing the page wide. */
+  .cov-top{flex-wrap:wrap}
+  .tog{flex-shrink:1}
+  /* Side by side, the button squeezed this text into a four-word column. */
+  .upload-panel-inner{flex-direction:column;align-items:stretch}
+  .upload-btn{width:100%}
+}
+/* The nav was a single non-wrapping row, so on a phone it pushed the whole
+   page sideways — every page scrolled horizontally. It wraps now, and the
+   page padding comes in to match. */
+@media(max-width:760px){
+  .nav{height:auto;flex-wrap:wrap;padding:8px 12px;gap:8px}
+  .nav-right{width:100%;flex-wrap:wrap;gap:8px}
+  .nav-pills{margin-right:0;width:100%;justify-content:space-between}
+  .nav-pills a{flex:1;text-align:center;padding:6px 8px!important}
+  .nav-logo{height:34px}
+  .wrap{padding-left:12px;padding-right:12px}
+}
 </style>
 </head>
 <body>
@@ -139,10 +165,9 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
     </div>
   </div>
   <div class="nav-right">
-    <div style="display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.1);border-radius:6px;padding:3px;margin-right:8px">
+    <div class="nav-pills" style="display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.1);border-radius:6px;padding:3px;margin-right:8px">
       <a href="/" id="nav-eo" style="padding:5px 14px;border-radius:4px;font-size:12px;background:rgba(255,255,255,.15);color:#fff;text-decoration:none">E&O Forms</a>
       <a href="/fee-agreement" id="nav-fee" style="padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none">Fee Agreement</a>
-      <a href="/quote" style="padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none">Quote Proposals</a>
       <a href="/esign" id="nav-esign" style="padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none">E-Signature</a>
     </div>
     <span class="nav-agent" id="nav-agent"></span>
@@ -607,7 +632,12 @@ buildGrid('cont-grid',CONT_COVS);
 function ST(id){document.querySelectorAll('.fc').forEach(f=>f.classList.remove('vis'));document.getElementById('f-'+id).classList.add('vis');const m={auto:0,home:1,truck:2,cont:3,auth:4};document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===m[id]));
 // The coverage-form tabs belong to the E&O forms. On the pages reached from the
 // top navigation they are not choices that apply, so they come down with them.
-const tabs=document.querySelector('.tabs');if(tabs)tabs.style.display=(id in m)?'':'none';}
+const tabs=document.querySelector('.tabs');if(tabs)tabs.style.display=(id in m)?'':'none';
+// Uploading a policy fills a coverage form or the fee agreement, and navigates
+// to whichever it matched. On the e-signature page that means being thrown to
+// the Auto form mid-task, so the panel is not offered there. The client panel
+// stays: it prefills the first recipient.
+const up=document.getElementById('upload-panel');if(up)up.style.display=(id==='esign')?'none':'';}
 function ST2(btn,val){const t=btn.closest('.tog');t.querySelectorAll('.tb').forEach(b=>b.className='tb');btn.classList.add(val);}
 function CF(id){const f=document.getElementById(id);f.querySelectorAll('input[type=text],input[type=date],input[type=email],textarea').forEach(el=>{if(!el.readOnly)el.value='';});f.querySelectorAll('input[type=checkbox],input[type=radio]').forEach(el=>el.checked=false);f.querySelectorAll('.tb').forEach(b=>b.className='tb');f.querySelectorAll('.rp').forEach(p=>p.classList.remove('sel'));f.querySelectorAll('canvas').forEach(c=>{const ctx=c.getContext('2d');if(ctx)ctx.clearRect(0,0,c.width,c.height);});showT('Form cleared','info');}
 function syncClientName(){const n=document.getElementById('global-client-name').value;['veh-client','auto-client','home-client','truck-client','cont-client','auth-name'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=n;});}
