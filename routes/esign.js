@@ -112,6 +112,18 @@ router.get('/sms-status', requireAuth, async (req, res) => {
   }
 });
 
+/* The same idea as /sms-status, for the other channel. Reports only derived
+   facts — the from address, the domains on the account and their status —
+   never the API key. */
+router.get('/email-status', requireAuth, async (req, res) => {
+  try {
+    const out = await mail.status();
+    res.json(out);
+  } catch (e) {
+    res.json({ ok: false, why: e.message });
+  }
+});
+
 router.get('/envelopes', requireAuth, async (req, res) => {
   try {
     const { rows } = await db.query(

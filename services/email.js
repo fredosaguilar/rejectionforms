@@ -42,6 +42,101 @@ function send({ to, subject, html, replyTo }) {
   });
 }
 
+/* The address mail is sent from, pulled out of "Name <a@b.com>" or a bare
+   address. The domain is what Resend has to have verified. */
+function fromAddress() {
+  const raw = String(FROM || '').trim();
+  const m = raw.match(/<([^>]+)>/);
+  const addr = (m ? m[1] : raw).trim();
+  const at = addr.lastIndexOf('@');
+  return { address: addr, domain: at > -1 ? addr.slice(at + 1).toLowerCase() : '' };
+}
+
+function apiGet(path) {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return Promise.reject(new Error('RESEND_API_KEY is not set'));
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'api.resend.com', path, method: 'GET',
+      headers: { Authorization: `Bearer ${key}` },
+    }, (res) => {
+      let raw = '';
+      res.on('data', (c) => raw += c);
+      res.on('end', () => {
+        let parsed = null;
+        try { parsed = JSON.parse(raw); } catch {}
+        if (res.statusCode >= 200 && res.statusCode < 300) return resolve(parsed || {});
+        const msg = (parsed && (parsed.message || parsed.error)) || raw;
+        reject(new Error(`Resend ${res.statusCode}: ${msg}`));
+      });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+/* Whether mail can actually go out, and if not, which of the several
+   independent things is missing. Sends nothing, so it is safe to call on
+   demand. Every value it reports is derived — a domain name, a status, a
+   from address — never the API key.
+
+   The three failure modes are quite different and the send-time error does not
+   distinguish them: no key; a key that Resend rejects; and a key that works
+   while the domain being sent from is unverified, which is the one that makes
+   mail silently land in spam or bounce. */
+async function status() {
+  const from = fromAddress();
+  const out = { from: from.address, domain: from.domain, configured: !!process.env.RESEND_API_KEY };
+
+  if (!process.env.RESEND_API_KEY) {
+    out.ok = false;
+    out.why = 'RESEND_API_KEY is not set, so no email can be sent.';
+    return out;
+  }
+
+  let domains;
+  try {
+    domains = await apiGet('/domains');
+  } catch (e) {
+    out.ok = false;
+    out.why = /401|403/.test(e.message)
+      ? `Resend rejected the API key (${e.message}).`
+      : `Could not reach Resend (${e.message}).`;
+    return out;
+  }
+
+  const list = (domains && (domains.data || domains)) || [];
+  out.domains = (Array.isArray(list) ? list : []).map((d) => ({
+    name: d.name, status: d.status, region: d.region,
+  }));
+
+  if (!from.domain) {
+    out.ok = false;
+    out.why = `MAIL_FROM has no email address in it: "${from.address}".`;
+    return out;
+  }
+
+  const mine = out.domains.find((d) => String(d.name).toLowerCase() === from.domain);
+  if (!mine) {
+    out.ok = false;
+    out.why = `${from.domain} is not on this Resend account, so mail from ${from.address} will be refused. ` +
+      (out.domains.length
+        ? `Verified there: ${out.domains.map((d) => d.name + ' (' + d.status + ')').join(', ')}.`
+        : 'No domains have been added to the account yet.');
+    return out;
+  }
+
+  if (String(mine.status).toLowerCase() !== 'verified') {
+    out.ok = false;
+    out.why = `${from.domain} is on the account but its status is "${mine.status}" — the DNS records are not in place yet, ` +
+      'so mail will be refused or treated as spam.';
+    return out;
+  }
+
+  out.ok = true;
+  return out;
+}
+
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -118,4 +213,4 @@ function completedNotice({ recipientName, title, url, lang }) {
     <p style="margin:0;font-size:12px;color:#6b6560">${esc(c.doneFoot)}</p>`, lang);
 }
 
-module.exports = { send, signingRequest, completedNotice, esc, copy };
+module.exports = { send, signingRequest, completedNotice, esc, copy, status, fromAddress };
