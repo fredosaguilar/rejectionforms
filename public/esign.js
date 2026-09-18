@@ -55,7 +55,7 @@ css.textContent = [
   '#f-esign .es-ovbar{flex:0 0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:9px 16px;background:#fff;border-bottom:1px solid var(--border)}',
   '#f-esign .es-ovttl{font-size:13px;font-weight:600;color:var(--navy);margin-right:auto}',
   '#f-esign .es-studio{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:230px 1fr}',
-  '@media(max-width:900px){#f-esign .es-studio{grid-template-columns:1fr;overflow:auto}}',
+  '@media(max-width:900px){#f-esign .es-studio{grid-template-columns:1fr;grid-template-rows:auto minmax(60vh,1fr);overflow:hidden}#f-esign .es-palette{max-height:34vh;border-right:0;border-bottom:1px solid var(--border)}#f-esign .es-stage{min-height:60vh}}',
   '#f-esign .es-palette{overflow:auto;padding:14px;background:#fff;border:none;border-right:1px solid var(--border);border-radius:0}',
   '#f-esign .es-who{border-left:3px solid;padding:9px 10px;border-radius:0 var(--radius) var(--radius) 0;background:var(--bg);margin-bottom:10px}',
   '#f-esign .es-who-name{font-size:12.5px;font-weight:600;margin-bottom:7px}',
@@ -64,7 +64,7 @@ css.textContent = [
   '#f-esign .es-chip:hover{border-color:var(--navy)}',
   '#f-esign .es-chip.on{color:#fff}',
   '#f-esign .es-stage{min-width:0;min-height:0;display:flex;flex-direction:column;background:#eceae4;padding:9px;border:none;border-radius:0}',
-  '#f-esign .es-scroll{flex:1 1 auto;min-height:0;width:100%;overflow:auto;display:flex;justify-content:center;align-items:flex-start}',
+  '#f-esign .es-scroll{flex:1 1 auto;min-height:0;width:100%;overflow:auto;display:flex;flex-direction:column;gap:24px;align-items:center;justify-content:flex-start;padding:20px}',
   '#f-esign .es-zoom{display:flex;gap:4px;align-items:center}',
   '#f-esign .es-zoom button{font-family:inherit;font-size:12px;line-height:1;min-width:30px;padding:5px 10px;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;cursor:pointer}',
   '#f-esign .es-zoom button:hover{border-color:var(--navy)}',
@@ -72,6 +72,7 @@ css.textContent = [
   '#f-esign .es-pgbar button{font-family:inherit;font-size:11.5px;padding:3px 10px;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;cursor:pointer}',
   '#f-esign .es-pgbar button:disabled{opacity:.4;cursor:default}',
   '#f-esign .es-page{position:relative;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.16);width:fit-content}',
+  '#f-esign .es-page-wrap{flex:0 0 auto;max-width:100%}',
   '#f-esign .es-page canvas{display:block}',
   '#f-esign .es-layer{position:absolute;inset:0;cursor:crosshair}',
   '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:move;user-select:none}',
@@ -98,7 +99,8 @@ var html =
     '<div class="es-stepper" role="tablist" aria-label="Signature request steps">' +
       '<button type="button" class="es-step active" data-es-go="1"><span>1</span><div><strong>Document</strong><small>Upload and details</small></div></button>' +
       '<button type="button" class="es-step" data-es-go="2"><span>2</span><div><strong>Recipients</strong><small>Who needs to sign</small></div></button>' +
-      '<button type="button" class="es-step" data-es-go="3"><span>3</span><div><strong>Review & send</strong><small>Fields and delivery</small></div></button>' +
+      '<button type="button" class="es-step" data-es-go="3"><span>3</span><div><strong>Place fields</strong><small>Required for every signer</small></div></button>' +
+      '<button type="button" class="es-step" data-es-go="4"><span>4</span><div><strong>Review & send</strong><small>Confirm and deliver</small></div></button>' +
     '</div>' +
 
   '<div class="es-pane active" data-es-pane="1">' +
@@ -137,18 +139,25 @@ var html =
       '<div id="es-smsdetail" style="flex-basis:100%;font-size:11.5px;color:var(--muted);line-height:1.6"></div>' +
     '</div>' +
   '</div>' +
-  '<div class="es-pane-actions"><button class="btn btn-sec" data-es-back="1" type="button">&larr; Back</button><button class="btn btn-pri" id="es-next-rcpt" type="button">Continue to review &rarr;</button></div>' +
+  '<div class="es-pane-actions"><button class="btn btn-sec" data-es-back="1" type="button">&larr; Back</button><button class="btn btn-pri" id="es-next-rcpt" type="button">Continue to field placement &rarr;</button></div>' +
   '</div>' +
 
   '<div class="es-pane" data-es-pane="3">' +
+    '<div class="sec"><div class="es-section-head"><span class="es-section-icon">03</span><div><div class="sec-title">Place required signature fields</div><p>The PDF opens in a continuous, scrollable view. Add at least one signature field for every recipient.</p></div></div>' +
+      '<div class="es-review-card"><div><span>Document</span><strong id="es-place-doc">PDF ready</strong></div><div><span>Recipients</span><strong id="es-place-rcpts">1 recipient</strong></div><div><span>Requirement</span><strong>Signature for each person</strong></div></div>' +
+      '<button class="btn btn-pri" id="es-openplace" type="button" hidden>Open field placement &rarr;</button>' +
+    '</div>' +
+    '<div class="es-pane-actions"><button class="btn btn-sec" data-es-back="2" type="button">&larr; Back</button><span>Complete field placement to continue</span></div>' +
+  '</div>' +
+
+  '<div class="es-pane" data-es-pane="4">' +
     '<div class="es-review-grid">' +
-      '<div class="sec"><div class="es-section-head"><span class="es-section-icon">03</span><div><div class="sec-title">Place signing fields</div><p>Add signature, initials, date, or text fields—or use an appended signature page.</p></div></div>' +
-        '<div class="es-review-card"><div><span>Document</span><strong id="es-review-doc">No document selected</strong></div><div><span>Recipients</span><strong id="es-review-rcpts">1 recipient</strong></div><div><span>Fields</span><strong id="es-review-fields">Signature page</strong></div></div>' +
-        '<button class="btn btn-sec" id="es-openplace" type="button" hidden>Open field placement studio &rarr;</button>' +
+      '<div class="sec"><div class="es-section-head"><span class="es-section-icon">04</span><div><div class="sec-title">Review and send</div><p>Confirm the request before it is delivered by both email and text.</p></div></div>' +
+        '<div class="es-review-card"><div><span>Document</span><strong id="es-review-doc">No document selected</strong></div><div><span>Recipients</span><strong id="es-review-rcpts">1 recipient</strong></div><div><span>Fields</span><strong id="es-review-fields">Required</strong></div></div>' +
       '</div>' +
       '<aside class="es-send-summary"><div class="es-kicker">Ready to send?</div><h3>Review request</h3><p>Confirm the document, recipients, language, and delivery method before sending.</p><div class="es-send-note">Recipients must consent to electronic records before signing. Every action is recorded in the completion certificate.</div></aside>' +
     '</div>' +
-    '<div class="es-pane-actions"><button class="btn btn-sec" data-es-back="2" type="button">&larr; Back</button><div><button class="btn btn-sec" id="es-reset">Clear draft</button><button class="btn btn-pri" id="es-send">Send for signature</button></div></div>' +
+    '<div class="es-pane-actions"><button class="btn btn-sec" data-es-back="3" type="button">&larr; Back</button><div><button class="btn btn-sec" id="es-reset">Clear draft</button><button class="btn btn-pri" id="es-send">Send by email + text</button></div></div>' +
   '</div>' +
 
   '</div>' +
@@ -157,9 +166,7 @@ var html =
     '<div class="es-ovbar">' +
       '<span class="es-ovttl">Place fields</span>' +
       '<span class="es-pgbar">' +
-        '<button id="es-prev" type="button">&larr; Previous</button>' +
-        '<span id="es-pgnum">Page 1 of 1</span>' +
-        '<button id="es-next" type="button">Next &rarr;</button>' +
+        '<span id="es-pgnum">Scroll to review every page</span>' +
       '</span>' +
       '<span class="es-zoom">' +
         '<button id="es-zout" type="button" title="Smaller">&minus;</button>' +
@@ -175,13 +182,13 @@ var html =
         '<div id="es-who-list"></div>' +
         '<button class="btn btn-sec" id="es-clearfields" style="width:100%;font-size:12px;padding:6px 10px;margin-top:4px">Clear all fields</button>' +
         '<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5"><span id="es-count">0 fields</span><br>Drag a field to move it, or its corner to resize.</div>' +
-        '<div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Place no fields to append a signature page instead of putting signatures on the document.</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Required: every recipient must have at least one signature field before you can continue.</div>' +
       '</div>' +
       '<div class="es-stage"><div class="es-scroll" id="es-stage-inner"></div></div>' +
     '</div>' +
   '</div>' +
 
-  '<div class="sec es-sent-section"><div class="es-section-head"><span class="es-section-icon">✓</span><div><div class="sec-title">Sent documents</div><p>Track delivery, signatures, reminders, and completed PDFs.</p></div></div>' +
+  '<div class="sec es-sent-section"><div class="es-section-head"><span class="es-section-icon">✓</span><div><div class="sec-title">All signature requests</div><p>Track delivery, signatures, reminders, and completed PDFs across all agents.</p></div></div>' +
     '<div id="es-list"><div style="font-size:12.5px;color:var(--muted)">Loading…</div></div>' +
   '</div>' +
 
@@ -193,7 +200,7 @@ lastForm.insertAdjacentHTML('afterend', html);
 /* ---- guided request workflow ----------------------------------------- */
 var esStep = 1;
 function goEsStep(n){
-  esStep = Math.max(1, Math.min(3, n));
+  esStep = Math.max(1, Math.min(4, n));
   document.querySelectorAll('#f-esign .es-pane').forEach(function(p){
     p.classList.toggle('active', Number(p.dataset.esPane) === esStep);
   });
@@ -202,7 +209,8 @@ function goEsStep(n){
     s.classList.toggle('active', at === esStep);
     s.classList.toggle('complete', at < esStep);
   });
-  if(esStep === 3) refreshReview();
+  if(esStep === 3 && docs.length){ openPlacer(); renderAllPages(); }
+  if(esStep === 4) refreshReview();
   var panel = document.getElementById('f-esign');
   if(panel) panel.scrollIntoView({ behavior:'smooth', block:'start' });
 }
@@ -211,7 +219,8 @@ function validRecipients(){
   document.querySelectorAll('#es-rcpts .es-rcpt').forEach(function(r){
     var name=r.querySelector('.es-name').value.trim();
     var email=r.querySelector('.es-email').value.trim();
-    if(name && email) complete.push(r);
+    var phone=r.querySelector('.es-phone').value.trim();
+    if(name && email && phone) complete.push(r);
   });
   return complete;
 }
@@ -223,7 +232,16 @@ function refreshReview(){
   if(doc) doc.textContent=title || (files[0] && files[0].name) || 'No document selected';
   var count=validRecipients().length;
   if(people) people.textContent=count + (count===1?' recipient':' recipients');
-  if(field) field.textContent=fields.length ? fields.length + (fields.length===1?' field placed':' fields placed') : 'Appended signature page';
+  if(field) field.textContent=fields.length ? fields.length + (fields.length===1?' field placed':' fields placed') : 'Fields required';
+  var placeDoc=document.getElementById('es-place-doc');
+  var placePeople=document.getElementById('es-place-rcpts');
+  if(placeDoc) placeDoc.textContent=title || (files[0] && files[0].name) || 'No document selected';
+  if(placePeople) placePeople.textContent=count + (count===1?' recipient':' recipients');
+}
+function missingSignatureRecipients(){
+  return recipientNames().filter(function(_, i){
+    return !fields.some(function(f){ return f.recipientIndex === i && f.type === 'signature'; });
+  });
 }
 document.querySelectorAll('#f-esign [data-es-go]').forEach(function(b){ b.addEventListener('click',function(){
   var target=Number(b.dataset.esGo); if(target<esStep) goEsStep(target);
@@ -235,7 +253,7 @@ document.getElementById('es-next-doc').addEventListener('click',function(){
   goEsStep(2);
 });
 document.getElementById('es-next-rcpt').addEventListener('click',function(){
-  if(!validRecipients().length){ showT('Add a recipient name and email to continue','error'); return; }
+  if(validRecipients().length !== document.querySelectorAll('#es-rcpts .es-rcpt').length){ showT('Add a name, email, and mobile number for every recipient','error'); return; }
   goEsStep(3);
 });
 
@@ -387,7 +405,7 @@ var fields = [], pdfDoc = null, curPage = 1, pageCount = 1;
    Page numbers run continuously across them, matching the merged PDF the
    server builds, so a field placed on "page 7" lands on page 7 of the result. */
 var docs = [];
-var DEFAULT_ZOOM = 2;
+var DEFAULT_ZOOM = 1;
 var zoom = DEFAULT_ZOOM;   // multiplier on the fit-to-screen scale; 1 = whole page visible
 var pick = { recipientIndex: 0, type: 'signature' };
 var stageEl, whoListEl;
@@ -481,12 +499,12 @@ async function loadDocs(){
     pdfDoc = docs.length ? docs[0].doc : null;
     renderFiles();                       // page counts are known now
     if(note) note.textContent = '';
-    if(openNow) await showPage(1);
+    if(openNow) await renderAllPages();
   } catch(e){
     pdfDoc = null; docs = [];
-    if(note) note.textContent = e.message + ' — you can still send it; signatures will go on an appended page.';
+    if(note) note.textContent = e.message + ' — choose a readable PDF before continuing.';
     if(openNow) stageEl.innerHTML = '<div style="padding:16px;font-size:12.5px;color:#a32219;max-width:420px">' +
-      esc(e.message) + '. You can still send the document — signatures will go on an appended page.</div>';
+      esc(e.message) + '. Choose a readable PDF before continuing.</div>';
   }
   var re = document.getElementById('es-openplace');
   if(re) re.hidden = !pdfDoc;
@@ -502,49 +520,42 @@ function locate(n){
   return null;
 }
 
-// One page, scaled to fit the available box, so the whole page is reachable
-// without scrolling.
-async function showPage(n){
+// Render the whole document as one continuous stack. Fields stay normalized to
+// each page, while the sender can scroll naturally from beginning to end.
+async function renderAllPages(){
   if(!docs.length) return;
-  curPage = Math.max(1, Math.min(pageCount, n));
-  var at = locate(curPage);
-  if(!at) return;
-  var page = await at.doc.getPage(at.local);
-  var v1 = page.getViewport({ scale: 1 });
-  // A portrait page is limited by height, not width, so the working area takes
-  // as much of the viewport as the surrounding chrome allows. Zoom multiplies
-  // that fit; above 1 the stage scrolls, which is the reader's own choice.
-  // Measured, not guessed: the stage is the flex remainder of the workspace, so
-  // its own box is exactly the room the page has. Measure before clearing it.
-  var availW = Math.max(280, (stageEl.clientWidth  || 760) - 14);
-  var availH = Math.max(280, (stageEl.clientHeight || 760) - 14);
-  var fit = Math.min(availW / v1.width, availH / v1.height);
-  var vp = page.getViewport({ scale: Math.min(fit * zoom, 4) });
-
+  var previousScroll = stageEl.scrollTop;
+  var availW = Math.max(280, (stageEl.clientWidth || 760) - 54);
   stageEl.innerHTML = '';
-  var scroll = stageEl;
-  var holder = document.createElement('div');
-  holder.className = 'es-page';
-  holder.dataset.page = curPage;
-  var cv = document.createElement('canvas');
-  cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
-  holder.appendChild(cv);
-  var layer = document.createElement('div');
-  layer.className = 'es-layer';
-  holder.appendChild(layer);
-  scroll.appendChild(holder);
-
-  await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
-  wireLayer(layer, curPage);
-  // With several files, say which one this page came from.
-  document.getElementById('es-pgnum').textContent = 'Page ' + curPage + ' of ' + pageCount +
-    (files.length > 1 && files[at.docIndex]
-      ? '  ·  ' + files[at.docIndex].name + ' p' + at.local
-      : '');
+  for(var n = 1; n <= pageCount; n++){
+    var at = locate(n);
+    if(!at) continue;
+    var page = await at.doc.getPage(at.local);
+    var v1 = page.getViewport({ scale: 1 });
+    var fit = Math.min(availW / v1.width, 1.5);
+    var vp = page.getViewport({ scale: Math.min(fit * zoom, 4) });
+    var wrap = document.createElement('div');
+    wrap.className = 'es-page-wrap';
+    var label = document.createElement('div');
+    label.className = 'es-pgnum';
+    label.textContent = 'Page ' + n + ' of ' + pageCount +
+      (files.length > 1 && files[at.docIndex] ? ' · ' + files[at.docIndex].name : '');
+    wrap.appendChild(label);
+    var holder = document.createElement('div');
+    holder.className = 'es-page'; holder.dataset.page = n;
+    var cv = document.createElement('canvas');
+    cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+    holder.appendChild(cv);
+    var layer = document.createElement('div');
+    layer.className = 'es-layer'; holder.appendChild(layer);
+    wrap.appendChild(holder); stageEl.appendChild(wrap);
+    await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    wireLayer(layer, n);
+  }
+  document.getElementById('es-pgnum').textContent = pageCount + (pageCount === 1 ? ' page' : ' pages') + ' · scroll to review all';
   document.getElementById('es-zlvl').textContent = Math.round(zoom * 100) + '%';
-  document.getElementById('es-prev').disabled = curPage <= 1;
-  document.getElementById('es-next').disabled = curPage >= pageCount;
   drawFields();
+  stageEl.scrollTop = previousScroll;
 }
 
 function wireLayer(layer, pageNum){
@@ -588,19 +599,19 @@ function wireLayer(layer, pageNum){
 }
 
 function drawFields(){
-  var holder = stageEl && stageEl.querySelector('.es-page');
   var c = document.getElementById('es-count');
   if(c) c.textContent = fields.length + (fields.length === 1 ? ' field placed' : ' fields placed');
   refreshReview();
-  if(!holder) return;
-  var layer = holder.querySelector('.es-layer');
-  layer.innerHTML = '';
-  var r = layer.getBoundingClientRect();
+  if(!stageEl) return;
   var names = recipientNames();
   var LABEL = {}; TYPES.forEach(function(t){ LABEL[t.id] = t.label; });
-
-  fields.forEach(function(f, idx){
-    if(f.page !== curPage) return;                  // only this page's fields
+  stageEl.querySelectorAll('.es-page').forEach(function(holder){
+    var pageNum = Number(holder.dataset.page);
+    var layer = holder.querySelector('.es-layer');
+    layer.innerHTML = '';
+    var r = layer.getBoundingClientRect();
+    fields.forEach(function(f, idx){
+    if(f.page !== pageNum) return;
     var color = COLORS[f.recipientIndex % COLORS.length];
     var el = document.createElement('div');
     el.className = 'es-fld';
@@ -644,10 +655,11 @@ function drawFields(){
       window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
     });
     layer.appendChild(el);
+    });
   });
 }
 
-function setZoom(z){ zoom = Math.max(0.5, Math.min(3, z)); showPage(curPage); }
+function setZoom(z){ zoom = Math.max(0.5, Math.min(3, z)); renderAllPages(); }
 document.getElementById('es-zin').addEventListener('click',  function(e){ e.preventDefault(); setZoom(zoom + 0.25); });
 document.getElementById('es-zout').addEventListener('click', function(e){ e.preventDefault(); setZoom(zoom - 0.25); });
 document.getElementById('es-zfit').addEventListener('click', function(e){ e.preventDefault(); setZoom(1); });
@@ -657,21 +669,24 @@ var refitTimer = null;
 window.addEventListener('resize', function(){
   if(!pdfDoc) return;
   clearTimeout(refitTimer);
-  refitTimer = setTimeout(function(){ showPage(curPage); }, 180);
+  refitTimer = setTimeout(function(){ renderAllPages(); }, 180);
 });
 
-document.getElementById('es-prev').addEventListener('click', function(e){ e.preventDefault(); showPage(curPage - 1); });
-document.getElementById('es-next').addEventListener('click', function(e){ e.preventDefault(); showPage(curPage + 1); });
 document.getElementById('es-clearfields').addEventListener('click', function(e){ e.preventDefault(); fields = []; drawFields(); });
-document.getElementById('es-doneplace').addEventListener('click', function(e){ e.preventDefault(); closePlacer(); });
+document.getElementById('es-doneplace').addEventListener('click', function(e){
+  e.preventDefault();
+  var missing = missingSignatureRecipients();
+  if(missing.length){ showT('Add a signature field for ' + missing.join(', '), 'error'); return; }
+  closePlacer(); goEsStep(4);
+});
 document.getElementById('es-openplace').addEventListener('click', function(e){
   e.preventDefault();
   if(!docs.length) return;
   openPlacer();
-  showPage(curPage);            // the stage had no box while hidden, so re-fit
+  renderAllPages();
 });
 document.addEventListener('keydown', function(e){
-  if(e.key === 'Escape' && !document.getElementById('es-place-sec').hidden) closePlacer();
+  if(e.key === 'Escape' && !document.getElementById('es-place-sec').hidden) showT('Complete required field placement before continuing', 'error');
 });
 
 /* ---- recipients -------------------------------------------------------- */
@@ -682,10 +697,8 @@ function addRecipient(name, email){
   row.innerHTML = '<div class="es-rcpt-num">' + (rcpts.children.length + 1) + '</div>' +
                   '<label><span>Full legal name</span><input type="text" class="es-name" placeholder="e.g. Maria Hernandez"></label>' +
                   '<label><span>Email address</span><input type="email" class="es-email" placeholder="maria@example.com"></label>' +
-                  '<label><span>Mobile number</span><input type="text" class="es-phone" placeholder="Optional for text delivery"></label>' +
-                  '<label><span>Deliver by</span><select class="es-deliv">' +
-                    '<option value="email">Email</option><option value="sms">Text</option><option value="both">Email + text</option>' +
-                  '</select></label>' +
+                  '<label><span>Mobile number (required)</span><input type="tel" class="es-phone" placeholder="(509) 555-0123" required></label>' +
+                  '<label><span>Deliver by</span><select class="es-deliv" disabled><option value="both">Email + text</option></select></label>' +
                   '<button class="es-x" type="button" title="Remove">&times;</button>';
   row.querySelector('.es-x').addEventListener('click', function(){
     if(rcpts.children.length > 1){ rcpts.removeChild(row); refreshWho(); }
@@ -803,10 +816,12 @@ document.getElementById('es-send').addEventListener('click', async function(){
   var list = [];
   rcpts.querySelectorAll('.es-rcpt').forEach(function(r){
     var n = r.querySelector('.es-name').value.trim(), e = r.querySelector('.es-email').value.trim();
-    var ph = r.querySelector('.es-phone').value.trim(), dv = r.querySelector('.es-deliv').value;
-    if(n && e) list.push({ name: n, email: e, phone: ph, delivery: dv });
+    var ph = r.querySelector('.es-phone').value.trim();
+    if(n && e && ph) list.push({ name: n, email: e, phone: ph, delivery: 'both' });
   });
-  if(!list.length){ showT('Add at least one recipient with a name and email','error'); return; }
+  if(list.length !== rcpts.querySelectorAll('.es-rcpt').length){ showT('Every recipient needs a name, email, and mobile number','error'); goEsStep(2); return; }
+  var missing = missingSignatureRecipients();
+  if(missing.length){ showT('Add a signature field for ' + missing.join(', '), 'error'); goEsStep(3); return; }
 
   btn.disabled = true; btn.textContent = 'Uploading…';
   try {
@@ -835,7 +850,7 @@ document.getElementById('es-send').addEventListener('click', async function(){
   } catch(e){
     showT(e.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = 'Send for signature';
+    btn.disabled = false; btn.textContent = 'Send by email + text';
   }
 });
 
@@ -975,6 +990,7 @@ async function loadList(){
       return '<tr>' +
         '<td><div style="font-weight:500">' + esc(e.title) + '</div>' +
           '<div style="color:var(--muted);font-size:11.5px">' + esc(e.file_name) + '</div>' + fail + '</td>' +
+        '<td>' + esc(e.agent_name || '—') + '</td>' +
         '<td>' + who + '</td>' +
         '<td><span class="es-pill es-' + esc(e.status) + '">' + esc(statusLabel(e.status)) + '</span></td>' +
         '<td>' + when(e.sent_at || e.created_at) + '</td>' +
@@ -983,7 +999,7 @@ async function loadList(){
     }).join('');
 
     el.innerHTML = '<table class="es-t"><thead><tr>' +
-      '<th>Document</th><th>Recipients</th><th>Status</th><th>Sent</th><th></th>' +
+      '<th>Document</th><th>Agent</th><th>Recipients</th><th>Status</th><th>Sent</th><th></th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
     el.querySelectorAll('.es-act').forEach(function(b){
       b.addEventListener('click',
