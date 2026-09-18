@@ -756,7 +756,17 @@ async function loadList(){
         b.dataset.act === 'remind' ? onRemind : onDelete);
     });
   } catch(e){
-    el.innerHTML = '<div style="font-size:12.5px;color:#a32219">' + esc(e.message) + '</div>';
+    // A raw driver error ("connect ECONNREFUSED 127.0.0.1:5432") tells an agent
+    // nothing they can act on. Say what happened and keep the detail available.
+    var friendly = /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|fetch failed|NetworkError|Failed to fetch/i.test(e.message)
+      ? 'Could not reach the server. Check your connection and try again.'
+      : e.message;
+    el.innerHTML = '<div style="font-size:12.5px;color:#a32219">' + esc(friendly) +
+      ' <button class="es-link" id="es-retry" type="button" style="margin-left:6px">Try again</button></div>' +
+      (friendly === e.message ? '' :
+        '<div style="font-size:11px;color:var(--muted);margin-top:4px">' + esc(e.message) + '</div>');
+    var again = document.getElementById('es-retry');
+    if (again) again.addEventListener('click', function(ev){ ev.preventDefault(); loadList(); });
   }
 }
 
