@@ -111,5 +111,8 @@ ALTER TABLE envelope_recipients ADD COLUMN IF NOT EXISTS delivery TEXT NOT NULL 
 -- Daily reminders. Opt-in per envelope, capped so a client is nudged rather
 -- than harassed, and stopped by the signing flow the moment everyone signs.
 ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminders_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+-- Reminders are no longer opted into: anything out for signature is chased.
+ALTER TABLE envelopes ALTER COLUMN reminders_enabled SET DEFAULT TRUE;
+UPDATE envelopes SET reminders_enabled = TRUE WHERE status = 'sent' AND reminders_enabled = FALSE;
 ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminder_last_at  TIMESTAMPTZ;
 ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminder_count    INTEGER NOT NULL DEFAULT 0;

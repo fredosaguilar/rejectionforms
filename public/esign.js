@@ -45,7 +45,6 @@ css.textContent = [
   '#f-esign .es-doc-meta{font-size:11px;color:var(--muted);flex:0 0 auto}',
   '#f-esign .es-doc button{font-family:inherit;font-size:12px;line-height:1;padding:4px 8px;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;cursor:pointer;flex:0 0 auto}',
   '#f-esign .es-doc button:disabled{opacity:.35;cursor:default}',
-  '#f-esign button.es-link.es-on{background:var(--navy);color:#fff;border-color:var(--navy)}',
   '#f-esign .es-danger:hover{border-color:#a32219}',
   // The field placer is a full-viewport workspace: the page it is preparing is
   // the whole job, so it gets the whole screen rather than a band inside a
@@ -77,7 +76,7 @@ css.textContent = [
   '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:move;user-select:none}',
   '#f-esign .es-fld .es-del{position:absolute;top:-9px;right:-9px;width:18px;height:18px;border-radius:50%;background:#a32219;color:#fff;font-size:12px;line-height:18px;text-align:center;cursor:pointer}',
   '#f-esign .es-fld .es-rz{position:absolute;right:-5px;bottom:-5px;width:12px;height:12px;border-radius:2px;background:#fff;border:1.5px solid currentColor;cursor:nwse-resize}',
-  '#f-esign .es-rcpt3{display:grid;grid-template-columns:1fr 1fr 150px 120px auto;gap:8px;margin-bottom:8px;align-items:center}',
+  '#f-esign .es-rcpt3{display:grid;grid-template-columns:1fr 1fr 150px auto auto;gap:8px;margin-bottom:8px;align-items:center}',
   '@media(max-width:900px){#f-esign .es-rcpt3{grid-template-columns:1fr}}',
   '#f-esign .es-pgnum{text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px}'
 ].join('');
@@ -114,7 +113,7 @@ var html =
   '<div class="sec"><div class="sec-title">Recipients</div>' +
     '<div id="es-rcpts"></div>' +
     '<button class="btn btn-sec" id="es-add" style="margin-top:4px">Add recipient</button>' +
-    '<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Each recipient gets their own signing link. The document completes once everyone has signed.</div>' +
+    '<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Each recipient gets their own signing link by email and text, and a reminder at 3pm every business day until they sign. The document completes once everyone has signed.</div>' +
     '<div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
       '<button class="btn btn-sec" id="es-mailtest" style="font-size:12px;padding:6px 12px">Test email</button>' +
       '<button class="btn btn-sec" id="es-smstest" style="font-size:12px;padding:6px 12px">Test text messaging</button>' +
@@ -605,10 +604,8 @@ function addRecipient(name, email){
   row.className = 'es-rcpt es-rcpt3';
   row.innerHTML = '<input type="text" class="es-name" placeholder="Full name">' +
                   '<input type="text" class="es-email" placeholder="email@example.com">' +
-                  '<input type="text" class="es-phone" placeholder="Mobile (for text)">' +
-                  '<select class="es-deliv" style="padding:6px 8px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;background:#fff">' +
-                    '<option value="email">Email</option><option value="sms">Text</option><option value="both">Email + text</option>' +
-                  '</select>' +
+                  '<input type="text" class="es-phone" placeholder="Mobile number">' +
+                  '<span style="font-size:11.5px;color:var(--muted);white-space:nowrap">Email + text</span>' +
                   '<button class="es-x" type="button" title="Remove">&times;</button>';
   row.querySelector('.es-x').addEventListener('click', function(){
     if(rcpts.children.length > 1){ rcpts.removeChild(row); refreshWho(); }
@@ -726,10 +723,16 @@ document.getElementById('es-send').addEventListener('click', async function(){
   var list = [];
   rcpts.querySelectorAll('.es-rcpt').forEach(function(r){
     var n = r.querySelector('.es-name').value.trim(), e = r.querySelector('.es-email').value.trim();
-    var ph = r.querySelector('.es-phone').value.trim(), dv = r.querySelector('.es-deliv').value;
-    if(n && e) list.push({ name: n, email: e, phone: ph, delivery: dv });
+    var ph = r.querySelector('.es-phone').value.trim();
+    if(n && e) list.push({ name: n, email: e, phone: ph, delivery: 'both' });
   });
   if(!list.length){ showT('Add at least one recipient with a name and email','error'); return; }
+  var noPhone = list.filter(function(r){ return !r.phone; });
+  if(noPhone.length){
+    showT('A mobile number is needed for ' + noPhone.map(function(r){ return r.name; }).join(', ') +
+          ' — every recipient is sent both an email and a text', 'error');
+    return;
+  }
 
   btn.disabled = true; btn.textContent = 'Uploading…';
   try {
@@ -812,27 +815,6 @@ async function onResend(e){
   }
 }
 
-async function onRemind(e){
-  e.preventDefault();
-  var btn = this, id = btn.dataset.id, turningOn = !btn.dataset.on;
-  btn.disabled = true;
-  try {
-    var r = await fetch('/api/esign/envelopes/' + id + '/reminders', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: turningOn }),
-    });
-    var d = await r.json();
-    if (!r.ok || !d.success) throw new Error(d.error || 'Could not change reminders');
-    showT(turningOn ? 'Reminding daily until signed' : 'Daily reminders stopped', 'success');
-  } catch(err){
-    showT(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-    loadList();
-  }
-}
-
 async function onDelete(e){
   e.preventDefault();
   var btn = this, id = btn.dataset.id, title = btn.dataset.title;
@@ -879,24 +861,27 @@ async function loadList(){
           esc(e.last_failure.channel || 'email') + ' to ' + esc(e.last_failure.to || '') + '): ' +
           esc(e.last_failure.error || '') + '</div>'
         : '';
-      var rem = e.status === 'sent'
-        ? '<button class="es-link es-act' + (e.reminders_enabled ? ' es-on' : '') + '" data-act="remind" ' +
-          'data-id="' + e.id + '" data-on="' + (e.reminders_enabled ? '1' : '') + '" type="button" title="' +
+      // Reminders are automatic, so this reports rather than offers. Voiding is
+      // what stops them, and that is already on the row.
+      var rem = '';
+      if (e.status === 'sent') {
+        var n = e.reminder_count || 0;
+        rem = '<div style="font-size:11px;color:var(--muted);margin-top:3px">' +
           (e.reminders_enabled
-            ? 'Reminding daily — ' + (e.reminder_count || 0) + ' sent so far. Click to stop.'
-            : 'Send this signer a reminder once a day until they sign') + '">' +
-          (e.reminders_enabled ? 'Reminding daily' : 'Remind daily') + '</button>'
-        : '';
+            ? (n >= 7 ? 'Reminders finished after ' + n + ' — no more will be sent.'
+                      : 'Reminding at 3pm each business day' + (n ? ' — ' + n + ' sent' : ''))
+            : 'Reminders stopped.') + '</div>';
+      }
 
       var actions =
         (canResend ? '<button class="es-link es-act" data-act="resend" data-id="' + e.id + '" type="button">' +
-                     (e.status === 'draft' ? 'Send' : 'Resend') + '</button>' : '') + rem +
+                     (e.status === 'draft' ? 'Send' : 'Resend') + '</button>' : '') +
         '<button class="es-link es-act es-danger" data-act="delete" data-id="' + e.id +
           '" data-title="' + esc(e.title) + '" data-status="' + esc(e.status) + '" type="button">Delete</button>';
 
       return '<tr>' +
         '<td><div style="font-weight:500">' + esc(e.title) + '</div>' +
-          '<div style="color:var(--muted);font-size:11.5px">' + esc(e.file_name) + '</div>' + fail + '</td>' +
+          '<div style="color:var(--muted);font-size:11.5px">' + esc(e.file_name) + '</div>' + rem + fail + '</td>' +
         '<td>' + who + '</td>' +
         '<td><span class="es-pill es-' + esc(e.status) + '">' + esc(statusLabel(e.status)) + '</span></td>' +
         '<td>' + when(e.sent_at || e.created_at) + '</td>' +
@@ -908,9 +893,7 @@ async function loadList(){
       '<th>Document</th><th>Recipients</th><th>Status</th><th>Sent</th><th></th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
     el.querySelectorAll('.es-act').forEach(function(b){
-      b.addEventListener('click',
-        b.dataset.act === 'resend' ? onResend :
-        b.dataset.act === 'remind' ? onRemind : onDelete);
+      b.addEventListener('click', b.dataset.act === 'resend' ? onResend : onDelete);
     });
   } catch(e){
     // A raw driver error ("connect ECONNREFUSED 127.0.0.1:5432") tells an agent

@@ -3,19 +3,25 @@ const { deliverSigningLinks, pendingRecipients } = require('./delivery');
 
 /* Daily reminders for documents still waiting on a signature.
  *
- * Opt-in per envelope. The cap exists because an unattended loop pointed at a
- * client's phone is a way to lose a client: after MAX_REMINDERS the envelope
- * stops nudging and stays for the agent to deal with.
+ * Every document that goes out is reminded; there is nothing to switch on. A
+ * reminder goes at 3pm on business days, in the agency's own timezone. Nothing
+ * is sent at the weekend — a signing request landing on a Sunday afternoon is
+ * not a nudge, it is a nuisance.
+ *
+ * The cap remains, because an unattended loop pointed at a client's phone is a
+ * way to lose a client. After MAX reminders the envelope stops nudging and
+ * waits for the agent. Voiding a document stops its reminders immediately,
+ * which is the way to honour a client who asks not to be contacted again.
  *
  * Environment:
  *   REMINDERS            'off' disables the scheduler entirely
- *   REMINDER_HOUR        hour of the day to send, Pacific (default 9)
+ *   REMINDER_HOUR        hour of the day to send (default 15, i.e. 3pm)
  *   REMINDER_MAX         how many reminders before giving up (default 7)
- *   REMINDER_TIMEZONE    IANA zone for REMINDER_HOUR (default America/Los_Angeles)
+ *   REMINDER_TIMEZONE    IANA zone for the hour and the weekday (default America/Los_Angeles)
  */
 
 const TZ    = process.env.REMINDER_TIMEZONE || 'America/Los_Angeles';
-const HOUR  = Math.min(23, Math.max(0, parseInt(process.env.REMINDER_HOUR || '9', 10) || 9));
+const HOUR  = Math.min(23, Math.max(0, parseInt(process.env.REMINDER_HOUR || '15', 10) || 15));
 const MAX   = Math.max(1, parseInt(process.env.REMINDER_MAX || '7', 10) || 7);
 
 /* The hour where the agency is, so a reminder does not arrive at 3am. Reading
@@ -26,6 +32,17 @@ function localHour(now = new Date()) {
     timeZone: TZ, hour: 'numeric', hour12: false,
   }).format(now);
   return parseInt(h, 10) % 24;
+}
+
+/* The weekday where the agency is, for the same reason the hour is read that
+   way rather than computed. */
+function localWeekday(now = new Date()) {
+  return new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' }).format(now);
+}
+
+function isBusinessDay(now = new Date()) {
+  const d = localWeekday(now);
+  return d !== 'Sat' && d !== 'Sun';
 }
 
 /* Envelopes that are opted in, still out for signature, and not reminded in
@@ -47,6 +64,7 @@ function baseUrl() {
 
 /* One pass. Exported so it can be run and tested without waiting for a clock. */
 async function runOnce({ force = false } = {}) {
+  if (!force && !isBusinessDay()) return { skipped: 'not a business day', sent: 0 };
   if (!force && localHour() !== HOUR) return { skipped: 'outside the reminder hour', sent: 0 };
   if (!baseUrl()) {
     console.warn('reminders: APP_BASE_URL is not set, so signing links would be wrong — skipping');
@@ -98,10 +116,10 @@ function start() {
   timer = setInterval(tick, 60 * 60 * 1000);
   if (timer.unref) timer.unref();
   setTimeout(tick, 30 * 1000).unref?.();   // once shortly after boot, not during it
-  console.log(`reminders: on — ${HOUR}:00 ${TZ}, up to ${MAX} per document`);
+  console.log(`reminders: on — ${HOUR}:00 ${TZ} on business days, up to ${MAX} per document`);
   return timer;
 }
 
 function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
-module.exports = { start, stop, runOnce, dueEnvelopes, localHour, MAX, HOUR, TZ };
+module.exports = { start, stop, runOnce, dueEnvelopes, localHour, localWeekday, isBusinessDay, MAX, HOUR, TZ };
