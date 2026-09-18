@@ -213,7 +213,7 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
         name: String(r.name || '').trim(),
         email: String(r.email || '').trim().toLowerCase(),
         phone: sms.normalisePhone(r.phone) || null,
-        delivery: ['email', 'sms', 'both'].includes(r.delivery) ? r.delivery : 'email',
+        delivery: 'both',
         order: i + 1,
       }))
       .filter((r) => r.name && r.email);
@@ -225,9 +225,21 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
     if (new Set(emails).size !== emails.length) {
       return res.status(400).json({ error: 'Each recipient must have a different email address' });
     }
-    const noPhone = recipients.find((r) => r.delivery !== 'email' && !r.phone);
+    const noPhone = recipients.find((r) => !r.phone);
     if (noPhone) {
-      return res.status(400).json({ error: `A mobile number is required to text ${noPhone.name}` });
+      return res.status(400).json({ error: `A mobile number is required for ${noPhone.name}` });
+    }
+    let fields = [];
+    try { fields = JSON.parse(req.body.fields || '[]') || []; } catch {
+      return res.status(400).json({ error: 'Signing fields could not be read' });
+    }
+    const missingSignature = recipients.findIndex((_, i) =>
+      !fields.some((f) => Number(f.recipientIndex) === i && f.type === 'signature')
+    );
+    if (missingSignature !== -1) {
+      return res.status(400).json({
+        error: `Place at least one signature field for ${recipients[missingSignature].name}`,
+      });
     }
     const language = req.body.language === 'es' ? 'es' : 'en';
 
@@ -256,8 +268,6 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
 
     // Placed fields, if the sender used the placement editor. Each references a
     // recipient by index into the list above.
-    let fields = [];
-    try { fields = JSON.parse(req.body.fields || '[]') || []; } catch { fields = []; }
     const TYPES = new Set(['signature', 'initials', 'date', 'text']);
     let placedCount = 0;
     for (const f of fields) {
