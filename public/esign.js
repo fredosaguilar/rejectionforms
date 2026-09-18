@@ -35,6 +35,11 @@ css.textContent = [
   '#f-esign .es-declined,#f-esign .es-voided{background:#fbecea;color:#a32219}',
   '#f-esign .btn-row{display:flex;gap:8px;justify-content:flex-end;padding:1rem 1.25rem;border-top:1px solid var(--border)}',
   '#f-esign .es-link{font-size:11.5px;color:var(--navy);text-decoration:none;border:1px solid var(--border2);border-radius:20px;padding:2px 9px;white-space:nowrap}',
+  '#f-esign button.es-link{font-family:inherit;background:#fff;cursor:pointer}',
+  '#f-esign button.es-link:hover{border-color:var(--navy)}',
+  '#f-esign button.es-link:disabled{opacity:.5;cursor:default}',
+  '#f-esign .es-danger{color:#a32219}',
+  '#f-esign .es-danger:hover{border-color:#a32219}',
   // The field placer is a full-viewport workspace: the page it is preparing is
   // the whole job, so it gets the whole screen rather than a band inside a
   // form the reader has to scroll down to.
@@ -152,16 +157,13 @@ lastForm.insertAdjacentHTML('afterend', html);
 /* ---- navigation -------------------------------------------------------- */
 var _ST = window.ST;
 window.ST = function(id){
-  if(typeof _ST === 'function' && id !== 'esign') _ST(id);
-  if(id === 'esign'){
-    document.querySelectorAll('.fc').forEach(function(f){ f.classList.remove('vis'); });
-    document.getElementById('f-esign').classList.add('vis');
-    document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
-    setNav(true);
-    loadList();
-  } else {
-    setNav(false);
-  }
+  // Always call through, including for this page's own id. The base ST already
+  // shows the right panel, clears the coverage tabs and hides the tab row on
+  // pages the tabs do not belong to; skipping it left that row up, and left
+  // the other top-nav link still highlighted.
+  if(typeof _ST === 'function') _ST(id);
+  setNav(id === 'esign');
+  if(id === 'esign') loadList();
 };
 function setNav(on){
   if(navBtn){ navBtn.style.background = on ? 'rgba(255,255,255,.15)' : 'none';
@@ -622,6 +624,61 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(
 
 function when(ts){ return ts ? new Date(ts).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—'; }
 
+/* What the status means to the sender, rather than the column name. The
+   stored value stays as it is — 'completed' is what the signing flow sets when
+   the last signature lands, and reading that as "Signed" is the whole point. */
+function statusLabel(s){
+  return ({ draft: 'Draft', sent: 'Sent', completed: 'Signed',
+            declined: 'Declined', voided: 'Voided' })[s] || s;
+}
+
+async function onResend(e){
+  e.preventDefault();
+  var btn = this, id = btn.dataset.id, was = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    var r = await fetch('/api/esign/envelopes/' + id + '/send', { method: 'POST' });
+    var d = await r.json();
+    if (d.success) {
+      showT('Sent to ' + d.sent.join(', '), 'success');
+    } else {
+      // The provider's own reason, not a generic failure.
+      var why = (d.failed && d.failed.length) ? d.failed[0].error : (d.error || 'Nothing could be sent');
+      showT(why, 'error');
+    }
+  } catch(err){
+    showT(err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = was;
+    loadList();
+  }
+}
+
+async function onDelete(e){
+  e.preventDefault();
+  var btn = this, id = btn.dataset.id, title = btn.dataset.title;
+  if(!confirm('Delete "' + title + '"?\n\nThis removes the document, its recipients and its audit trail. It cannot be undone.')) return;
+  btn.disabled = true;
+  try {
+    var r = await fetch('/api/esign/envelopes/' + id, { method: 'DELETE' });
+    var d = await r.json();
+    // A signed document is the record of the signature, so the server asks
+    // again before destroying one.
+    if (!r.ok && d.needsConfirm === 'signed') {
+      if(!confirm(d.error + '\n\nDelete it anyway?')) { btn.disabled = false; return; }
+      r = await fetch('/api/esign/envelopes/' + id + '?confirm=signed', { method: 'DELETE' });
+      d = await r.json();
+    }
+    if (!r.ok || !d.success) throw new Error(d.error || 'Could not delete');
+    showT('Deleted', 'success');
+  } catch(err){
+    showT(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    loadList();
+  }
+}
+
 async function loadList(){
   var el = document.getElementById('es-list');
   try {
@@ -631,6 +688,7 @@ async function loadList(){
     if(!d.envelopes.length){ el.innerHTML = '<div style="font-size:12.5px;color:var(--muted)">Nothing sent yet.</div>'; return; }
 
     var rows = d.envelopes.map(function(e){
+      var canResend = e.status === 'draft' || e.status === 'sent';
       var who = (e.recipients || []).map(function(p){
         return esc(p.name) + ' <span style="color:var(--muted)">(' + esc(p.status) + ')</span>';
       }).join('<br>');
@@ -642,19 +700,28 @@ async function loadList(){
           esc(e.last_failure.channel || 'email') + ' to ' + esc(e.last_failure.to || '') + '): ' +
           esc(e.last_failure.error || '') + '</div>'
         : '';
+      var actions =
+        (canResend ? '<button class="es-link es-act" data-act="resend" data-id="' + e.id + '" type="button">' +
+                     (e.status === 'draft' ? 'Send' : 'Resend') + '</button>' : '') +
+        '<button class="es-link es-act es-danger" data-act="delete" data-id="' + e.id +
+          '" data-title="' + esc(e.title) + '" data-status="' + esc(e.status) + '" type="button">Delete</button>';
+
       return '<tr>' +
         '<td><div style="font-weight:500">' + esc(e.title) + '</div>' +
           '<div style="color:var(--muted);font-size:11.5px">' + esc(e.file_name) + '</div>' + fail + '</td>' +
         '<td>' + who + '</td>' +
-        '<td><span class="es-pill es-' + esc(e.status) + '">' + esc(e.status) + '</span></td>' +
+        '<td><span class="es-pill es-' + esc(e.status) + '">' + esc(statusLabel(e.status)) + '</span></td>' +
         '<td>' + when(e.sent_at || e.created_at) + '</td>' +
-        '<td>' + dl + '</td>' +
+        '<td><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">' + dl + actions + '</div></td>' +
       '</tr>';
     }).join('');
 
     el.innerHTML = '<table class="es-t"><thead><tr>' +
       '<th>Document</th><th>Recipients</th><th>Status</th><th>Sent</th><th></th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
+    el.querySelectorAll('.es-act').forEach(function(b){
+      b.addEventListener('click', b.dataset.act === 'resend' ? onResend : onDelete);
+    });
   } catch(e){
     el.innerHTML = '<div style="font-size:12.5px;color:#a32219">' + esc(e.message) + '</div>';
   }

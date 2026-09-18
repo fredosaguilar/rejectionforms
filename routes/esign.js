@@ -327,6 +327,33 @@ router.post('/envelopes/:id/void', requireAuth, async (req, res) => {
   }
 });
 
+/* Permanent, and cascades to the recipients, placed fields and the audit
+   trail. A completed envelope is the evidentiary record of a signature, so
+   deleting one is refused unless the caller says so explicitly — voiding is
+   the reversible thing, and stays the default in the UI. */
+router.delete('/envelopes/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, title, status FROM envelopes WHERE id = $1`, [req.params.id]);
+    const env = rows[0];
+    if (!env) return res.status(404).json({ error: 'Envelope not found' });
+
+    if (env.status === 'completed' && String(req.query.confirm) !== 'signed') {
+      return res.status(409).json({
+        error: 'This document has been signed. Deleting it destroys the signed copy and its certificate of completion.',
+        needsConfirm: 'signed',
+      });
+    }
+
+    await db.query(`DELETE FROM envelopes WHERE id = $1`, [req.params.id]);
+    console.log(`esign: envelope ${env.id} ("${env.title}", ${env.status}) deleted by ${req.session.agentName || req.session.email}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('delete envelope:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/envelopes/:id/document', requireAuth, async (req, res) => {
   try {
     const signed = req.query.signed === '1';

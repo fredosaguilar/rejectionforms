@@ -604,7 +604,10 @@ buildGrid('auto-grid',AUTO_COVS);
 buildGrid('home-grid',HOME_COVS);
 buildGrid('truck-grid',TRUCK_COVS);
 buildGrid('cont-grid',CONT_COVS);
-function ST(id){document.querySelectorAll('.fc').forEach(f=>f.classList.remove('vis'));document.getElementById('f-'+id).classList.add('vis');const m={auto:0,home:1,truck:2,cont:3,auth:4};document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===m[id]));}
+function ST(id){document.querySelectorAll('.fc').forEach(f=>f.classList.remove('vis'));document.getElementById('f-'+id).classList.add('vis');const m={auto:0,home:1,truck:2,cont:3,auth:4};document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===m[id]));
+// The coverage-form tabs belong to the E&O forms. On the pages reached from the
+// top navigation they are not choices that apply, so they come down with them.
+const tabs=document.querySelector('.tabs');if(tabs)tabs.style.display=(id in m)?'':'none';}
 function ST2(btn,val){const t=btn.closest('.tog');t.querySelectorAll('.tb').forEach(b=>b.className='tb');btn.classList.add(val);}
 function CF(id){const f=document.getElementById(id);f.querySelectorAll('input[type=text],input[type=date],input[type=email],textarea').forEach(el=>{if(!el.readOnly)el.value='';});f.querySelectorAll('input[type=checkbox],input[type=radio]').forEach(el=>el.checked=false);f.querySelectorAll('.tb').forEach(b=>b.className='tb');f.querySelectorAll('.rp').forEach(p=>p.classList.remove('sel'));f.querySelectorAll('canvas').forEach(c=>{const ctx=c.getContext('2d');if(ctx)ctx.clearRect(0,0,c.width,c.height);});showT('Form cleared','info');}
 function syncClientName(){const n=document.getElementById('global-client-name').value;['veh-client','auto-client','home-client','truck-client','cont-client','auth-name'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=n;});}
