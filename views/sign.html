@@ -35,7 +35,7 @@ label.chk input{width:22px;height:22px;margin-top:0;flex-shrink:0;accent-color:v
 .consent-choice{padding:16px!important;border:2px solid var(--border2)!important;border-radius:12px!important;background:#fff!important}.consent-choice:has(input:checked){border-color:var(--navy)!important;background:#eef6f3!important}.consent-choice span{font-weight:600;line-height:1.55}
 .tap-callout{display:flex;align-items:center;gap:8px;width:fit-content;margin:0 0 9px;padding:7px 11px;border-radius:20px;background:#fff4d8;color:#855b0c;font-size:11.5px;font-weight:750;box-shadow:0 3px 12px rgba(133,91,12,.12)}.tap-callout:before{content:'↓';font-size:18px;line-height:1;color:var(--gold)}
 .action-dock{position:fixed;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:80;width:min(820px,calc(100vw - 24px));padding:10px 12px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.97);box-shadow:0 12px 32px rgba(24,54,48,.2);backdrop-filter:blur(12px)}
-.action-dock .tap-callout{margin:-38px 0 8px auto}.action-dock .row{justify-content:flex-end}.action-dock .btn-pri{min-width:230px}
+.action-dock .tap-callout{position:relative;justify-content:center;width:230px;max-width:100%;margin:-42px 0 8px auto;text-align:center}.action-dock .tap-callout:before{display:none}.action-dock .tap-callout:after{content:'↓';position:absolute;left:50%;bottom:-20px;transform:translateX(-50%);font-size:18px;line-height:1;color:var(--gold)}.action-dock .row{justify-content:flex-end}.action-dock .btn-pri{min-width:230px}
 .consent-actions .btn-pri{flex:1;min-width:210px}
 #review-card .card-bd,#consent-card .card-bd{padding-bottom:104px!important}
 .placement-actions{position:sticky;bottom:8px;z-index:8;padding:12px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.96);box-shadow:0 8px 24px rgba(24,54,48,.14)}.placement-actions .btn-pri{flex:1}
@@ -272,7 +272,11 @@ var T = {
     fieldsSub: 'Click the highlighted box to stamp the signature you just created onto the document.',
     nextPlace: 'Next: place signature →',
     finish: 'Finish and sign document',
-    guideArrow: '↓ Click here to sign',
+    guideSign: '↓ Click here to sign',
+    guideInitial: '↓ Click here to initial',
+    guideDate: '↓ Click here to add the date',
+    guideCheckbox: '↓ Click here to check',
+    guideText: '↓ Type here',
     clear: 'Clear',
     back: 'Back',
     typedLbl: 'Type your full legal name',
@@ -303,7 +307,7 @@ var T = {
     adoptFirst: 'Draw your signature in the box above first, then click the field.',
     declinePrompt: 'Optionally, tell the sender why you are declining:',
     rendering: 'Rendering document…',
-    lblSign: 'Sign here', lblInit: 'Initials', lblDate: 'Date', lblText: 'Type here',
+    lblSign: 'Sign here', lblInit: 'Initials', lblDate: 'Date', lblCheckbox: 'Check', lblText: 'Type here',
     disc: [
       ['What you are agreeing to', 'You are being asked to review and sign this document electronically. If you agree, your electronic signature will have the same legal effect as a handwritten one under the federal ESIGN Act (15 U.S.C. ch. 96), the Washington Uniform Electronic Transactions Act (RCW 19.360) and the Oregon Uniform Electronic Transactions Act (ORS 84.001 to 84.061).'],
       ['Getting a paper copy', 'You may request a paper copy of this document at no charge by contacting Columbia Basin Insurance. Requesting a paper copy does not mean you have withdrawn your consent.'],
@@ -327,7 +331,11 @@ var T = {
     fieldsSub: 'Haga clic en la casilla resaltada para estampar en el documento la firma que acaba de crear.',
     nextPlace: 'Siguiente: colocar firma →',
     finish: 'Finalizar y firmar documento',
-    guideArrow: '↓ Haga clic aquí para firmar',
+    guideSign: '↓ Haga clic aquí para firmar',
+    guideInitial: '↓ Haga clic aquí para poner iniciales',
+    guideDate: '↓ Haga clic aquí para agregar la fecha',
+    guideCheckbox: '↓ Haga clic aquí para marcar',
+    guideText: '↓ Escriba aquí',
     clear: 'Borrar',
     back: 'Atrás',
     typedLbl: 'Escriba su nombre legal completo',
@@ -358,7 +366,7 @@ var T = {
     adoptFirst: 'Primero dibuje su firma en el cuadro de arriba y luego haga clic en el campo.',
     declinePrompt: 'Opcionalmente, indique al remitente por qué se niega a firmar:',
     rendering: 'Procesando documento…',
-    lblSign: 'Firme aquí', lblInit: 'Iniciales', lblDate: 'Fecha', lblText: 'Escriba aquí',
+    lblSign: 'Firme aquí', lblInit: 'Iniciales', lblDate: 'Fecha', lblCheckbox: 'Marcar', lblText: 'Escriba aquí',
     disc: [
       ['A qué está dando su consentimiento', 'Se le pide revisar y firmar este documento electrónicamente. Si acepta, su firma electrónica tendrá el mismo efecto legal que una firma manuscrita conforme a la Ley federal ESIGN (15 U.S.C. cap. 96), la Ley Uniforme de Transacciones Electrónicas de Washington (RCW 19.360) y la Ley Uniforme de Transacciones Electrónicas de Oregón (ORS 84.001 a 84.061).'],
       ['Obtener una copia en papel', 'Puede solicitar una copia en papel de este documento sin costo alguno comunicándose con Columbia Basin Insurance. Solicitar una copia en papel no significa que haya retirado su consentimiento.'],
@@ -460,11 +468,16 @@ function todayStr(){
   var d = new Date();
   return ('0'+(d.getMonth()+1)).slice(-2) + '/' + ('0'+d.getDate()).slice(-2) + '/' + d.getFullYear();
 }
+function fieldIsComplete(f){
+  var v = values[f.id];
+  return !!(v && (v.valuePng || (v.value && String(v.value).trim())));
+}
+function nextRequiredField(){
+  return FIELDS.find(function(f){ return f.required && !fieldIsComplete(f); });
+}
 function remaining(){
   return FIELDS.filter(function(f){
-    if(!f.required) return false;
-    var v = values[f.id];
-    return !(v && (v.valuePng || (v.value && String(v.value).trim())));
+    return f.required && !fieldIsComplete(f);
   }).length;
 }
 function updateTodo(){
@@ -472,21 +485,26 @@ function updateTodo(){
   $('todo').textContent = n === 0 ? L.todoDone : L.todoLeft(n);
   $('todo').style.color = n === 0 ? 'var(--ok)' : 'var(--muted)';
 }
+function focusNextRequired(){
+  requestAnimationFrame(function(){
+    var next = document.querySelector('.fb.needs-attention');
+    if(next) next.scrollIntoView({ behavior:'smooth', block:'center' });
+  });
+}
 
 function renderFields(){
   if(!docRendered) return;
   document.querySelectorAll('.fl').forEach(function(l){ l.innerHTML = ''; });
-  var LABEL = { signature:L.lblSign, initials:L.lblInit, date:L.lblDate, text:L.lblText };
-  var firstIncompleteSignature = FIELDS.find(function(f){
-    return f.type === 'signature' && !(values[f.id] && values[f.id].valuePng);
-  });
+  var LABEL = { signature:L.lblSign, initials:L.lblInit, date:L.lblDate, checkbox:L.lblCheckbox, text:L.lblText };
+  var GUIDE = { signature:L.guideSign, initials:L.guideInitial, date:L.guideDate, checkbox:L.guideCheckbox, text:L.guideText };
+  var nextField = nextRequiredField();
   FIELDS.forEach(function(f){
     var pg = document.querySelector('.pg[data-page="' + f.page + '"]');
     if(!pg) return;
     var layer = pg.querySelector('.fl'), r = layer.getBoundingClientRect();
     var el = document.createElement('div');
     el.className = 'fb';
-    if(firstIncompleteSignature && f.id === firstIncompleteSignature.id){ el.classList.add('needs-attention'); el.dataset.guide = L.guideArrow; }
+    if(nextField && f.id === nextField.id){ el.classList.add('needs-attention'); el.dataset.guide = GUIDE[f.type] || L.guideText; }
     el.style.cssText = 'left:' + (f.x*r.width) + 'px;top:' + (f.y*r.height) + 'px;' +
                        'width:' + (f.w*r.width) + 'px;height:' + (f.h*r.height) + 'px';
     var v = values[f.id];
@@ -496,19 +514,22 @@ function renderFields(){
       el.innerHTML = '<img alt="signature" src="' + v.valuePng + '">';
     } else if(v && v.value){
       el.className = 'fb done';
-      el.textContent = v.value;
+      el.textContent = f.type === 'checkbox' ? '✓' : v.value;
     } else if(f.type === 'text'){
       var inp = document.createElement('input');
       inp.type = 'text'; inp.placeholder = f.label || 'Type here';
       inp.addEventListener('input', function(){
         values[f.id] = { id: f.id, value: this.value }; updateTodo();
       });
+      inp.addEventListener('blur', function(){ if(this.value.trim()){ renderFields(); focusNextRequired(); } });
       el.appendChild(inp);
     } else {
       el.textContent = LABEL[f.type] || f.type;
       el.addEventListener('click', function(){
         if(f.type === 'date'){
           values[f.id] = { id: f.id, value: todayStr() };
+        } else if(f.type === 'checkbox'){
+          values[f.id] = { id: f.id, value: 'X' };
         } else {
           if(!padMain.has()){
             alert(L.adoptFirst);
@@ -517,7 +538,7 @@ function renderFields(){
           }
           values[f.id] = { id: f.id, valuePng: padMain.data() };
         }
-        renderFields();
+        renderFields(); focusNextRequired();
       });
     }
     layer.appendChild(el);
@@ -641,7 +662,7 @@ function openPlacement(){
   document.querySelector('.wrap').classList.add('guided-signing');
   setStep(3);
   renderDocument().then(function(){
-    var target = FIELDS.find(function(f){ return f.type === 'signature' && !(values[f.id] && values[f.id].valuePng); });
+    var target = nextRequiredField();
     if(target) showFieldPage(target.page);
   });
 }
