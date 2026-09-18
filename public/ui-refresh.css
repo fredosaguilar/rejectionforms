@@ -1,0 +1,95 @@
+/* 2026 interface refresh — shared portal and signing experience */
+:root{
+  --navy:#123f42!important;--navy-2:#0b3033;--gold:#d8a339!important;
+  --bg:#f4f6f4!important;--card:#fff;--border:#dfe5e1!important;--border2:#cfd8d3!important;
+  --text:#17201e!important;--muted:#66716d!important;--hint:#89938f!important;
+  --radius:10px!important;--radius-lg:16px!important;--shadow:0 10px 30px rgba(24,54,48,.07);
+}
+html{scroll-behavior:smooth}
+body{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;background:linear-gradient(180deg,#f8faf8 0,#f3f5f3 340px)!important}
+button,input,textarea,select{font:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid rgba(216,163,57,.34)!important;outline-offset:2px}
+.nav{height:72px!important;padding:0 max(20px,calc((100vw - 1180px)/2))!important;background:linear-gradient(105deg,var(--navy-2),var(--navy))!important;box-shadow:0 4px 20px rgba(10,42,44,.17)}
+.nav-logo{height:46px!important;border-radius:8px}
+.nav-brand{font-size:15px!important;font-weight:700!important}.nav-brand-sub{font-size:10px!important;color:#f0c86a!important}
+.nav-pills{background:rgba(255,255,255,.08)!important;border:1px solid rgba(255,255,255,.08);border-radius:10px!important;padding:4px!important}
+.nav-pills a{padding:8px 14px!important;border-radius:7px!important;font-weight:600}
+.nav-link{padding:7px 11px!important;border-radius:8px!important}
+.wrap{max-width:1180px!important;padding:30px 22px 64px!important}
+.workspace-header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin:0 0 24px}
+.workspace-eyebrow{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:5px}
+.workspace-header h1{font-size:28px;letter-spacing:-.035em;line-height:1.12;margin:0;color:var(--navy-2)}
+.workspace-header p{margin:7px 0 0;color:var(--muted);font-size:14px}
+.workspace-help{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:8px 12px;color:var(--muted);font-size:12px;box-shadow:0 3px 12px rgba(20,50,45,.04)}
+.status-dot{width:8px;height:8px;background:#2b9364;border-radius:50%;box-shadow:0 0 0 4px rgba(43,147,100,.12)}
+.upload-panel,.top-panel,.fc,.hist-panel{border-color:var(--border)!important;box-shadow:var(--shadow)!important;background:rgba(255,255,255,.96)!important}
+.upload-panel{border:1px solid var(--border)!important;padding:18px 20px!important;position:relative;overflow:hidden}
+.upload-panel:before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--gold)}
+.upload-icon{width:44px!important;height:44px!important;border-radius:12px!important;background:#edf5f2!important}
+.upload-title{font-size:14px!important;font-weight:700!important}.upload-sub{font-size:12px!important;margin-top:4px!important}
+.top-panel{padding:20px!important}.top-panel-title,.sec-title{font-weight:800!important;letter-spacing:.09em!important;color:#53605b!important}
+.tabs{gap:8px!important;padding:5px;background:#e9eeeb;border-radius:12px;width:max-content;max-width:100%}
+.tab{border:0!important;background:transparent!important;padding:9px 15px!important;font-weight:650!important;border-radius:8px!important}
+.tab.active{box-shadow:0 2px 8px rgba(20,50,45,.10);background:#fff!important;color:var(--navy)!important}
+.tab.active:after{display:none!important}
+.fc{overflow:hidden!important}.fhdr{padding:20px 22px!important;background:linear-gradient(180deg,#fff,#fbfcfb)}
+.ftitle{font-size:19px!important;font-weight:750!important;letter-spacing:-.015em}.fsub{font-size:12px!important;margin-top:5px!important}
+.fbody{padding:24px!important}.sec{margin-bottom:28px!important}.sec-title{padding-bottom:10px!important;margin-bottom:14px!important}
+.fld{gap:6px!important}.lbl{font-size:12px!important;font-weight:650!important;color:#53605b!important}
+input[type=text],input[type=date],input[type=email],textarea,select{min-height:42px;padding:10px 12px!important;border-radius:9px!important;transition:border-color .16s,box-shadow .16s!important}
+input:focus,textarea:focus,select:focus{border-color:#4f7774!important;box-shadow:0 0 0 3px rgba(26,74,74,.10)!important;outline:0!important}
+.cov-grid{gap:14px!important}.cov-card{padding:15px!important;border-radius:12px!important;transition:box-shadow .16s,border-color .16s}.cov-card:hover{border-color:#bac9c3!important;box-shadow:0 6px 18px rgba(25,52,48,.06)}
+.cov-en{font-weight:700!important}.tb{padding:5px 9px!important}.ack-box{padding:18px!important;border-radius:12px!important}
+.btn,.upload-btn{min-height:40px;padding:9px 16px!important;border-radius:9px!important;font-weight:700!important}.btn-pri,.upload-btn{background:var(--navy)!important;box-shadow:0 3px 8px rgba(18,63,66,.16)}
+.btn-pri:hover,.upload-btn:hover{background:#0d3437!important;opacity:1!important;transform:translateY(-1px)}
+.btn-row{position:sticky;bottom:0;z-index:20;display:flex;justify-content:flex-end;gap:8px;padding:14px 22px!important;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-top:1px solid var(--border)}
+.hist-table th{background:#f6f8f6;padding:10px!important}.hist-table td{padding:11px 10px!important}
+
+/* E-sign sender dashboard */
+#f-esign .fbody{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr);gap:20px;align-items:start}
+#f-esign .sec{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px;margin:0!important}
+#f-esign .sec:last-child{grid-column:1/-1}
+#f-esign .es-drop{padding:28px!important;border:2px dashed #b9c7c1!important;border-radius:12px!important;background:#f8faf8!important;transition:.18s}
+#f-esign .es-drop:hover,#f-esign .es-drop.over{border-color:var(--navy)!important;background:#eef5f2!important}
+#f-esign .es-file{font-size:14px!important;font-weight:750!important}
+#f-esign .es-rcpt3{grid-template-columns:minmax(130px,1fr) minmax(170px,1.2fr) minmax(145px,.8fr)!important;gap:8px!important;padding:12px;background:#f7f9f7;border:1px solid var(--border);border-radius:11px}
+#f-esign .es-rcpt3 .es-deliv{grid-column:1/3}#f-esign .es-rcpt3 .es-x{grid-column:3;grid-row:2}
+#f-esign .es-t{display:block;overflow-x:auto;border:1px solid var(--border);border-radius:11px}
+#f-esign table.es-t th{background:#f3f6f4!important;color:#53605b!important;padding:10px!important;text-transform:uppercase;letter-spacing:.05em;font-size:10px!important}
+#f-esign table.es-t td{padding:12px 10px!important}
+#f-esign .btn-row{margin-top:20px}
+
+/* Recipient signing ceremony */
+.signing-page{background:radial-gradient(circle at 50% -10%,#fff 0,#f4f6f4 48%,#eef1ef 100%)!important}
+.signing-page .nav{justify-content:flex-start!important}.sign-brand-logo{height:44px;width:auto;border-radius:8px}
+.signing-page .wrap{max-width:980px!important;padding-top:28px!important}
+.sign-progress{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:18px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:8px;box-shadow:var(--shadow)}
+.sign-step{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;color:#87908d}
+.sign-step>span{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;border:1px solid #cfd8d3;font-size:12px;font-weight:800;background:#fff}
+.sign-step strong,.sign-step small{display:block}.sign-step strong{font-size:12px}.sign-step small{font-size:10px;margin-top:1px}
+.sign-step.active{background:#eef5f2;color:var(--navy)}.sign-step.active>span{background:var(--navy);border-color:var(--navy);color:#fff}
+.sign-step.complete{color:#287253}.sign-step.complete>span{background:#e7f4ed;border-color:#aed6c1;color:#287253}.sign-step.complete>span:after{content:"✓"}.sign-step.complete>span{font-size:0}
+.signing-page .card{border-radius:16px!important;box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px!important}
+.signing-page .card-hd{padding:18px 22px!important;background:linear-gradient(180deg,#fff,#fbfcfb)}
+.signing-page .card-bd{padding:22px!important}.signing-page h1{font-size:21px!important;letter-spacing:-.02em}
+.document-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;background:#eef3f0;border:1px solid var(--border);border-bottom:0;border-radius:10px 10px 0 0;padding:9px 12px;color:#56615d;font-size:11.5px}
+.document-toolbar a{color:var(--navy);font-weight:700;text-decoration:none}
+.signing-page .doc{height:min(68vh,720px)!important;border-radius:0 0 10px 10px!important}
+.review-action{display:flex;justify-content:flex-end;margin-top:14px}
+.signing-page .disc{background:#f8faf8!important;border-radius:10px!important;padding:18px!important}
+.signing-page label.chk{padding:14px;border:1px solid var(--border);border-radius:10px;background:#fff}.signing-page label.chk:has(input:checked){border-color:#78a092;background:#f1f7f4}
+.signing-page canvas.sig{height:150px!important;border:2px dashed #b9c7c1!important;border-radius:12px!important;background:linear-gradient(#fff,#fbfcfb)!important}
+.signing-page .btn-wide{min-width:190px}.signing-page .todo{border-left:4px solid var(--gold);padding:11px 14px!important}
+
+@media(max-width:900px){
+  #f-esign .fbody{grid-template-columns:1fr}#f-esign .sec:last-child{grid-column:auto}
+}
+@media(max-width:760px){
+  .nav{height:auto!important;padding:10px 14px!important}.wrap{padding:20px 12px 48px!important}.workspace-header{align-items:flex-start}.workspace-help{display:none}.workspace-header h1{font-size:23px}
+  .tabs{width:100%;overflow-x:auto;flex-wrap:nowrap!important}.tab{white-space:nowrap}
+  .fbody{padding:17px!important}.fhdr{padding:17px!important}.btn-row{padding:12px 16px!important}.btn-row .btn{flex:1}
+  #f-esign .es-rcpt3{display:grid!important;grid-template-columns:1fr!important}#f-esign .es-rcpt3 .es-deliv,#f-esign .es-rcpt3 .es-x{grid-column:auto;grid-row:auto}
+  .sign-progress{padding:6px}.sign-step{padding:8px 6px;justify-content:center}.sign-step div{display:none}.sign-step>span{width:28px;height:28px}
+  .signing-page .card-hd,.signing-page .card-bd{padding:16px!important}.signing-page .doc{height:54vh!important}.document-toolbar span{display:none}.document-toolbar{justify-content:flex-end}
+  .signing-page .row{align-items:stretch!important;flex-direction:column}.signing-page .btn-wide{width:100%}
+}
