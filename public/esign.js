@@ -39,6 +39,7 @@ css.textContent = [
   '#f-esign button.es-link:hover{border-color:var(--navy)}',
   '#f-esign button.es-link:disabled{opacity:.5;cursor:default}',
   '#f-esign .es-danger{color:#a32219}',
+  '#f-esign button.es-link.es-on{background:var(--navy);color:#fff;border-color:var(--navy)}',
   '#f-esign .es-danger:hover{border-color:#a32219}',
   // The field placer is a full-viewport workspace: the page it is preparing is
   // the whole job, so it gets the whole screen rather than a band inside a
@@ -654,6 +655,27 @@ async function onResend(e){
   }
 }
 
+async function onRemind(e){
+  e.preventDefault();
+  var btn = this, id = btn.dataset.id, turningOn = !btn.dataset.on;
+  btn.disabled = true;
+  try {
+    var r = await fetch('/api/esign/envelopes/' + id + '/reminders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: turningOn }),
+    });
+    var d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.error || 'Could not change reminders');
+    showT(turningOn ? 'Reminding daily until signed' : 'Daily reminders stopped', 'success');
+  } catch(err){
+    showT(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    loadList();
+  }
+}
+
 async function onDelete(e){
   e.preventDefault();
   var btn = this, id = btn.dataset.id, title = btn.dataset.title;
@@ -700,9 +722,18 @@ async function loadList(){
           esc(e.last_failure.channel || 'email') + ' to ' + esc(e.last_failure.to || '') + '): ' +
           esc(e.last_failure.error || '') + '</div>'
         : '';
+      var rem = e.status === 'sent'
+        ? '<button class="es-link es-act' + (e.reminders_enabled ? ' es-on' : '') + '" data-act="remind" ' +
+          'data-id="' + e.id + '" data-on="' + (e.reminders_enabled ? '1' : '') + '" type="button" title="' +
+          (e.reminders_enabled
+            ? 'Reminding daily — ' + (e.reminder_count || 0) + ' sent so far. Click to stop.'
+            : 'Send this signer a reminder once a day until they sign') + '">' +
+          (e.reminders_enabled ? 'Reminding daily' : 'Remind daily') + '</button>'
+        : '';
+
       var actions =
         (canResend ? '<button class="es-link es-act" data-act="resend" data-id="' + e.id + '" type="button">' +
-                     (e.status === 'draft' ? 'Send' : 'Resend') + '</button>' : '') +
+                     (e.status === 'draft' ? 'Send' : 'Resend') + '</button>' : '') + rem +
         '<button class="es-link es-act es-danger" data-act="delete" data-id="' + e.id +
           '" data-title="' + esc(e.title) + '" data-status="' + esc(e.status) + '" type="button">Delete</button>';
 
@@ -720,7 +751,9 @@ async function loadList(){
       '<th>Document</th><th>Recipients</th><th>Status</th><th>Sent</th><th></th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
     el.querySelectorAll('.es-act').forEach(function(b){
-      b.addEventListener('click', b.dataset.act === 'resend' ? onResend : onDelete);
+      b.addEventListener('click',
+        b.dataset.act === 'resend' ? onResend :
+        b.dataset.act === 'remind' ? onRemind : onDelete);
     });
   } catch(e){
     el.innerHTML = '<div style="font-size:12.5px;color:#a32219">' + esc(e.message) + '</div>';

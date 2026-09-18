@@ -4,6 +4,7 @@ const db      = require('../db');
 const mail    = require('../services/email');
 const sms     = require('../services/sms');
 const { requireAuth } = require('../middleware/auth');
+const { deliverSigningLinks, pendingRecipients } = require('../services/delivery');
 const {
   newSigningToken, hashToken, sha256, publicId, buildSignedPdf,
 } = require('../services/esign');
@@ -103,7 +104,8 @@ router.get('/envelopes', requireAuth, async (req, res) => {
               ) ORDER BY r.routing_order, r.id) FILTER (WHERE r.id IS NOT NULL), '[]') AS recipients,
               (SELECT detail FROM envelope_events ev
                 WHERE ev.envelope_id = e.id AND ev.event = 'send_failed'
-                ORDER BY ev.at DESC LIMIT 1) AS last_failure
+                ORDER BY ev.at DESC LIMIT 1) AS last_failure,
+              e.reminders_enabled, e.reminder_count, e.reminder_last_at
          FROM envelopes e
          LEFT JOIN envelope_recipients r ON r.envelope_id = e.id
         GROUP BY e.id
@@ -245,61 +247,14 @@ router.post('/envelopes/:id/send', requireAuth, async (req, res) => {
     if (env.status === 'voided') return res.status(400).json({ error: 'This envelope has been voided' });
     if (env.status === 'completed') return res.status(400).json({ error: 'This envelope is already completed' });
 
-    const { rows: recipients } = await db.query(
-      `SELECT * FROM envelope_recipients WHERE envelope_id = $1 AND status IN ('pending','viewed')
-       ORDER BY routing_order, id`, [req.params.id]);
+    const recipients = await pendingRecipients(req.params.id);
     if (!recipients.length) return res.status(400).json({ error: 'No recipients are awaiting signature' });
 
     // Tokens are unrecoverable once issued, so sending re-issues a fresh one
     // per recipient and invalidates the previous link.
-    const sent = [], failed = [];
-    for (const r of recipients) {
-      const token = newSigningToken();
-      await db.query(`UPDATE envelope_recipients SET token_hash = $1 WHERE id = $2`,
-        [hashToken(token), r.id]);
-      const url = `${baseUrl(req)}/sign/${token}`;
-      const want = r.delivery || 'email';
-      let delivered = false;
-
-      if (want === 'email' || want === 'both') {
-        try {
-          await mail.send({
-            to: r.email,
-            subject: mail.copy(env.language).subjSign(env.title),
-            replyTo: env.agent_email || undefined,
-            html: mail.signingRequest({
-              recipientName: r.name, agentName: env.agent_name,
-              title: env.title, message: env.message, url, lang: env.language,
-            }),
-          });
-          delivered = true;
-          sent.push(r.email);
-          await logEvent(env.id, 'sent', req, { recipientId: r.id, actor: req.session.agentName, detail: { channel: 'email', to: r.email } });
-        } catch (err) {
-          failed.push({ email: r.email, channel: 'email', error: err.message });
-          await logEvent(env.id, 'send_failed', req, { recipientId: r.id, detail: { channel: 'email', to: r.email, error: err.message } });
-        }
-      }
-
-      if ((want === 'sms' || want === 'both') && r.phone) {
-        try {
-          await sms.send({
-            to: r.phone,
-            text: sms.signingText({
-              recipientName: r.name, agentName: env.agent_name,
-              title: env.title, url, lang: env.language,
-            }),
-          });
-          delivered = true;
-          sent.push(r.phone);
-          await logEvent(env.id, 'sent', req, { recipientId: r.id, actor: req.session.agentName, detail: { channel: 'sms', to: r.phone } });
-        } catch (err) {
-          failed.push({ email: r.phone, channel: 'sms', error: err.message });
-          await logEvent(env.id, 'send_failed', req, { recipientId: r.id, detail: { channel: 'sms', to: r.phone, error: err.message } });
-        }
-      }
-      if (!delivered) { /* both channels failed; already recorded above */ }
-    }
+    const { sent, failed } = await deliverSigningLinks({
+      env, recipients, baseUrl: baseUrl(req), req, actor: req.session.agentName,
+    });
 
     if (sent.length) {
       await db.query(
@@ -322,6 +277,28 @@ router.post('/envelopes/:id/void', requireAuth, async (req, res) => {
     if (!rowCount) return res.status(400).json({ error: 'Envelope not found, or already completed' });
     await logEvent(req.params.id, 'voided', req, { actor: req.session.agentName, detail: { reason } });
     res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/* Daily reminders, per document. Off unless asked for, and refused once the
+   document is no longer waiting on anyone. */
+router.patch('/envelopes/:id/reminders', requireAuth, async (req, res) => {
+  try {
+    const on = req.body.enabled === true || req.body.enabled === 'true';
+    const { rows } = await db.query(`SELECT status FROM envelopes WHERE id = $1`, [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Envelope not found' });
+    if (on && rows[0].status !== 'sent') {
+      return res.status(400).json({ error: 'Reminders only apply to a document that is out for signature' });
+    }
+    // Turning them back on starts the count again, so an agent is not left
+    // with a document that silently refuses to remind.
+    await db.query(
+      `UPDATE envelopes SET reminders_enabled = $2, reminder_count = CASE WHEN $2 THEN 0 ELSE reminder_count END
+        WHERE id = $1`, [req.params.id, on]);
+    await logEvent(req.params.id, on ? 'reminders_on' : 'reminders_off', req, { actor: req.session.agentName });
+    res.json({ success: true, enabled: on });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
