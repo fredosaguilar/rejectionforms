@@ -5,6 +5,25 @@ const mail    = require('../services/email');
 const sms     = require('../services/sms');
 const { requireAuth } = require('../middleware/auth');
 const { deliverSigningLinks, pendingRecipients } = require('../services/delivery');
+const { PDFDocument } = require('pdf-lib');
+
+/* Joins uploaded PDFs into one, in the order given. A file that cannot be read
+   is named in the error rather than silently dropped — a missing page in a
+   signed document is not something to discover later. */
+async function mergePdfs(uploads) {
+  const out = await PDFDocument.create();
+  for (const f of uploads) {
+    let src;
+    try {
+      src = await PDFDocument.load(f.buffer);
+    } catch (e) {
+      throw new Error(`${f.originalname} could not be read`);
+    }
+    const pages = await out.copyPages(src, src.getPageIndices());
+    pages.forEach((pg) => out.addPage(pg));
+  }
+  return Buffer.from(await out.save());
+}
 const {
   newSigningToken, hashToken, sha256, publicId, buildSignedPdf,
 } = require('../services/esign');
@@ -15,7 +34,7 @@ const router = express.Router();
 // straight to the row. 15 MB keeps a signing request inside Resend's limits.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 15 * 1024 * 1024, files: 12 },
 });
 
 function clientIp(req) {
@@ -143,14 +162,34 @@ router.get('/envelopes/:id', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/envelopes', requireAuth, upload.single('document'), async (req, res) => {
+router.post('/envelopes', requireAuth, upload.array('document', 12), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No document uploaded' });
-    if (req.file.mimetype !== 'application/pdf') {
-      return res.status(400).json({ error: 'Only PDF documents can be sent for signature' });
+    const uploads = req.files || [];
+    if (!uploads.length) return res.status(400).json({ error: 'No document uploaded' });
+    const notPdf = uploads.find((f) => f.mimetype !== 'application/pdf');
+    if (notPdf) {
+      return res.status(400).json({ error: `Only PDF documents can be sent for signature: ${notPdf.originalname}` });
     }
 
-    const title = (req.body.title || req.file.originalname || 'Document').trim();
+    // Several files become one document, joined in the order the sender put
+    // them in. Everything downstream — placed field coordinates, the signing
+    // page, the stamped copy, the certificate — then deals with a single PDF
+    // and one run of page numbers, exactly as before.
+    let merged;
+    try {
+      merged = uploads.length === 1 ? uploads[0].buffer : await mergePdfs(uploads);
+    } catch (e) {
+      return res.status(400).json({ error: `Those PDFs could not be combined: ${e.message}` });
+    }
+    if (merged.length > 15 * 1024 * 1024) {
+      return res.status(400).json({ error: 'The combined document is larger than 15 MB' });
+    }
+
+    const fileName = uploads.length === 1
+      ? uploads[0].originalname
+      : `${uploads[0].originalname} + ${uploads.length - 1} more`;
+
+    const title = (req.body.title || uploads[0].originalname || 'Document').trim();
     let recipients;
     try {
       recipients = JSON.parse(req.body.recipients || '[]');
@@ -186,7 +225,7 @@ router.post('/envelopes', requireAuth, upload.single('document'), async (req, re
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, public_id`,
       [publicId(), req.session.agentId, req.session.agentName, req.session.email,
        title, (req.body.message || '').trim() || null,
-       req.file.originalname, req.file.mimetype, req.file.buffer, sha256(req.file.buffer), language]
+       fileName, 'application/pdf', merged, sha256(merged), language]
     );
     const envelope = rows[0];
 
@@ -227,7 +266,8 @@ router.post('/envelopes', requireAuth, upload.single('document'), async (req, re
 
     await logEvent(envelope.id, 'created', req, {
       actor: req.session.agentName,
-      detail: { title, recipients: emails, sha256: sha256(req.file.buffer), fields: placedCount },
+      detail: { title, recipients: emails, sha256: sha256(merged), fields: placedCount,
+                sources: uploads.map((f) => f.originalname) },
     });
 
     res.json({ success: true, envelopeId: envelope.id, publicId: envelope.public_id,
