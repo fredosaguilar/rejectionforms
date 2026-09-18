@@ -116,6 +116,7 @@ var html =
     '<button class="btn btn-sec" id="es-add" style="margin-top:4px">Add recipient</button>' +
     '<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Each recipient gets their own signing link. The document completes once everyone has signed.</div>' +
     '<div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+      '<button class="btn btn-sec" id="es-mailtest" style="font-size:12px;padding:6px 12px">Test email</button>' +
       '<button class="btn btn-sec" id="es-smstest" style="font-size:12px;padding:6px 12px">Test text messaging</button>' +
       '<span id="es-smsres" style="font-size:11.5px;color:var(--muted)"></span>' +
       '<div id="es-smsdetail" style="flex-basis:100%;font-size:11.5px;color:var(--muted);line-height:1.6"></div>' +
@@ -663,6 +664,33 @@ function smsDetail(d){
   }
   return rows.join('');
 }
+
+document.getElementById('es-mailtest').addEventListener('click', async function(e){
+  e.preventDefault();
+  var btn = this, out = document.getElementById('es-smsres'), detail = document.getElementById('es-smsdetail');
+  btn.disabled = true; out.style.color = 'var(--muted)'; out.textContent = 'Checking…'; detail.innerHTML = '';
+  try {
+    var r = await fetch('/api/esign/email-status');
+    var d = await r.json();
+    out.style.color = d.ok ? '#1a6b45' : '#a32219';
+    out.textContent = d.ok ? 'Email is ready.' : d.why;
+
+    var rows = ['<div style="margin-top:6px">Sending from <strong>' + esc(d.from || '(not set)') + '</strong></div>'];
+    if (d.domains && d.domains.length) {
+      rows.push('<div style="margin-top:4px">Domains on this Resend account:</div>');
+      rows.push('<ul style="margin:3px 0 0 16px;padding:0">' + d.domains.map(function(x){
+        var ok = String(x.status).toLowerCase() === 'verified';
+        return '<li>' + esc(x.name) + ' — <span style="color:' + (ok ? '#1a6b45' : '#a32219') + '">' +
+          esc(x.status) + '</span></li>';
+      }).join('') + '</ul>');
+    } else if (d.configured) {
+      rows.push('<div style="margin-top:4px">No domains have been added to the Resend account yet.</div>');
+    }
+    detail.innerHTML = rows.join('');
+  } catch (err) {
+    out.style.color = '#a32219'; out.textContent = err.message;
+  } finally { btn.disabled = false; }
+});
 
 document.getElementById('es-smstest').addEventListener('click', async function(e){
   e.preventDefault();
