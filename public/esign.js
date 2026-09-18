@@ -533,7 +533,9 @@ async function renderAllPages(){
     var page = await at.doc.getPage(at.local);
     var v1 = page.getViewport({ scale: 1 });
     var fit = Math.min(availW / v1.width, 1.5);
-    var vp = page.getViewport({ scale: Math.min(fit * zoom, 4) });
+    var cssScale = Math.min(fit * zoom, 4);
+    var density = Math.min(window.devicePixelRatio || 1, 2.5);
+    var vp = page.getViewport({ scale: cssScale * density });
     var wrap = document.createElement('div');
     wrap.className = 'es-page-wrap';
     var label = document.createElement('div');
@@ -545,6 +547,8 @@ async function renderAllPages(){
     holder.className = 'es-page'; holder.dataset.page = n;
     var cv = document.createElement('canvas');
     cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+    cv.style.width = Math.round(v1.width * cssScale) + 'px';
+    cv.style.height = Math.round(v1.height * cssScale) + 'px';
     holder.appendChild(cv);
     var layer = document.createElement('div');
     layer.className = 'es-layer'; holder.appendChild(layer);
