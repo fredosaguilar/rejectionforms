@@ -20,10 +20,12 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system
 h1{font-size:19px;margin:0 0 4px}
 .sub{color:var(--muted);font-size:12.5px;margin:0}
 .msg{background:var(--bg);border-left:3px solid var(--gold);padding:11px 14px;font-size:13px;margin:0 0 16px;border-radius:0 4px 4px 0}
-.doc{width:100%;height:600px;border:1px solid var(--border2);border-radius:6px;background:#fff}
-@media(max-width:640px){.doc{height:420px}}
+.doc-view{width:100%;overflow:hidden;border:1px solid var(--border2);border-radius:10px;background:#eceae4;padding:10px}
+.doc-page{width:100%;display:block;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.16)}
+.page-controls{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:12px}
+.page-controls .btn{padding:7px 12px;font-size:12px}.page-count{min-width:86px;text-align:center;font-size:12px;color:var(--muted)}
 .disc{font-size:12.5px;line-height:1.7;color:var(--text);background:var(--bg);border:1px solid var(--border);
-      border-radius:6px;padding:14px 16px;max-height:260px;overflow-y:auto;margin-bottom:14px}
+      border-radius:6px;padding:14px 16px;margin-bottom:14px}
 .disc h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin:14px 0 5px}
 .disc h3:first-child{margin-top:0}
 .disc ul{margin:5px 0;padding-left:18px}
@@ -47,7 +49,7 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
 .state h2{font-size:18px;margin:0 0 6px}
 .state p{color:var(--muted);font-size:13.5px;margin:0 auto;max-width:44ch}
 .err{background:#fbecea;border:1px solid #f0c8c3;color:var(--bad);padding:10px 13px;border-radius:6px;font-size:13px;margin-bottom:14px}
-.pages{max-height:640px;overflow-y:auto;background:#eceae4;border:1px solid var(--border);border-radius:6px;padding:12px}
+.pages{overflow:hidden;background:#eceae4;border:1px solid var(--border);border-radius:6px;padding:12px}
 .pg{position:relative;margin:0 auto 12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14);width:fit-content}
 .pg canvas{display:block}
 .fl{position:absolute;inset:0;pointer-events:none}
@@ -59,6 +61,11 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
 .pgn{text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px}
 .todo{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:12.5px}
 [hidden]{display:none!important}
+@media(max-width:640px){
+  .wrap{padding:14px 10px 34px}.card-bd{padding:14px}.card-hd{padding:14px}
+  .doc-view{padding:6px}.pg{max-width:100%}.pg canvas{width:100%;height:auto}
+  .page-controls{justify-content:space-between}.page-controls .btn{min-width:84px}
+}
 </style>
 <link rel="stylesheet" href="/ui-refresh.css">
 </head>
@@ -99,7 +106,7 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
       <div class="sign-step" data-step="2"><span>2</span><div><strong>Consent</strong><small>Agree to e-sign</small></div></div>
       <div class="sign-step" data-step="3"><span>3</span><div><strong>Sign</strong><small>Complete &amp; submit</small></div></div>
     </div>
-    <div class="card">
+    <div class="card" id="review-card">
       <div class="card-hd">
         <h1 id="title"></h1>
         <p class="sub" id="sub"></p>
@@ -107,14 +114,15 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
       <div class="card-bd">
         <p class="msg" id="msg" hidden></p>
         <div class="document-toolbar"><span>Review the complete document before continuing</span><a id="doc-open" href="#" target="_blank" rel="noopener">Open full screen ↗</a></div>
-        <iframe class="doc" id="doc" title="Document to sign"></iframe>
+        <div class="doc-view" id="review-view"><canvas class="doc-page" id="review-canvas"></canvas></div>
+        <div class="page-controls" id="review-pages"><button class="btn" id="review-prev" type="button">← Previous</button><span class="page-count" id="review-count">Page 1</span><button class="btn" id="review-next" type="button">Next →</button></div>
         <p class="note">If the document doesn't display, <a id="doc-link" href="#" target="_blank" rel="noopener">open it in a new tab</a>.</p>
         <div class="review-action"><button class="btn btn-pri btn-wide" id="review-btn" type="button">I’ve reviewed the document</button></div>
       </div>
     </div>
 
     <!-- ESIGN 101(c): affirmative consent, captured before signing is possible -->
-    <div class="card" id="consent-card">
+    <div class="card" id="consent-card" hidden>
       <div class="card-hd"><h1 style="font-size:16px">Consent to use electronic records and signatures</h1></div>
       <div class="card-bd">
         <div class="disc" id="disc"></div>
@@ -123,7 +131,7 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
           <input type="checkbox" id="agree">
           <span id="agree-txt"></span>
         </label>
-        <button class="btn btn-pri btn-wide" id="consent-btn" disabled>Continue to sign</button>
+        <div class="row"><button class="btn" id="consent-back" type="button">← Back</button><button class="btn btn-pri btn-wide" id="consent-btn" disabled>Continue to sign</button></div>
       </div>
     </div>
 
@@ -137,8 +145,11 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
           <canvas class="sig" id="pad2"></canvas>
           <div class="sigrow"><span class="hint">Draw once, then click the boxes on the document.</span>
             <button class="btn-link" id="clear2">Clear</button></div>
+          <div class="lbl" style="margin-top:14px">Your full legal name</div>
+          <input type="text" id="typed-fields" autocomplete="name" placeholder="Full legal name">
         </div>
         <div class="pages" id="pages"></div>
+        <div class="page-controls" id="field-pages"><button class="btn" id="field-prev" type="button">← Previous</button><span class="page-count" id="field-count">Page 1</span><button class="btn" id="field-next" type="button">Next →</button></div>
       </div>
     </div>
 
@@ -146,12 +157,6 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
       <div class="card-hd"><h1 style="font-size:16px">Sign</h1></div>
       <div class="card-bd">
         <div class="err" id="sign-err" hidden></div>
-
-        <div class="fld">
-          <div class="lbl">Type your full legal name</div>
-          <input type="text" id="typed" autocomplete="name" placeholder="Full legal name">
-          <p class="hint" style="margin:6px 0 0">Typing your name records your intent to sign this document.</p>
-        </div>
 
         <div class="fld" id="main-pad-fld">
           <div class="lbl">Draw your signature</div>
@@ -162,7 +167,14 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
           </div>
         </div>
 
+        <div class="fld" id="typed-main-fld">
+          <div class="lbl">Type your full legal name</div>
+          <input type="text" id="typed" autocomplete="name" placeholder="Full legal name">
+          <p class="hint" style="margin:6px 0 0">Typing your name records your intent to sign this document.</p>
+        </div>
+
         <div class="row" style="margin-top:18px">
+          <button class="btn" id="sign-back" type="button">← Back</button>
           <button class="btn btn-pri btn-wide" id="submit">Sign document</button>
           <button class="btn-link" id="decline">Decline to sign</button>
         </div>
@@ -190,6 +202,11 @@ function setStep(n){
     step.classList.toggle('active', at === n);
     step.classList.toggle('complete', at < n);
   });
+  $('review-card').hidden = n !== 1;
+  $('consent-card').hidden = n !== 2;
+  $('fields-card').hidden = n !== 3 || !FIELDS.length;
+  $('sign-card').hidden = n !== 3;
+  window.scrollTo({ top:0, behavior:'smooth' });
 }
 
 /* ---- signature pads ---- */
@@ -246,6 +263,7 @@ var T = {
     yourSig: 'Your signature',
     drawOnce: 'Draw once, then click the boxes on the document.',
     clear: 'Clear',
+    back: 'Back',
     typedLbl: 'Type your full legal name',
     typedHint: 'Typing your name records your intent to sign this document.',
     drawLbl: 'Draw your signature',
@@ -295,6 +313,7 @@ var T = {
     yourSig: 'Su firma',
     drawOnce: 'Dibuje una vez, luego haga clic en las casillas del documento.',
     clear: 'Borrar',
+    back: 'Atrás',
     typedLbl: 'Escriba su nombre legal completo',
     typedHint: 'Escribir su nombre registra su intención de firmar este documento.',
     drawLbl: 'Dibuje su firma',
@@ -355,10 +374,12 @@ function applyLanguage(lang){
   $('fields-card').querySelector('.lbl').textContent = L.yourSig;
   $('fields-card').querySelector('.hint').textContent = L.drawOnce;
   $('clear2').textContent = L.clear;
+  $('consent-back').textContent = '← ' + L.back;
+  $('sign-back').textContent = '← ' + L.back;
   var labels = $('sign-card').querySelectorAll('.lbl');
-  labels[0].textContent = L.typedLbl; labels[1].textContent = L.drawLbl;
+  labels[0].textContent = L.drawLbl; labels[1].textContent = L.typedLbl;
   var hints = $('sign-card').querySelectorAll('.hint');
-  hints[0].textContent = L.typedHint; hints[1].textContent = L.drawHint;
+  hints[0].textContent = L.drawHint; hints[1].textContent = L.typedHint;
   $('submit').textContent = L.submit;
   $('decline').textContent = L.decline;
   $('sign-card').querySelector('.note').textContent = L.signNote;
@@ -374,7 +395,36 @@ function applyLanguage(lang){
    Fields are positioned from normalised coordinates, so the overlay lines up
    with the page at whatever width it rendered.
    ---------------------------------------------------------------------- */
-var FIELDS = [], values = {}, docRendered = false;
+var FIELDS = [], values = {}, docRendered = false, PDFDOC = null;
+var reviewPage = 1, fieldPage = 1;
+
+async function getPdf(){
+  if(PDFDOC) return PDFDOC;
+  if(!window.pdfjsLib) throw new Error('PDF viewer unavailable');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  PDFDOC = await pdfjsLib.getDocument(api + '/document').promise;
+  return PDFDOC;
+}
+
+async function renderReviewPage(){
+  try{
+    var doc = await getPdf();
+    reviewPage = Math.max(1, Math.min(doc.numPages, reviewPage));
+    var page = await doc.getPage(reviewPage), v0 = page.getViewport({ scale:1 });
+    var host = $('review-view');
+    var width = Math.max(240, host.clientWidth - 20);
+    var vp = page.getViewport({ scale:width / v0.width });
+    var cv = $('review-canvas');
+    cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+    await page.render({ canvasContext:cv.getContext('2d'), viewport:vp }).promise;
+    $('review-count').textContent = 'Page ' + reviewPage + ' of ' + doc.numPages;
+    $('review-prev').disabled = reviewPage === 1;
+    $('review-next').disabled = reviewPage === doc.numPages;
+  }catch(e){
+    $('review-view').innerHTML = '<div class="err">Could not display the PDF here. Use Open full screen above.</div>';
+    $('review-pages').hidden = true;
+  }
+}
 
 function todayStr(){
   var d = new Date();
@@ -445,14 +495,13 @@ async function renderDocument(){
   var host = $('pages');
   host.innerHTML = '<div style="padding:18px;text-align:center;color:var(--muted);font-size:12.5px">' + L.rendering + '</div>';
   try {
-    if(!window.pdfjsLib) throw new Error('PDF viewer unavailable');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    var doc = await pdfjsLib.getDocument(api + '/document').promise;
+    var doc = await getPdf();
     host.innerHTML = '';
     for(var i = 1; i <= doc.numPages; i++){
       var page = await doc.getPage(i);
       var v0 = page.getViewport({ scale: 1 });
-      var vp = page.getViewport({ scale: Math.min(680 / v0.width, 2) });
+      var available = Math.max(240, host.clientWidth - 24);
+      var vp = page.getViewport({ scale: Math.min(available / v0.width, 2) });
       var num = document.createElement('div');
       num.className = 'pgn'; num.textContent = 'Page ' + i + ' of ' + doc.numPages;
       host.appendChild(num);
@@ -468,6 +517,7 @@ async function renderDocument(){
     docRendered = true;
     padAdopt.size();
     renderFields();
+    showFieldPage(1);
   } catch(e){
     // Falling back keeps the document signable even if rendering fails.
     host.innerHTML = '<div class="err">Could not display the document for field placement (' +
@@ -476,6 +526,19 @@ async function renderDocument(){
     $('fields-card').hidden = true;
     updateTodo();
   }
+}
+
+function showFieldPage(n){
+  var pages = Array.from(document.querySelectorAll('#pages .pg'));
+  var labels = Array.from(document.querySelectorAll('#pages .pgn'));
+  if(!pages.length){ $('field-pages').hidden = true; return; }
+  fieldPage = Math.max(1, Math.min(pages.length, n));
+  pages.forEach(function(p,i){ p.hidden = i !== fieldPage - 1; });
+  labels.forEach(function(p,i){ p.hidden = i !== fieldPage - 1; });
+  $('field-count').textContent = 'Page ' + fieldPage + ' of ' + pages.length;
+  $('field-prev').disabled = fieldPage === 1;
+  $('field-next').disabled = fieldPage === pages.length;
+  renderFields();
 }
 
 /* ---- load ---- */
@@ -490,23 +553,30 @@ fetch(api).then(function(r){ return r.json().then(function(d){ return { ok: r.ok
   $('title').textContent = d.title;
   $('sub').textContent = (d.sender ? 'Sent by ' + d.sender + ' · ' : '') + 'For ' + d.recipientName + ' (' + d.recipientEmail + ')';
   if (d.message) { $('msg').textContent = d.message; $('msg').hidden = false; }
-  $('doc').src = api + '/document';
   $('doc-link').href = api + '/document';
   $('doc-open').href = api + '/document';
   document.title = d.title + ' — Sign';
+  FIELDS = d.fields || [];
+  $('typed').value = d.recipientName || '';
+  $('typed-fields').value = d.recipientName || '';
   show('main');
   setStep(d.consented ? 3 : 1);
   sizePad();
-  FIELDS = d.fields || [];
-  if (d.consented) { $('consent-card').hidden = true; $('review-btn').hidden = true; afterConsent(); }
+  renderReviewPage();
+  if (d.consented) { $('review-btn').hidden = true; afterConsent(); }
 })
 .catch(function(e){ problem('Could not load this document', e.message); });
 
 /* ---- consent ---- */
 $('review-btn').addEventListener('click', function(){
   setStep(2);
-  $('consent-card').scrollIntoView({ behavior:'smooth', block:'start' });
 });
+$('review-prev').addEventListener('click', function(){ reviewPage--; renderReviewPage(); });
+$('review-next').addEventListener('click', function(){ reviewPage++; renderReviewPage(); });
+$('field-prev').addEventListener('click', function(){ showFieldPage(fieldPage - 1); });
+$('field-next').addEventListener('click', function(){ showFieldPage(fieldPage + 1); });
+$('consent-back').addEventListener('click', function(){ setStep(1); renderReviewPage(); });
+$('sign-back').addEventListener('click', function(){ setStep(2); $('agree').checked = true; $('consent-btn').disabled = false; });
 $('agree').addEventListener('change', function(){ setStep(2); $('consent-btn').disabled = !this.checked; });
 $('consent-btn').addEventListener('click', function(){
   var b = this; b.disabled = true; b.textContent = 'Saving…';
@@ -514,17 +584,17 @@ $('consent-btn').addEventListener('click', function(){
   .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
   .then(function(res){
     if (!res.ok) throw new Error(res.d.error || 'Could not record consent');
-    $('consent-card').hidden = true; setStep(3); afterConsent();
+    setStep(3); afterConsent();
   })
   .catch(function(e){ b.disabled = false; b.textContent = 'Continue to sign'; alert(e.message); });
 });
 
 function afterConsent(){
-  $('sign-card').hidden = false;
+  setStep(3);
   if(FIELDS.length){
-    $('fields-card').hidden = false;
     // The signature adopted for the fields is the signature; don't ask twice.
     $('main-pad-fld').hidden = true;
+    $('typed-main-fld').hidden = true;
     renderDocument();
   }
   sizePad();
@@ -535,7 +605,7 @@ function adoptedSignature(){ return FIELDS.length ? padAdopt : padMain; }
 /* ---- sign ---- */
 $('submit').addEventListener('click', function(){
   var err = $('sign-err'); err.hidden = true;
-  var typed = $('typed').value.trim();
+  var typed = (FIELDS.length ? $('typed-fields').value : $('typed').value).trim();
   if (!typed)  { err.textContent = L.needName; err.hidden = false; return; }
   if (!adoptedSignature().has()) {
     err.textContent = FIELDS.length ? L.needSigFields : L.needSig;
@@ -567,6 +637,17 @@ $('submit').addEventListener('click', function(){
     }
   })
   .catch(function(e){ b.disabled = false; b.textContent = 'Sign document'; err.textContent = e.message; err.hidden = false; });
+});
+
+$('typed').addEventListener('input', function(){ $('typed-fields').value = this.value; });
+$('typed-fields').addEventListener('input', function(){ $('typed').value = this.value; });
+var resizeTimer = null;
+window.addEventListener('resize', function(){
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function(){
+    if(!$('review-card').hidden) renderReviewPage();
+    if(docRendered && !$('fields-card').hidden) renderDocument();
+  }, 180);
 });
 
 /* ---- decline ---- */
