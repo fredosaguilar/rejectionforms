@@ -213,7 +213,9 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
         name: String(r.name || '').trim(),
         email: String(r.email || '').trim().toLowerCase(),
         phone: sms.normalisePhone(r.phone) || null,
-        delivery: ['email', 'sms', 'both'].includes(r.delivery) ? r.delivery : 'email',
+        // One channel is not a choice any more: every signing link goes out by
+        // email and by text.
+        delivery: 'both',
         order: i + 1,
       }))
       .filter((r) => r.name && r.email);
@@ -225,9 +227,9 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
     if (new Set(emails).size !== emails.length) {
       return res.status(400).json({ error: 'Each recipient must have a different email address' });
     }
-    const noPhone = recipients.find((r) => r.delivery !== 'email' && !r.phone);
+    const noPhone = recipients.find((r) => !r.phone);
     if (noPhone) {
-      return res.status(400).json({ error: `A mobile number is required to text ${noPhone.name}` });
+      return res.status(400).json({ error: `A mobile number is required for ${noPhone.name} — every recipient is sent both an email and a text` });
     }
     const language = req.body.language === 'es' ? 'es' : 'en';
 
@@ -309,8 +311,12 @@ router.post('/envelopes/:id/send', requireAuth, async (req, res) => {
     });
 
     if (sent.length) {
+      // Reminders run for everything that goes out. The count restarts here so
+      // a resend gets a fresh run rather than inheriting a spent one.
       await db.query(
-        `UPDATE envelopes SET status = 'sent', sent_at = COALESCE(sent_at, NOW()) WHERE id = $1`,
+        `UPDATE envelopes SET status = 'sent', sent_at = COALESCE(sent_at, NOW()),
+                              reminders_enabled = TRUE, reminder_count = 0, reminder_last_at = NOW()
+          WHERE id = $1`,
         [env.id]);
     }
     res.json({ success: sent.length > 0, sent, failed });
@@ -329,28 +335,6 @@ router.post('/envelopes/:id/void', requireAuth, async (req, res) => {
     if (!rowCount) return res.status(400).json({ error: 'Envelope not found, or already completed' });
     await logEvent(req.params.id, 'voided', req, { actor: req.session.agentName, detail: { reason } });
     res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-/* Daily reminders, per document. Off unless asked for, and refused once the
-   document is no longer waiting on anyone. */
-router.patch('/envelopes/:id/reminders', requireAuth, async (req, res) => {
-  try {
-    const on = req.body.enabled === true || req.body.enabled === 'true';
-    const { rows } = await db.query(`SELECT status FROM envelopes WHERE id = $1`, [req.params.id]);
-    if (!rows[0]) return res.status(404).json({ error: 'Envelope not found' });
-    if (on && rows[0].status !== 'sent') {
-      return res.status(400).json({ error: 'Reminders only apply to a document that is out for signature' });
-    }
-    // Turning them back on starts the count again, so an agent is not left
-    // with a document that silently refuses to remind.
-    await db.query(
-      `UPDATE envelopes SET reminders_enabled = $2, reminder_count = CASE WHEN $2 THEN 0 ELSE reminder_count END
-        WHERE id = $1`, [req.params.id, on]);
-    await logEvent(req.params.id, on ? 'reminders_on' : 'reminders_off', req, { actor: req.session.agentName });
-    res.json({ success: true, enabled: on });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
