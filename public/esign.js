@@ -445,6 +445,15 @@ async function showPage(n){
   var availH = Math.max(280, (stageEl.clientHeight || 760) - 14);
   var fit = Math.min(availW / v1.width, availH / v1.height);
   var vp = page.getViewport({ scale: Math.min(fit * zoom, 4) });
+  // Draw at the screen's real pixel density. The canvas was sized in CSS
+  // pixels, so on any high-DPI display — a Retina Mac, a scaled Windows
+  // laptop, every phone — the browser was stretching a half-resolution image,
+  // which is what made the page look soft.
+  var dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
+  // A canvas costs memory and has a hard size limit, so the backing store is
+  // capped by area rather than allowed to grow with the zoom.
+  var px = vp.width * vp.height * dpr * dpr;
+  if (px > 12e6) dpr = Math.max(1, dpr * Math.sqrt(12e6 / px));
 
   stageEl.innerHTML = '';
   var scroll = stageEl;
@@ -452,14 +461,23 @@ async function showPage(n){
   holder.className = 'es-page';
   holder.dataset.page = curPage;
   var cv = document.createElement('canvas');
-  cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+  cv.width  = Math.round(vp.width  * dpr);
+  cv.height = Math.round(vp.height * dpr);
+  // The CSS size stays the logical one, so the overlay and every normalised
+  // field coordinate are unaffected by how densely it is drawn.
+  cv.style.width  = Math.round(vp.width)  + 'px';
+  cv.style.height = Math.round(vp.height) + 'px';
   holder.appendChild(cv);
   var layer = document.createElement('div');
   layer.className = 'es-layer';
   holder.appendChild(layer);
   scroll.appendChild(holder);
 
-  await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+  await page.render({
+    canvasContext: cv.getContext('2d'),
+    viewport: vp,
+    transform: dpr === 1 ? null : [dpr, 0, 0, dpr, 0, 0],
+  }).promise;
   wireLayer(layer, curPage);
   // With several files, say which one this page came from.
   document.getElementById('es-pgnum').textContent = 'Page ' + curPage + ' of ' + pageCount +
