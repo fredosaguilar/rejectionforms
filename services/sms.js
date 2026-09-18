@@ -207,9 +207,16 @@ async function send({ to, text }) {
   const number = normalisePhone(to);
   if (!number) throw new Error(`Not a valid mobile number: ${to}`);
 
+  // The sending number goes through the same normalisation as the recipient's.
+  // Sending the raw variable let a trailing space or a "(509) 765-8839" pass
+  // the connection test — which compares normalised numbers — and then be
+  // rejected at send time as a number that "doesn't belong to extension".
+  const from = normalisePhone(process.env.RINGCENTRAL_FROM);
+  if (!from) throw new Error(`RINGCENTRAL_FROM is not a usable phone number: ${process.env.RINGCENTRAL_FROM}`);
+
   const token = await accessToken();
   const body = JSON.stringify({
-    from: { phoneNumber: process.env.RINGCENTRAL_FROM },
+    from: { phoneNumber: from },
     to: [{ phoneNumber: number }],
     text,
   });
