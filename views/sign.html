@@ -30,8 +30,11 @@ h1{font-size:19px;margin:0 0 4px}
 .disc h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin:14px 0 5px}
 .disc h3:first-child{margin-top:0}
 .disc ul{margin:5px 0;padding-left:18px}
-label.chk{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;cursor:pointer;margin-bottom:14px}
-label.chk input{width:16px;height:16px;margin-top:2px;flex-shrink:0;accent-color:var(--navy)}
+label.chk{display:flex;gap:12px;align-items:flex-start;font-size:13.5px;cursor:pointer;margin-bottom:14px}
+label.chk input{width:22px;height:22px;margin-top:0;flex-shrink:0;accent-color:var(--navy)}
+.consent-choice{padding:16px!important;border:2px solid var(--border2)!important;border-radius:12px!important;background:#fff!important}.consent-choice:has(input:checked){border-color:var(--navy)!important;background:#eef6f3!important}.consent-choice span{font-weight:600;line-height:1.55}
+.consent-actions{position:sticky;bottom:0;z-index:8;padding:12px 0 2px;background:linear-gradient(transparent,#fff 18%)}.consent-actions .btn-pri{flex:1;min-width:210px}
+.placement-actions{position:sticky;bottom:8px;z-index:8;padding:12px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.96);box-shadow:0 8px 24px rgba(24,54,48,.14)}.placement-actions .btn-pri{flex:1}
 .fld{margin-bottom:14px}
 .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:5px}
 input[type=text]{width:100%;padding:9px 11px;font:inherit;font-size:14px;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;color:var(--text)}
@@ -50,8 +53,8 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
 .state h2{font-size:18px;margin:0 0 6px}
 .state p{color:var(--muted);font-size:13.5px;margin:0 auto;max-width:44ch}
 .err{background:#fbecea;border:1px solid #f0c8c3;color:var(--bad);padding:10px 13px;border-radius:6px;font-size:13px;margin-bottom:14px}
-.pages{overflow:hidden;background:#eceae4;border:1px solid var(--border);border-radius:6px;padding:12px}
-.pg{position:relative;margin:0 auto 12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14);width:fit-content}
+.pages{overflow:hidden;background:#eceae4;border:1px solid var(--border);border-radius:6px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:240px}
+.pg{position:relative;margin:0 auto 18px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14);width:fit-content;max-width:100%}
 .pg canvas{display:block}
 .fl{position:absolute;inset:0;pointer-events:none}
 .fb{position:absolute;pointer-events:auto;border:1.5px dashed var(--navy);background:rgba(26,74,74,.08);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--navy);cursor:pointer;overflow:hidden;text-align:center;padding:1px}
@@ -132,11 +135,11 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
       <div class="card-bd">
         <div class="disc" id="disc"></div>
 
-        <label class="chk">
+        <label class="chk consent-choice">
           <input type="checkbox" id="agree">
           <span id="agree-txt"></span>
         </label>
-        <div class="row"><button class="btn" id="consent-back" type="button">← Back</button><button class="btn btn-pri btn-wide" id="consent-btn" disabled>Continue to sign</button></div>
+        <div class="row consent-actions"><button class="btn" id="consent-back" type="button">← Back</button><button class="btn btn-pri btn-wide" id="consent-btn" disabled>Agree and continue to sign</button></div>
       </div>
     </div>
 
@@ -147,8 +150,7 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
         <div class="err" id="field-err" hidden></div>
         <div class="todo" id="todo">Loading document…</div>
         <div class="pages" id="pages"></div>
-        <div class="page-controls" id="field-pages"><button class="btn" id="field-prev" type="button">← Previous</button><span class="page-count" id="field-count">Page 1</span><button class="btn" id="field-next" type="button">Next →</button></div>
-        <div class="row" style="margin-top:18px"><button class="btn" id="field-back" type="button">← Back</button><button class="btn btn-pri btn-wide" id="field-submit" type="button">Finish and sign document</button></div>
+        <div class="row placement-actions" style="margin-top:18px"><button class="btn" id="field-back" type="button">← Back</button><button class="btn btn-pri btn-wide" id="field-submit" type="button">Finish and sign document</button></div>
       </div>
     </div>
 
@@ -254,7 +256,7 @@ var T = {
     reviewBtn: 'I’ve reviewed the document',
     consentH: 'Consent to use electronic records and signatures',
     agree: 'I have read the disclosure above. I consent to conduct this transaction electronically and to receive records electronically, and I confirm I can access documents in PDF format.',
-    contBtn: 'Continue to sign',
+    contBtn: 'Agree and continue to sign',
     signH: 'Sign',
     fieldsH: 'Complete the highlighted fields',
     fieldsSub: 'Click the highlighted box to stamp the signature you just created onto the document.',
@@ -305,7 +307,7 @@ var T = {
     reviewBtn: 'He revisado el documento',
     consentH: 'Consentimiento para usar registros y firmas electrónicas',
     agree: 'He leído la divulgación anterior. Consiento realizar esta transacción de forma electrónica y recibir registros electrónicamente, y confirmo que puedo acceder a documentos en formato PDF.',
-    contBtn: 'Continuar para firmar',
+    contBtn: 'Aceptar y continuar para firmar',
     signH: 'Firmar',
     fieldsH: 'Complete los campos resaltados',
     fieldsSub: 'Haga clic en la casilla resaltada para estampar en el documento la firma que acaba de crear.',
@@ -394,7 +396,7 @@ function applyLanguage(lang){
    Fields are positioned from normalised coordinates, so the overlay lines up
    with the page at whatever width it rendered.
    ---------------------------------------------------------------------- */
-var FIELDS = [], values = {}, docRendered = false, PDFDOC = null;
+var FIELDS = [], values = {}, docRendered = false, PDFDOC = null, documentRenderWidth = 0;
 var reviewPage = 1, fieldPage = 1;
 
 async function getPdf(){
@@ -408,7 +410,7 @@ async function getPdf(){
 async function paintPdfPage(page, canvas, cssWidth){
   var base = page.getViewport({ scale:1 });
   var cssScale = cssWidth / base.width;
-  var density = Math.min(window.devicePixelRatio || 1, 2.5);
+  var density = Math.min(window.devicePixelRatio || 1, cssWidth < 600 ? 1.75 : 2);
   var renderViewport = page.getViewport({ scale:cssScale * density });
   canvas.width = Math.round(renderViewport.width);
   canvas.height = Math.round(renderViewport.height);
@@ -506,27 +508,29 @@ function renderFields(){
 
 async function renderDocument(){
   var host = $('pages');
-  host.innerHTML = '<div style="padding:18px;text-align:center;color:var(--muted);font-size:12.5px">' + L.rendering + '</div>';
+  var available = Math.max(240, host.clientWidth - 32);
+  if(docRendered && Math.abs(documentRenderWidth - available) < 24){ renderFields(); return; }
+  if(!docRendered) host.innerHTML = '<div style="padding:18px;text-align:center;color:var(--muted);font-size:12.5px">' + L.rendering + '</div>';
   try {
     var doc = await getPdf();
-    host.innerHTML = '';
+    var fragment = document.createDocumentFragment();
     for(var i = 1; i <= doc.numPages; i++){
       var page = await doc.getPage(i);
-      var available = Math.max(240, host.clientWidth - 24);
       var num = document.createElement('div');
       num.className = 'pgn'; num.textContent = 'Page ' + i + ' of ' + doc.numPages;
-      host.appendChild(num);
+      fragment.appendChild(num);
       var holder = document.createElement('div');
       holder.className = 'pg'; holder.dataset.page = i;
       var cv = document.createElement('canvas');
       holder.appendChild(cv);
       var fl = document.createElement('div'); fl.className = 'fl'; holder.appendChild(fl);
-      host.appendChild(holder);
+      fragment.appendChild(holder);
       await paintPdfPage(page, cv, available);
     }
+    host.replaceChildren(fragment);
     docRendered = true;
+    documentRenderWidth = available;
     renderFields();
-    showFieldPage(1);
   } catch(e){
     // Falling back keeps the document signable even if rendering fails.
     host.innerHTML = '<div class="err">Could not display the document for field placement (' +
@@ -538,16 +542,8 @@ async function renderDocument(){
 }
 
 function showFieldPage(n){
-  var pages = Array.from(document.querySelectorAll('#pages .pg'));
-  var labels = Array.from(document.querySelectorAll('#pages .pgn'));
-  if(!pages.length){ $('field-pages').hidden = true; return; }
-  fieldPage = Math.max(1, Math.min(pages.length, n));
-  pages.forEach(function(p,i){ p.hidden = i !== fieldPage - 1; });
-  labels.forEach(function(p,i){ p.hidden = i !== fieldPage - 1; });
-  $('field-count').textContent = 'Page ' + fieldPage + ' of ' + pages.length;
-  $('field-prev').disabled = fieldPage === 1;
-  $('field-next').disabled = fieldPage === pages.length;
-  renderFields();
+  var page = document.querySelector('#pages .pg[data-page="' + n + '"]');
+  if(page) page.scrollIntoView({ behavior:'smooth', block:'center' });
 }
 
 /* ---- load ---- */
@@ -581,8 +577,6 @@ $('review-btn').addEventListener('click', function(){
 });
 $('review-prev').addEventListener('click', function(){ reviewPage--; renderReviewPage(); });
 $('review-next').addEventListener('click', function(){ reviewPage++; renderReviewPage(); });
-$('field-prev').addEventListener('click', function(){ showFieldPage(fieldPage - 1); });
-$('field-next').addEventListener('click', function(){ showFieldPage(fieldPage + 1); });
 $('consent-back').addEventListener('click', function(){ setStep(1); renderReviewPage(); });
 $('sign-back').addEventListener('click', function(){ setStep(2); $('agree').checked = true; $('consent-btn').disabled = false; });
 $('agree').addEventListener('change', function(){ $('consent-btn').disabled = !this.checked; });
