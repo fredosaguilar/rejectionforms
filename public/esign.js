@@ -39,6 +39,12 @@ css.textContent = [
   '#f-esign button.es-link:hover{border-color:var(--navy)}',
   '#f-esign button.es-link:disabled{opacity:.5;cursor:default}',
   '#f-esign .es-danger{color:#a32219}',
+  '#f-esign .es-doc{display:flex;align-items:center;gap:9px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;margin-top:7px}',
+  '#f-esign .es-doc-n{width:20px;height:20px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;line-height:20px;text-align:center;flex:0 0 auto}',
+  '#f-esign .es-doc-name{flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  '#f-esign .es-doc-meta{font-size:11px;color:var(--muted);flex:0 0 auto}',
+  '#f-esign .es-doc button{font-family:inherit;font-size:12px;line-height:1;padding:4px 8px;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;cursor:pointer;flex:0 0 auto}',
+  '#f-esign .es-doc button:disabled{opacity:.35;cursor:default}',
   '#f-esign button.es-link.es-on{background:var(--navy);color:#fff;border-color:var(--navy)}',
   '#f-esign .es-danger:hover{border-color:#a32219}',
   // The field placer is a full-viewport workspace: the page it is preparing is
@@ -86,10 +92,11 @@ var html =
 
   '<div class="sec"><div class="sec-title">Document</div>' +
     '<div class="es-drop" id="es-drop">' +
-      '<div class="es-file" id="es-file">Click to choose a PDF, or drop one here</div>' +
-      '<div style="font-size:11.5px;color:var(--muted);margin-top:4px">PDF only, up to 15 MB</div>' +
-      '<input type="file" id="es-input" accept="application/pdf" style="display:none">' +
+      '<div class="es-file" id="es-file">Click to choose PDFs, or drop them here</div>' +
+      '<div style="font-size:11.5px;color:var(--muted);margin-top:4px">PDFs only, 15 MB combined. Several files are joined into one document, in the order below.</div>' +
+      '<input type="file" id="es-input" accept="application/pdf" multiple style="display:none">' +
     '</div>' +
+    '<div id="es-files"></div>' +
     '<div class="es-grid" style="margin-top:12px">' +
       '<div class="fld"><div class="lbl">Document title</div><input type="text" id="es-title" placeholder="e.g. Broker fee agreement — G. Ayala"></div>' +
       '<div class="fld"><div class="lbl">Message to recipients (optional)</div><input type="text" id="es-msg" placeholder="Shown in the email and on the signing page"></div>' +
@@ -100,7 +107,8 @@ var html =
       '</select>' +
       '<div style="font-size:11.5px;color:var(--muted);margin-top:5px">Sets the language of the consent disclosure, the signing page and the notifications. Recorded on the certificate.</div>' +
     '</div>' +
-    '<button class="btn btn-sec" id="es-openplace" type="button" hidden style="margin-top:12px;font-size:12px;padding:6px 14px">Place signature fields on the document</button>' +
+    '<div id="es-docnote" style="font-size:11.5px;color:#a32219;margin-top:8px"></div>' +
+    '<button class="btn btn-pri" id="es-openplace" type="button" hidden style="margin-top:12px;font-size:12.5px;padding:8px 16px">Place signature fields &rarr;</button>' +
   '</div>' +
 
   '<div class="sec"><div class="sec-title">Recipients</div>' +
@@ -178,25 +186,109 @@ if(navBtn){
 }
 if(location.pathname === '/esign'){ ST('esign'); }
 
-/* ---- file picker ------------------------------------------------------- */
-var file = null;
+/* ---- file picker --------------------------------------------------------
+   Several PDFs may be chosen. They are sent as one document, joined server
+   side in the order shown, so the list below is the running order of the
+   finished document — which is why it can be reordered.
+   ------------------------------------------------------------------------ */
+var files = [];
+var MAX_FILES = 12, MAX_BYTES = 15 * 1024 * 1024;
 var drop = document.getElementById('es-drop'), input = document.getElementById('es-input');
 drop.addEventListener('click', function(){ input.click(); });
 drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.classList.add('over'); });
 drop.addEventListener('dragleave', function(){ drop.classList.remove('over'); });
 drop.addEventListener('drop', function(e){
   e.preventDefault(); drop.classList.remove('over');
-  if(e.dataTransfer.files && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  if(e.dataTransfer.files && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
 });
-input.addEventListener('change', function(){ if(this.files[0]) setFile(this.files[0]); });
-function setFile(f){
-  if(f.type !== 'application/pdf'){ showT('Only PDF documents can be sent for signature','error'); return; }
-  if(f.size > 15*1024*1024){ showT('That PDF is larger than 15 MB','error'); return; }
-  file = f;
-  document.getElementById('es-file').textContent = f.name + '  (' + Math.round(f.size/1024) + ' KB)';
+input.addEventListener('change', function(){
+  if(this.files.length) addFiles(this.files);
+  this.value = '';                       // so the same file can be chosen again
+});
+
+function totalBytes(){ return files.reduce(function(n, f){ return n + f.size; }, 0); }
+
+function addFiles(list){
+  var added = 0;
+  for (var i = 0; i < list.length; i++) {
+    var f = list[i];
+    if(f.type !== 'application/pdf'){ showT(f.name + ' is not a PDF', 'error'); continue; }
+    if(files.length >= MAX_FILES){ showT('Up to ' + MAX_FILES + ' files', 'error'); break; }
+    // Same name and size twice is a double drop, not a deliberate duplicate.
+    if(files.some(function(x){ return x.name === f.name && x.size === f.size; })) continue;
+    if(totalBytes() + f.size > MAX_BYTES){
+      showT('Adding ' + f.name + ' would take the document over 15 MB', 'error');
+      continue;
+    }
+    files.push(f); added++;
+  }
+  if(!added) { renderFiles(); return; }
+
   var t = document.getElementById('es-title');
-  if(!t.value) t.value = f.name.replace(/\.pdf$/i, '');
-  renderForPlacement(f);
+  if(!t.value && files.length) t.value = files[0].name.replace(/\.pdf$/i, '');
+  renderFiles();
+  loadDocs();
+}
+
+function moveFile(i, by){
+  var j = i + by;
+  if(j < 0 || j >= files.length) return;
+  var tmp = files[i]; files[i] = files[j]; files[j] = tmp;
+  // Page numbers move with the files, so placed fields would land on the wrong
+  // page. Clearing them is honest; silently remapping them is not.
+  if(fields.length) showT('Fields cleared — the page order changed', 'info');
+  renderFiles();
+  loadDocs();
+}
+
+function removeFile(i){
+  files.splice(i, 1);
+  if(fields.length) showT('Fields cleared — the pages changed', 'info');
+  fields = [];
+  renderFiles();
+  if(files.length) loadDocs();
+  else {
+    pdfDoc = null; docs = []; curPage = 1; pageCount = 1;
+    closePlacer();
+    var re = document.getElementById('es-openplace');
+    if(re) re.hidden = true;
+  }
+}
+
+function renderFiles(){
+  var el = document.getElementById('es-files');
+  var label = document.getElementById('es-file');
+  if(!files.length){
+    el.innerHTML = '';
+    label.textContent = 'Click to choose PDFs, or drop them here';
+    return;
+  }
+  label.textContent = files.length === 1
+    ? 'Add another PDF, or drop one here'
+    : files.length + ' files — add another, or drop one here';
+
+  el.innerHTML = files.map(function(f, i){
+    var pages = docs[i] && docs[i].pages;
+    return '<div class="es-doc">' +
+      '<span class="es-doc-n">' + (i + 1) + '</span>' +
+      '<span class="es-doc-name" title="' + esc(f.name) + '">' + esc(f.name) + '</span>' +
+      '<span class="es-doc-meta">' + (pages ? pages + (pages === 1 ? ' page · ' : ' pages · ') : '') +
+        Math.round(f.size / 1024) + ' KB</span>' +
+      '<button type="button" data-mv="-1" data-i="' + i + '" title="Move up"' + (i === 0 ? ' disabled' : '') + '>&uarr;</button>' +
+      '<button type="button" data-mv="1" data-i="' + i + '" title="Move down"' + (i === files.length - 1 ? ' disabled' : '') + '>&darr;</button>' +
+      '<button type="button" data-rm="' + i + '" title="Remove" class="es-danger">&times;</button>' +
+    '</div>';
+  }).join('') +
+  (files.length > 1
+    ? '<div style="font-size:11px;color:var(--muted);margin-top:6px">Sent as one document, in this order.</div>'
+    : '');
+
+  el.querySelectorAll('[data-mv]').forEach(function(b){
+    b.addEventListener('click', function(e){ e.preventDefault(); moveFile(+b.dataset.i, +b.dataset.mv); });
+  });
+  el.querySelectorAll('[data-rm]').forEach(function(b){
+    b.addEventListener('click', function(e){ e.preventDefault(); removeFile(+b.dataset.rm); });
+  });
 }
 
 /* ---- field placement --------------------------------------------------
@@ -215,7 +307,12 @@ var TYPES = [
   { id: 'text',      label: 'Text' },
 ];
 var fields = [], pdfDoc = null, curPage = 1, pageCount = 1;
-var zoom = 1;   // multiplier on the fit-to-screen scale; 1 = the whole page visible
+/* One entry per chosen file: its rendered document and how many pages it has.
+   Page numbers run continuously across them, matching the merged PDF the
+   server builds, so a field placed on "page 7" lands on page 7 of the result. */
+var docs = [];
+var DEFAULT_ZOOM = 2;
+var zoom = DEFAULT_ZOOM;   // multiplier on the fit-to-screen scale; 1 = whole page visible
 var pick = { recipientIndex: 0, type: 'signature' };
 var stageEl, whoListEl;
 
@@ -284,32 +381,59 @@ function closePlacer(){
   if(re) re.hidden = !pdfDoc;
 }
 
-async function renderForPlacement(f){
+/* Reads the chosen PDFs so page counts are known and the editor has something
+   to draw. It deliberately does not open the editor: with several files the
+   running order has to be settled first, and a full-screen editor covering the
+   file list is no place to settle it. The sender opens it when ready. */
+async function loadDocs(){
+  if(!files.length) return;
   stageEl = document.getElementById('es-stage-inner');
-  fields = []; curPage = 1; zoom = 1;
-  openPlacer();
-  stageEl.innerHTML = '<div style="padding:24px;font-size:12.5px;color:var(--muted)">Rendering document…</div>';
+  fields = []; curPage = 1; zoom = DEFAULT_ZOOM;
+  var openNow = !document.getElementById('es-place-sec').hidden;
+  if(openNow) stageEl.innerHTML = '<div style="padding:24px;font-size:12.5px;color:var(--muted)">Rendering document…</div>';
   refreshWho();
+  var note = document.getElementById('es-docnote');
+  if(note) note.textContent = 'Reading…';
   try {
     var pdfjs = await loadPdfJs();
-    pdfDoc = await pdfjs.getDocument({ data: await f.arrayBuffer() }).promise;
-    pageCount = pdfDoc.numPages;
-    await showPage(1);
+    docs = [];
+    for (var i = 0; i < files.length; i++) {
+      var doc = await pdfjs.getDocument({ data: await files[i].arrayBuffer() }).promise;
+      docs.push({ doc: doc, pages: doc.numPages });
+    }
+    pageCount = docs.reduce(function(n, d){ return n + d.pages; }, 0);
+    pdfDoc = docs.length ? docs[0].doc : null;
+    renderFiles();                       // page counts are known now
+    if(note) note.textContent = '';
+    if(openNow) await showPage(1);
   } catch(e){
-    pdfDoc = null;
-    stageEl.innerHTML = '<div style="padding:16px;font-size:12.5px;color:#a32219;max-width:420px">' +
+    pdfDoc = null; docs = [];
+    if(note) note.textContent = e.message + ' — you can still send it; signatures will go on an appended page.';
+    if(openNow) stageEl.innerHTML = '<div style="padding:16px;font-size:12.5px;color:#a32219;max-width:420px">' +
       esc(e.message) + '. You can still send the document — signatures will go on an appended page.</div>';
   }
   var re = document.getElementById('es-openplace');
   if(re) re.hidden = !pdfDoc;
 }
 
+/* A continuous page number -> the file holding it, and the page within it. */
+function locate(n){
+  var left = n;
+  for (var i = 0; i < docs.length; i++) {
+    if (left <= docs[i].pages) return { docIndex: i, doc: docs[i].doc, local: left };
+    left -= docs[i].pages;
+  }
+  return null;
+}
+
 // One page, scaled to fit the available box, so the whole page is reachable
 // without scrolling.
 async function showPage(n){
-  if(!pdfDoc) return;
+  if(!docs.length) return;
   curPage = Math.max(1, Math.min(pageCount, n));
-  var page = await pdfDoc.getPage(curPage);
+  var at = locate(curPage);
+  if(!at) return;
+  var page = await at.doc.getPage(at.local);
   var v1 = page.getViewport({ scale: 1 });
   // A portrait page is limited by height, not width, so the working area takes
   // as much of the viewport as the surrounding chrome allows. Zoom multiplies
@@ -336,7 +460,11 @@ async function showPage(n){
 
   await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
   wireLayer(layer, curPage);
-  document.getElementById('es-pgnum').textContent = 'Page ' + curPage + ' of ' + pageCount;
+  // With several files, say which one this page came from.
+  document.getElementById('es-pgnum').textContent = 'Page ' + curPage + ' of ' + pageCount +
+    (files.length > 1 && files[at.docIndex]
+      ? '  ·  ' + files[at.docIndex].name + ' p' + at.local
+      : '');
   document.getElementById('es-zlvl').textContent = Math.round(zoom * 100) + '%';
   document.getElementById('es-prev').disabled = curPage <= 1;
   document.getElementById('es-next').disabled = curPage >= pageCount;
@@ -446,6 +574,7 @@ function setZoom(z){ zoom = Math.max(0.5, Math.min(3, z)); showPage(curPage); }
 document.getElementById('es-zin').addEventListener('click',  function(e){ e.preventDefault(); setZoom(zoom + 0.25); });
 document.getElementById('es-zout').addEventListener('click', function(e){ e.preventDefault(); setZoom(zoom - 0.25); });
 document.getElementById('es-zfit').addEventListener('click', function(e){ e.preventDefault(); setZoom(1); });
+document.getElementById('es-zlvl').textContent = Math.round(DEFAULT_ZOOM * 100) + '%';
 
 var refitTimer = null;
 window.addEventListener('resize', function(){
@@ -460,7 +589,7 @@ document.getElementById('es-clearfields').addEventListener('click', function(e){
 document.getElementById('es-doneplace').addEventListener('click', function(e){ e.preventDefault(); closePlacer(); });
 document.getElementById('es-openplace').addEventListener('click', function(e){
   e.preventDefault();
-  if(!pdfDoc) return;
+  if(!docs.length) return;
   openPlacer();
   showPage(curPage);            // the stage had no box while hidden, so re-fit
 });
@@ -562,7 +691,7 @@ document.getElementById('es-smstest').addEventListener('click', async function(e
 /* ---- send -------------------------------------------------------------- */
 document.getElementById('es-send').addEventListener('click', async function(){
   var btn = this;
-  if(!file){ showT('Choose a PDF to send','error'); return; }
+  if(!files.length){ showT('Choose a PDF to send','error'); return; }
   var title = document.getElementById('es-title').value.trim();
   if(!title){ showT('Give the document a title','error'); return; }
 
@@ -577,7 +706,7 @@ document.getElementById('es-send').addEventListener('click', async function(){
   btn.disabled = true; btn.textContent = 'Uploading…';
   try {
     var fd = new FormData();
-    fd.append('document', file);
+    files.forEach(function(f){ fd.append('document', f); });
     fd.append('title', title);
     fd.append('message', document.getElementById('es-msg').value.trim());
     fd.append('recipients', JSON.stringify(list));
@@ -606,8 +735,8 @@ document.getElementById('es-send').addEventListener('click', async function(){
 });
 
 function resetForm(){
-  file = null; input.value = '';
-  document.getElementById('es-file').textContent = 'Click to choose a PDF, or drop one here';
+  files = []; docs = []; input.value = '';
+  renderFiles();
   document.getElementById('es-title').value = '';
   document.getElementById('es-msg').value = '';
   rcpts.innerHTML = ''; addRecipient();
