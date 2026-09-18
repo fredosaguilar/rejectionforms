@@ -13,7 +13,8 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system
 .nav{background:var(--navy);padding:14px 20px;display:flex;align-items:center;gap:12px}
 .nav-brand{color:#fff;font-size:14px;font-weight:500;line-height:1.2}
 .nav-sub{color:var(--gold);font-size:10px;letter-spacing:.07em;text-transform:uppercase}
-.wrap{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+.wrap{max-width:860px;margin:0 auto;padding:20px 16px 60px;transition:max-width .25s ease}
+.signing-page .wrap.guided-signing{max-width:1120px!important}
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px}
 .card-hd{padding:14px 18px;border-bottom:1px solid var(--border)}
 .card-bd{padding:18px}
@@ -54,15 +55,20 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
 .pg canvas{display:block}
 .fl{position:absolute;inset:0;pointer-events:none}
 .fb{position:absolute;pointer-events:auto;border:1.5px dashed var(--navy);background:rgba(26,74,74,.08);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--navy);cursor:pointer;overflow:hidden;text-align:center;padding:1px}
+.fb.needs-attention{border:3px solid var(--gold);background:#fff8e8;overflow:visible;box-shadow:0 0 0 5px rgba(200,146,42,.24);animation:fieldPulse 1.25s ease-in-out infinite}
+.fb.needs-attention:before{content:attr(data-guide);position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);min-width:118px;padding:6px 9px;border-radius:20px;background:var(--gold);color:#fff;font-size:11px;font-weight:700;line-height:1.2;box-shadow:0 4px 12px rgba(0,0,0,.18);z-index:4}
+@keyframes fieldPulse{50%{box-shadow:0 0 0 9px rgba(200,146,42,.10)}}
 .fb.done{border-style:solid;background:rgba(26,107,69,.10);border-color:var(--ok);color:var(--ok);cursor:default}
 .fb img{max-width:100%;max-height:100%;object-fit:contain}
 .fb input{width:100%;height:100%;border:none;background:transparent;font:inherit;font-size:12px;text-align:center;color:var(--text)}
 .fb input:focus{outline:none}
 .pgn{text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px}
 .todo{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:12.5px}
+.sign-guide{padding:14px;margin-bottom:14px;border:1px solid #ead6a9;border-radius:10px;background:#fff8e8}.sign-guide strong,.sign-guide span{display:block}.sign-guide span{font-size:12px;color:var(--muted);margin:3px 0 10px}
 [hidden]{display:none!important}
 @media(max-width:640px){
   .wrap{padding:14px 10px 34px}.card-bd{padding:14px}.card-hd{padding:14px}
+  .wrap.guided-signing{padding-left:4px;padding-right:4px}.signing-page .guided-signing #fields-card .card-bd{padding:10px!important}.guided-signing .pages{padding:4px}
   .doc-view{padding:6px}.pg{max-width:100%}.pg canvas{width:100%;height:auto}
   .page-controls{justify-content:space-between}.page-controls .btn{min-width:84px}
 }
@@ -140,7 +146,8 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
         <p class="sub">Draw your signature once below, then click each highlighted box to apply it.</p></div>
       <div class="card-bd">
         <div class="todo" id="todo">Loading document…</div>
-        <div class="fld">
+        <div class="sign-guide" id="sign-guide"><strong>Ready to add your signature?</strong><span>Press Next to open the signing tools. The gold arrow will show exactly where to click.</span><button class="btn btn-pri btn-wide" id="begin-signing" type="button">Next: add my signature →</button></div>
+        <div class="fld" id="sign-tools" hidden>
           <div class="lbl">Your signature</div>
           <canvas class="sig" id="pad2"></canvas>
           <div class="sigrow"><span class="hint">Draw once, then click the boxes on the document.</span>
@@ -193,6 +200,7 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
 var token = location.pathname.split('/').filter(Boolean).pop();
 var api = '/api/sign/' + encodeURIComponent(token);
 var $ = function(id){ return document.getElementById(id); };
+var SIGNING_STARTED = false;
 
 function show(id){ ['loading','problem','done','declined','main'].forEach(function(k){ $(k).hidden = (k !== id); }); }
 function problem(h, p){ $('problem-h').textContent = h || (L && L.problemH) || 'Unavailable'; $('problem-p').textContent = p || ''; show('problem'); }
@@ -205,7 +213,7 @@ function setStep(n){
   $('review-card').hidden = n !== 1;
   $('consent-card').hidden = n !== 2;
   $('fields-card').hidden = n !== 3 || !FIELDS.length;
-  $('sign-card').hidden = n !== 3;
+  $('sign-card').hidden = n !== 3 || (FIELDS.length && !SIGNING_STARTED);
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 
@@ -262,6 +270,10 @@ var T = {
     fieldsSub: 'Draw your signature once below, then click each highlighted box to apply it.',
     yourSig: 'Your signature',
     drawOnce: 'Draw once, then click the boxes on the document.',
+    guideH: 'Ready to add your signature?',
+    guideP: 'Press Next to open the signing tools. The gold arrow will show exactly where to click.',
+    guideBtn: 'Next: add my signature →',
+    guideArrow: '↓ Click here to sign',
     clear: 'Clear',
     back: 'Back',
     typedLbl: 'Type your full legal name',
@@ -312,6 +324,10 @@ var T = {
     fieldsSub: 'Dibuje su firma una vez abajo, luego haga clic en cada casilla resaltada para aplicarla.',
     yourSig: 'Su firma',
     drawOnce: 'Dibuje una vez, luego haga clic en las casillas del documento.',
+    guideH: '¿Listo para agregar su firma?',
+    guideP: 'Presione Siguiente para abrir las herramientas de firma. La flecha dorada le mostrará exactamente dónde hacer clic.',
+    guideBtn: 'Siguiente: agregar mi firma →',
+    guideArrow: '↓ Haga clic aquí para firmar',
     clear: 'Borrar',
     back: 'Atrás',
     typedLbl: 'Escriba su nombre legal completo',
@@ -373,6 +389,9 @@ function applyLanguage(lang){
   fh[0].textContent = L.fieldsH; if(fh[1]) fh[1].textContent = L.fieldsSub;
   $('fields-card').querySelector('.lbl').textContent = L.yourSig;
   $('fields-card').querySelector('.hint').textContent = L.drawOnce;
+  $('sign-guide').querySelector('strong').textContent = L.guideH;
+  $('sign-guide').querySelector('span').textContent = L.guideP;
+  $('begin-signing').textContent = L.guideBtn;
   $('clear2').textContent = L.clear;
   $('consent-back').textContent = '← ' + L.back;
   $('sign-back').textContent = '← ' + L.back;
@@ -406,17 +425,27 @@ async function getPdf(){
   return PDFDOC;
 }
 
+async function paintPdfPage(page, canvas, cssWidth){
+  var base = page.getViewport({ scale:1 });
+  var cssScale = cssWidth / base.width;
+  var density = Math.min(window.devicePixelRatio || 1, 2.5);
+  var renderViewport = page.getViewport({ scale:cssScale * density });
+  canvas.width = Math.round(renderViewport.width);
+  canvas.height = Math.round(renderViewport.height);
+  canvas.style.width = Math.round(base.width * cssScale) + 'px';
+  canvas.style.height = Math.round(base.height * cssScale) + 'px';
+  await page.render({ canvasContext:canvas.getContext('2d'), viewport:renderViewport }).promise;
+}
+
 async function renderReviewPage(){
   try{
     var doc = await getPdf();
     reviewPage = Math.max(1, Math.min(doc.numPages, reviewPage));
-    var page = await doc.getPage(reviewPage), v0 = page.getViewport({ scale:1 });
+    var page = await doc.getPage(reviewPage);
     var host = $('review-view');
     var width = Math.max(240, host.clientWidth - 20);
-    var vp = page.getViewport({ scale:width / v0.width });
     var cv = $('review-canvas');
-    cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
-    await page.render({ canvasContext:cv.getContext('2d'), viewport:vp }).promise;
+    await paintPdfPage(page, cv, width);
     $('review-count').textContent = 'Page ' + reviewPage + ' of ' + doc.numPages;
     $('review-prev').disabled = reviewPage === 1;
     $('review-next').disabled = reviewPage === doc.numPages;
@@ -447,12 +476,16 @@ function renderFields(){
   if(!docRendered) return;
   document.querySelectorAll('.fl').forEach(function(l){ l.innerHTML = ''; });
   var LABEL = { signature:L.lblSign, initials:L.lblInit, date:L.lblDate, text:L.lblText };
+  var firstIncompleteSignature = FIELDS.find(function(f){
+    return f.type === 'signature' && !(values[f.id] && values[f.id].valuePng);
+  });
   FIELDS.forEach(function(f){
     var pg = document.querySelector('.pg[data-page="' + f.page + '"]');
     if(!pg) return;
     var layer = pg.querySelector('.fl'), r = layer.getBoundingClientRect();
     var el = document.createElement('div');
     el.className = 'fb';
+    if(firstIncompleteSignature && f.id === firstIncompleteSignature.id){ el.classList.add('needs-attention'); el.dataset.guide = L.guideArrow; }
     el.style.cssText = 'left:' + (f.x*r.width) + 'px;top:' + (f.y*r.height) + 'px;' +
                        'width:' + (f.w*r.width) + 'px;height:' + (f.h*r.height) + 'px';
     var v = values[f.id];
@@ -499,20 +532,17 @@ async function renderDocument(){
     host.innerHTML = '';
     for(var i = 1; i <= doc.numPages; i++){
       var page = await doc.getPage(i);
-      var v0 = page.getViewport({ scale: 1 });
       var available = Math.max(240, host.clientWidth - 24);
-      var vp = page.getViewport({ scale: Math.min(available / v0.width, 2) });
       var num = document.createElement('div');
       num.className = 'pgn'; num.textContent = 'Page ' + i + ' of ' + doc.numPages;
       host.appendChild(num);
       var holder = document.createElement('div');
       holder.className = 'pg'; holder.dataset.page = i;
       var cv = document.createElement('canvas');
-      cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
       holder.appendChild(cv);
       var fl = document.createElement('div'); fl.className = 'fl'; holder.appendChild(fl);
       host.appendChild(holder);
-      await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+      await paintPdfPage(page, cv, available);
     }
     docRendered = true;
     padAdopt.size();
@@ -577,7 +607,7 @@ $('field-prev').addEventListener('click', function(){ showFieldPage(fieldPage - 
 $('field-next').addEventListener('click', function(){ showFieldPage(fieldPage + 1); });
 $('consent-back').addEventListener('click', function(){ setStep(1); renderReviewPage(); });
 $('sign-back').addEventListener('click', function(){ setStep(2); $('agree').checked = true; $('consent-btn').disabled = false; });
-$('agree').addEventListener('change', function(){ setStep(2); $('consent-btn').disabled = !this.checked; });
+$('agree').addEventListener('change', function(){ $('consent-btn').disabled = !this.checked; });
 $('consent-btn').addEventListener('click', function(){
   var b = this; b.disabled = true; b.textContent = 'Saving…';
   fetch(api + '/consent', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ agree: true }) })
@@ -601,6 +631,20 @@ function afterConsent(){
   if(!FIELDS.length) $('typed').focus();
 }
 function adoptedSignature(){ return FIELDS.length ? padAdopt : padMain; }
+
+$('begin-signing').addEventListener('click', function(){
+  SIGNING_STARTED = true;
+  $('sign-guide').hidden = true;
+  $('sign-tools').hidden = false;
+  setStep(3);
+  document.querySelector('.wrap').classList.add('guided-signing');
+  renderDocument().then(function(){
+    sizePad();
+    var target = FIELDS.find(function(f){ return f.type === 'signature' && !(values[f.id] && values[f.id].valuePng); });
+    if(target) showFieldPage(target.page);
+    $('sign-tools').scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+});
 
 /* ---- sign ---- */
 $('submit').addEventListener('click', function(){
