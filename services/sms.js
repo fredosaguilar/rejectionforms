@@ -206,19 +206,30 @@ async function fromCheck() {
     return { ok: true, unchecked: true, why: `Could not list the extension's numbers (${e.message}).` };
   }
 
-  const senders = numbers.filter((n) => n.sms);
-  // SmsSender on the extension's number list does not guarantee the SMS
-  // endpoint will accept it as `from` — it has been observed listing a number
-  // that is then refused. So a match here is reported as "nothing obviously
-  // wrong", not as proof that sending works.
+  // An extension sends from its own direct line. A company-level number can
+  // still advertise SmsSender — the main company number does — and is then
+  // refused at send time as a number that "doesn't belong to extension".
+  // Observed against a live account, which is why usage type decides here and
+  // the feature list alone does not.
+  const senders = numbers.filter((n) => n.sms && n.usageType === 'DirectNumber');
   if (senders.some((n) => normalisePhone(n.number) === from)) return { ok: true, numbers };
+
+  const mine = numbers.find((n) => normalisePhone(n.number) === from);
+  if (mine && mine.sms && mine.usageType && mine.usageType !== 'DirectNumber') {
+    const list = senders.map((n) => n.number + (n.label ? ` (${n.label})` : '')).join(', ');
+    return { ok: false, numbers, why:
+      `${process.env.RINGCENTRAL_FROM} is a ${mine.usageType}, not a direct line. It lists SMS among its ` +
+      'features, but RingCentral will not let an extension text from a company-level number. ' +
+      (list ? `Set RINGCENTRAL_FROM to a direct number instead: ${list}.`
+            : 'This extension has no direct number with SMS — add one in the RingCentral admin portal.') };
+  }
 
   const onExt = numbers.some((n) => normalisePhone(n.number) === from);
   const list = senders.map((n) => n.number + (n.label ? ` (${n.label})` : '')).join(', ');
 
   if (onExt) {
     return { ok: false, numbers, why:
-      `${process.env.RINGCENTRAL_FROM} belongs to this extension but is not enabled for SMS. ` +
+      `${process.env.RINGCENTRAL_FROM} belongs to this extension but is not a direct number enabled for SMS. ` +
       (list ? `Numbers on this extension that can send texts: ${list}.`
             : 'No number on this extension can send texts — add SMS to one in the RingCentral admin portal.') };
   }
