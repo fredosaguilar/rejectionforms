@@ -63,7 +63,10 @@ router.get('/sms-status', requireAuth, async (req, res) => {
     // and the send-time 403 does not name the numbers that would work.
     const from = await sms.fromCheck();
     if (!from.ok) {
-      return res.json({ success: false, configured: true, missing: [], error: from.why });
+      let ext = null;
+      try { ext = await sms.extensionInfo(); } catch {}
+      return res.json({ success: false, configured: true, missing: [],
+        error: from.why, extension: ext, numbers: from.numbers || [] });
     }
 
     const shape = sms.jwtShape();
@@ -71,10 +74,17 @@ router.get('/sms-status', requireAuth, async (req, res) => {
     if (shape.tidied) notes.push('The stored JWT had stray quotes or line breaks, which were ignored. Worth tidying in Railway.');
     if (from.unchecked) notes.push(from.why);
 
+    // Whose extension `~` resolves to is the thing worth seeing when a send is
+    // refused, so it is reported even when nothing looks wrong.
+    let extension = null;
+    try { extension = await sms.extensionInfo(); } catch (e) { notes.push(`Could not read the extension (${e.message}).`); }
+
     res.json({
       success: true, configured: true, missing: [],
       from: process.env.RINGCENTRAL_FROM,
       server: process.env.RINGCENTRAL_SERVER || 'https://platform.ringcentral.com',
+      extension,
+      numbers: from.numbers || [],
       note: notes.length ? notes.join(' ') : undefined,
     });
   } catch (e) {

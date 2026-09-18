@@ -160,9 +160,33 @@ async function senderNumbers() {
   });
   return (out.records || []).map((r) => ({
     number: r.phoneNumber,
-    label: r.label || r.usageType || '',
+    label: r.label || '',
+    usageType: r.usageType || '',
+    type: r.type || '',
+    status: r.status || '',
+    // Kept in full: SmsSender alone turned out not to predict whether the SMS
+    // endpoint will accept the number, so the raw list is worth showing.
+    features: Array.isArray(r.features) ? r.features : [],
     sms: Array.isArray(r.features) && r.features.includes('SmsSender'),
   }));
+}
+
+/* Which extension the JWT actually signs in as. The SMS call sends as `~`,
+   and when the sending number is refused, the first thing worth knowing is
+   whose extension `~` resolved to. */
+async function extensionInfo() {
+  const token = await accessToken();
+  const out = await request({
+    path: '/restapi/v1.0/account/~/extension/~',
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return {
+    id: out.id,
+    extensionNumber: out.extensionNumber,
+    name: out.name || (out.contact && `${out.contact.firstName || ''} ${out.contact.lastName || ''}`.trim()) || '',
+    type: out.type || '',
+  };
 }
 
 /* Checks RINGCENTRAL_FROM against that list and explains the mismatch rather
@@ -183,19 +207,23 @@ async function fromCheck() {
   }
 
   const senders = numbers.filter((n) => n.sms);
-  if (senders.some((n) => normalisePhone(n.number) === from)) return { ok: true };
+  // SmsSender on the extension's number list does not guarantee the SMS
+  // endpoint will accept it as `from` — it has been observed listing a number
+  // that is then refused. So a match here is reported as "nothing obviously
+  // wrong", not as proof that sending works.
+  if (senders.some((n) => normalisePhone(n.number) === from)) return { ok: true, numbers };
 
   const onExt = numbers.some((n) => normalisePhone(n.number) === from);
   const list = senders.map((n) => n.number + (n.label ? ` (${n.label})` : '')).join(', ');
 
   if (onExt) {
-    return { ok: false, why:
+    return { ok: false, numbers, why:
       `${process.env.RINGCENTRAL_FROM} belongs to this extension but is not enabled for SMS. ` +
       (list ? `Numbers on this extension that can send texts: ${list}.`
             : 'No number on this extension can send texts — add SMS to one in the RingCentral admin portal.') };
   }
 
-  return { ok: false, why:
+  return { ok: false, numbers, why:
     `${process.env.RINGCENTRAL_FROM} is not assigned to the extension this JWT signs in as, so RingCentral ` +
     'refuses to send from it. ' +
     (list ? `Set RINGCENTRAL_FROM to one of these instead: ${list}.`
@@ -236,8 +264,8 @@ async function send({ to, text }) {
     // sending number. Say so where the failure is recorded.
     if (/belong to extension/i.test(e.message)) {
       throw new Error(
-        `${e.message} — RINGCENTRAL_FROM (${process.env.RINGCENTRAL_FROM}) is not an SMS-capable number on the ` +
-        'extension this JWT signs in as. Use "Test text messaging" for the numbers that are.');
+        `${e.message} — RingCentral will not send from RINGCENTRAL_FROM (${from}) as the extension this JWT ` +
+        'signs in as. Use "Test text messaging" to see that extension and the numbers it holds.');
     }
     throw e;
   }
@@ -265,4 +293,4 @@ async function authCheck() {
   return true;
 }
 
-module.exports = { send, signingText, normalisePhone, configured, authCheck, jwtShape, senderNumbers, fromCheck };
+module.exports = { send, signingText, normalisePhone, configured, authCheck, jwtShape, senderNumbers, extensionInfo, fromCheck };

@@ -104,6 +104,7 @@ var html =
     '<div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
       '<button class="btn btn-sec" id="es-smstest" style="font-size:12px;padding:6px 12px">Test text messaging</button>' +
       '<span id="es-smsres" style="font-size:11.5px;color:var(--muted)"></span>' +
+      '<div id="es-smsdetail" style="flex-basis:100%;font-size:11.5px;color:var(--muted);line-height:1.6"></div>' +
     '</div>' +
   '</div>' +
 
@@ -501,6 +502,36 @@ function prefill(){
 if(gName) gName.addEventListener('input', prefill);
 if(gMail) gMail.addEventListener('input', prefill);
 
+/* The account as RingCentral reports it. Shown in full because a number
+   listed as SmsSender has still been refused at send time, so the raw list is
+   more use than any summary of it. */
+function smsDetail(d){
+  var rows = [];
+  if (d.extension) {
+    rows.push('<div style="margin-top:6px">Sending as extension <strong>' +
+      esc(d.extension.extensionNumber || d.extension.id || '?') + '</strong>' +
+      (d.extension.name ? ' — ' + esc(d.extension.name) : '') +
+      (d.extension.type ? ' (' + esc(d.extension.type) + ')' : '') + '</div>');
+  }
+  rows.push('<div>RINGCENTRAL_FROM is <strong>' + esc(d.from || '(not set)') + '</strong></div>');
+
+  if (d.numbers && d.numbers.length) {
+    rows.push('<div style="margin-top:4px">Numbers on this extension:</div>');
+    rows.push('<ul style="margin:3px 0 0 16px;padding:0">' + d.numbers.map(function(n){
+      return '<li>' + esc(n.number) +
+        (n.label ? ' — ' + esc(n.label) : '') +
+        (n.usageType ? ' · ' + esc(n.usageType) : '') +
+        (n.type ? ' · ' + esc(n.type) : '') +
+        ' · <span style="color:' + (n.sms ? '#1a6b45' : '#a32219') + '">' +
+        (n.features && n.features.length ? esc(n.features.join(', ')) : 'no features listed') +
+        '</span></li>';
+    }).join('') + '</ul>');
+  } else if (d.success || d.error) {
+    rows.push('<div style="margin-top:4px">No numbers were returned for this extension.</div>');
+  }
+  return rows.join('');
+}
+
 document.getElementById('es-smstest').addEventListener('click', async function(e){
   e.preventDefault();
   var btn = this, out = document.getElementById('es-smsres');
@@ -510,13 +541,16 @@ document.getElementById('es-smstest').addEventListener('click', async function(e
     var d = await r.json();
     if (d.success) {
       out.style.color = '#1a6b45';
-      out.textContent = 'Connected. Texts will send from ' + d.from + '.' + (d.note ? '  ' + d.note : '');
+      // Signed in, and nothing in the account data looks wrong — which is not
+      // the same as RingCentral agreeing to send. Say only what is known.
+      out.textContent = 'Signed in to RingCentral.' + (d.note ? '  ' + d.note : '');
     } else {
       out.style.color = '#a32219';
       out.textContent = d.missing && d.missing.length
         ? 'Not configured — missing: ' + d.missing.join(', ')
         : 'RingCentral rejected the credentials: ' + d.error;
     }
+    document.getElementById('es-smsdetail').innerHTML = smsDetail(d);
   } catch (err) {
     out.style.color = '#a32219'; out.textContent = err.message;
   } finally { btn.disabled = false; }
@@ -587,27 +621,6 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(
   return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
 
 function when(ts){ return ts ? new Date(ts).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—'; }
-
-document.getElementById('es-smstest').addEventListener('click', async function(e){
-  e.preventDefault();
-  var btn = this, out = document.getElementById('es-smsres');
-  btn.disabled = true; out.style.color = 'var(--muted)'; out.textContent = 'Checking…';
-  try {
-    var r = await fetch('/api/esign/sms-status');
-    var d = await r.json();
-    if (d.success) {
-      out.style.color = '#1a6b45';
-      out.textContent = 'Connected. Texts will send from ' + d.from + '.';
-    } else {
-      out.style.color = '#a32219';
-      out.textContent = d.missing && d.missing.length
-        ? 'Not configured — missing: ' + d.missing.join(', ')
-        : 'RingCentral rejected the credentials: ' + d.error;
-    }
-  } catch (err) {
-    out.style.color = '#a32219'; out.textContent = err.message;
-  } finally { btn.disabled = false; }
-});
 
 async function loadList(){
   var el = document.getElementById('es-list');
