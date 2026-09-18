@@ -4,7 +4,7 @@ const db      = require('../db');
 const mail    = require('../services/email');
 const sms     = require('../services/sms');
 const { requireAuth } = require('../middleware/auth');
-const { deliverSigningLinks, pendingRecipients } = require('../services/delivery');
+const { deliverSigningLinks, pendingRecipients, portalBase } = require('../services/delivery');
 const {
   newSigningToken, hashToken, sha256, publicId, buildSignedPdf,
 } = require('../services/esign');
@@ -34,7 +34,7 @@ function logEvent(envelopeId, event, req, extra = {}) {
 }
 
 function baseUrl(req) {
-  return process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
+  return portalBase(req).url;
 }
 
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '').trim());
@@ -67,7 +67,8 @@ router.get('/sms-status', requireAuth, async (req, res) => {
       let ext = null;
       try { ext = await sms.extensionInfo(); } catch {}
       return res.json({ success: false, configured: true, missing: [],
-        error: from.why, extension: ext, numbers: from.numbers || [] });
+        error: from.why, extension: ext, numbers: from.numbers || [],
+        portal: portalBase(req) });
     }
 
     const shape = sms.jwtShape();
@@ -86,6 +87,7 @@ router.get('/sms-status', requireAuth, async (req, res) => {
       server: process.env.RINGCENTRAL_SERVER || 'https://platform.ringcentral.com',
       extension,
       numbers: from.numbers || [],
+      portal: portalBase(req),
       note: notes.length ? notes.join(' ') : undefined,
     });
   } catch (e) {

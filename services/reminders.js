@@ -1,5 +1,5 @@
 const db = require('../db');
-const { deliverSigningLinks, pendingRecipients } = require('./delivery');
+const { deliverSigningLinks, pendingRecipients, portalBase } = require('./delivery');
 
 /* Daily reminders for documents still waiting on a signature.
  *
@@ -41,9 +41,7 @@ function dueEnvelopes() {
       ORDER BY id`, [MAX]).then((r) => r.rows);
 }
 
-function baseUrl() {
-  return (process.env.APP_BASE_URL || '').replace(/\/$/, '');
-}
+const baseUrl = () => portalBase().url;
 
 /* One pass. Exported so it can be run and tested without waiting for a clock. */
 async function runOnce({ force = false } = {}) {

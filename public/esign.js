@@ -518,6 +518,19 @@ function smsDetail(d){
   }
   rows.push('<div>RINGCENTRAL_FROM is <strong>' + esc(d.from || '(not set)') + '</strong></div>');
 
+  // Where the links in every text and email actually point. Reading this off a
+  // sent message was the only way to know, which made a mis-set variable hard
+  // to see.
+  if (d.portal) {
+    rows.push('<div style="margin-top:4px">Signing links point to <strong>' +
+      esc(d.portal.url || '(nowhere)') + '</strong>' +
+      '<span style="color:' + (d.portal.configured ? 'var(--muted)' : '#a32219') + '"> — from ' +
+      esc(d.portal.source) + '</span></div>');
+    if (d.portal.warning) {
+      rows.push('<div style="color:#a32219">' + esc(d.portal.warning) + '</div>');
+    }
+  }
+
   if (d.numbers && d.numbers.length) {
     rows.push('<div style="margin-top:4px">Numbers on this extension:</div>');
     rows.push('<ul style="margin:3px 0 0 16px;padding:0">' + d.numbers.map(function(n){
