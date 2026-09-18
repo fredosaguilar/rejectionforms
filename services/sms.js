@@ -146,6 +146,63 @@ function normalisePhone(raw) {
   return null;
 }
 
+/* The numbers the authenticated extension may actually put in `from`.
+   RingCentral answers 403 "Phone number doesn't belong to extension" when
+   RINGCENTRAL_FROM is a number on the account but assigned to a different
+   extension than the one the JWT authenticates as — and it does not say which
+   numbers would have worked. This asks. */
+async function senderNumbers() {
+  const token = await accessToken();
+  const out = await request({
+    path: '/restapi/v1.0/account/~/extension/~/phone-number?perPage=100',
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return (out.records || []).map((r) => ({
+    number: r.phoneNumber,
+    label: r.label || r.usageType || '',
+    sms: Array.isArray(r.features) && r.features.includes('SmsSender'),
+  }));
+}
+
+/* Checks RINGCENTRAL_FROM against that list and explains the mismatch rather
+   than leaving a 403 to be guessed at. */
+async function fromCheck() {
+  const from = normalisePhone(process.env.RINGCENTRAL_FROM);
+  if (!from) {
+    return { ok: false, why: `RINGCENTRAL_FROM is not a usable phone number: "${process.env.RINGCENTRAL_FROM}".` };
+  }
+
+  let numbers;
+  try {
+    numbers = await senderNumbers();
+  } catch (e) {
+    // Not fatal on its own: the send may still work. Say what happened and
+    // let the caller decide.
+    return { ok: true, unchecked: true, why: `Could not list the extension's numbers (${e.message}).` };
+  }
+
+  const senders = numbers.filter((n) => n.sms);
+  if (senders.some((n) => normalisePhone(n.number) === from)) return { ok: true };
+
+  const onExt = numbers.some((n) => normalisePhone(n.number) === from);
+  const list = senders.map((n) => n.number + (n.label ? ` (${n.label})` : '')).join(', ');
+
+  if (onExt) {
+    return { ok: false, why:
+      `${process.env.RINGCENTRAL_FROM} belongs to this extension but is not enabled for SMS. ` +
+      (list ? `Numbers on this extension that can send texts: ${list}.`
+            : 'No number on this extension can send texts — add SMS to one in the RingCentral admin portal.') };
+  }
+
+  return { ok: false, why:
+    `${process.env.RINGCENTRAL_FROM} is not assigned to the extension this JWT signs in as, so RingCentral ` +
+    'refuses to send from it. ' +
+    (list ? `Set RINGCENTRAL_FROM to one of these instead: ${list}.`
+          : 'This extension has no SMS-capable number at all — either give it a direct number with SMS enabled, ' +
+            'or create the JWT as the user who owns the number you want to text from.') };
+}
+
 async function send({ to, text }) {
   const number = normalisePhone(to);
   if (!number) throw new Error(`Not a valid mobile number: ${to}`);
@@ -156,16 +213,27 @@ async function send({ to, text }) {
     to: [{ phoneNumber: number }],
     text,
   });
-  return request({
-    path: '/restapi/v1.0/account/~/extension/~/sms',
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(body),
-    },
-    body,
-  });
+  try {
+    return await request({
+      path: '/restapi/v1.0/account/~/extension/~/sms',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+      body,
+    });
+  } catch (e) {
+    // This one reads as a problem with the recipient; it is not. It is the
+    // sending number. Say so where the failure is recorded.
+    if (/belong to extension/i.test(e.message)) {
+      throw new Error(
+        `${e.message} — RINGCENTRAL_FROM (${process.env.RINGCENTRAL_FROM}) is not an SMS-capable number on the ` +
+        'extension this JWT signs in as. Use "Test text messaging" for the numbers that are.');
+    }
+    throw e;
+  }
 }
 
 /* Kept short: carriers split long messages, and a split signing link is a
@@ -190,4 +258,4 @@ async function authCheck() {
   return true;
 }
 
-module.exports = { send, signingText, normalisePhone, configured, authCheck, jwtShape };
+module.exports = { send, signingText, normalisePhone, configured, authCheck, jwtShape, senderNumbers, fromCheck };

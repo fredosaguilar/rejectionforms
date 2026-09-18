@@ -58,14 +58,24 @@ router.get('/sms-status', requireAuth, async (req, res) => {
   }
   try {
     await sms.authCheck();
+
+    // Signing in is not the same as being allowed to send from that number,
+    // and the send-time 403 does not name the numbers that would work.
+    const from = await sms.fromCheck();
+    if (!from.ok) {
+      return res.json({ success: false, configured: true, missing: [], error: from.why });
+    }
+
     const shape = sms.jwtShape();
+    const notes = [];
+    if (shape.tidied) notes.push('The stored JWT had stray quotes or line breaks, which were ignored. Worth tidying in Railway.');
+    if (from.unchecked) notes.push(from.why);
+
     res.json({
       success: true, configured: true, missing: [],
       from: process.env.RINGCENTRAL_FROM,
       server: process.env.RINGCENTRAL_SERVER || 'https://platform.ringcentral.com',
-      note: shape.tidied
-        ? 'The stored JWT had stray quotes or line breaks, which were ignored. Worth tidying in Railway.'
-        : undefined,
+      note: notes.length ? notes.join(' ') : undefined,
     });
   } catch (e) {
     res.json({ success: false, configured: true, missing: [], error: e.message });
