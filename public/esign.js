@@ -90,7 +90,20 @@ var html =
   '<span class="badge badge-eo">E-Signature</span></div>' +
   '<div class="fbody">' +
 
-  '<div class="sec"><div class="sec-title">Document</div>' +
+  '<div class="es-workflow">' +
+    '<div class="es-workflow-head">' +
+      '<div><div class="es-kicker">New signature request</div><div class="es-workflow-title">Prepare and send</div></div>' +
+      '<div class="es-autosave"><span></span> Draft saved automatically</div>' +
+    '</div>' +
+    '<div class="es-stepper" role="tablist" aria-label="Signature request steps">' +
+      '<button type="button" class="es-step active" data-es-go="1"><span>1</span><div><strong>Document</strong><small>Upload and details</small></div></button>' +
+      '<button type="button" class="es-step" data-es-go="2"><span>2</span><div><strong>Recipients</strong><small>Who needs to sign</small></div></button>' +
+      '<button type="button" class="es-step" data-es-go="3"><span>3</span><div><strong>Review & send</strong><small>Fields and delivery</small></div></button>' +
+    '</div>' +
+
+  '<div class="es-pane active" data-es-pane="1">' +
+
+  '<div class="sec"><div class="es-section-head"><span class="es-section-icon">PDF</span><div><div class="sec-title">Choose your document</div><p>Upload one or more PDFs. We’ll combine them in the order shown.</p></div></div>' +
     '<div class="es-drop" id="es-drop">' +
       '<div class="es-file" id="es-file">Click to choose PDFs, or drop them here</div>' +
       '<div style="font-size:11.5px;color:var(--muted);margin-top:4px">PDFs only, 15 MB combined. Several files are joined into one document, in the order below.</div>' +
@@ -108,19 +121,36 @@ var html =
       '<div style="font-size:11.5px;color:var(--muted);margin-top:5px">Sets the language of the consent disclosure, the signing page and the notifications. Recorded on the certificate.</div>' +
     '</div>' +
     '<div id="es-docnote" style="font-size:11.5px;color:#a32219;margin-top:8px"></div>' +
-    '<button class="btn btn-pri" id="es-openplace" type="button" hidden style="margin-top:12px;font-size:12.5px;padding:8px 16px">Place signature fields &rarr;</button>' +
+  '</div>' +
+  '<div class="es-pane-actions"><span></span><button class="btn btn-pri" id="es-next-doc" type="button">Continue to recipients &rarr;</button></div>' +
   '</div>' +
 
-  '<div class="sec"><div class="sec-title">Recipients</div>' +
+  '<div class="es-pane" data-es-pane="2">' +
+  '<div class="sec"><div class="es-section-head"><span class="es-section-icon">02</span><div><div class="sec-title">Add recipients</div><p>Each person receives a private signing link and completes only their assigned fields.</p></div></div>' +
     '<div id="es-rcpts"></div>' +
-    '<button class="btn btn-sec" id="es-add" style="margin-top:4px">Add recipient</button>' +
-    '<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Each recipient gets their own signing link. The document completes once everyone has signed.</div>' +
-    '<div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
-      '<button class="btn btn-sec" id="es-mailtest" style="font-size:12px;padding:6px 12px">Test email</button>' +
-      '<button class="btn btn-sec" id="es-smstest" style="font-size:12px;padding:6px 12px">Test text messaging</button>' +
+    '<button class="btn btn-sec" id="es-add" style="margin-top:8px">+ Add another recipient</button>' +
+    '<div class="es-delivery-checks">' +
+      '<div><strong>Delivery services</strong><span>Check that email and text messaging are ready before sending.</span></div>' +
+      '<button class="btn btn-sec" id="es-mailtest">Test email</button>' +
+      '<button class="btn btn-sec" id="es-smstest">Test texting</button>' +
       '<span id="es-smsres" style="font-size:11.5px;color:var(--muted)"></span>' +
       '<div id="es-smsdetail" style="flex-basis:100%;font-size:11.5px;color:var(--muted);line-height:1.6"></div>' +
     '</div>' +
+  '</div>' +
+  '<div class="es-pane-actions"><button class="btn btn-sec" data-es-back="1" type="button">&larr; Back</button><button class="btn btn-pri" id="es-next-rcpt" type="button">Continue to review &rarr;</button></div>' +
+  '</div>' +
+
+  '<div class="es-pane" data-es-pane="3">' +
+    '<div class="es-review-grid">' +
+      '<div class="sec"><div class="es-section-head"><span class="es-section-icon">03</span><div><div class="sec-title">Place signing fields</div><p>Add signature, initials, date, or text fields—or use an appended signature page.</p></div></div>' +
+        '<div class="es-review-card"><div><span>Document</span><strong id="es-review-doc">No document selected</strong></div><div><span>Recipients</span><strong id="es-review-rcpts">1 recipient</strong></div><div><span>Fields</span><strong id="es-review-fields">Signature page</strong></div></div>' +
+        '<button class="btn btn-sec" id="es-openplace" type="button" hidden>Open field placement studio &rarr;</button>' +
+      '</div>' +
+      '<aside class="es-send-summary"><div class="es-kicker">Ready to send?</div><h3>Review request</h3><p>Confirm the document, recipients, language, and delivery method before sending.</p><div class="es-send-note">Recipients must consent to electronic records before signing. Every action is recorded in the completion certificate.</div></aside>' +
+    '</div>' +
+    '<div class="es-pane-actions"><button class="btn btn-sec" data-es-back="2" type="button">&larr; Back</button><div><button class="btn btn-sec" id="es-reset">Clear draft</button><button class="btn btn-pri" id="es-send">Send for signature</button></div></div>' +
+  '</div>' +
+
   '</div>' +
 
   '<div class="sec" id="es-place-sec" hidden>' +
@@ -151,18 +181,63 @@ var html =
     '</div>' +
   '</div>' +
 
-  '<div class="sec"><div class="sec-title">Sent documents</div>' +
+  '<div class="sec es-sent-section"><div class="es-section-head"><span class="es-section-icon">✓</span><div><div class="sec-title">Sent documents</div><p>Track delivery, signatures, reminders, and completed PDFs.</p></div></div>' +
     '<div id="es-list"><div style="font-size:12.5px;color:var(--muted)">Loading…</div></div>' +
   '</div>' +
 
   '</div>' +
-  '<div class="btn-row">' +
-    '<button class="btn btn-sec" id="es-reset">Clear</button>' +
-    '<button class="btn btn-pri" id="es-send">Send for signature</button>' +
-  '</div>' +
 '</div>';
 
 lastForm.insertAdjacentHTML('afterend', html);
+
+/* ---- guided request workflow ----------------------------------------- */
+var esStep = 1;
+function goEsStep(n){
+  esStep = Math.max(1, Math.min(3, n));
+  document.querySelectorAll('#f-esign .es-pane').forEach(function(p){
+    p.classList.toggle('active', Number(p.dataset.esPane) === esStep);
+  });
+  document.querySelectorAll('#f-esign .es-step').forEach(function(s){
+    var at = Number(s.dataset.esGo);
+    s.classList.toggle('active', at === esStep);
+    s.classList.toggle('complete', at < esStep);
+  });
+  if(esStep === 3) refreshReview();
+  var panel = document.getElementById('f-esign');
+  if(panel) panel.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function validRecipients(){
+  var complete = [];
+  document.querySelectorAll('#es-rcpts .es-rcpt').forEach(function(r){
+    var name=r.querySelector('.es-name').value.trim();
+    var email=r.querySelector('.es-email').value.trim();
+    if(name && email) complete.push(r);
+  });
+  return complete;
+}
+function refreshReview(){
+  var title=document.getElementById('es-title').value.trim();
+  var doc=document.getElementById('es-review-doc');
+  var people=document.getElementById('es-review-rcpts');
+  var field=document.getElementById('es-review-fields');
+  if(doc) doc.textContent=title || (files[0] && files[0].name) || 'No document selected';
+  var count=validRecipients().length;
+  if(people) people.textContent=count + (count===1?' recipient':' recipients');
+  if(field) field.textContent=fields.length ? fields.length + (fields.length===1?' field placed':' fields placed') : 'Appended signature page';
+}
+document.querySelectorAll('#f-esign [data-es-go]').forEach(function(b){ b.addEventListener('click',function(){
+  var target=Number(b.dataset.esGo); if(target<esStep) goEsStep(target);
+}); });
+document.querySelectorAll('#f-esign [data-es-back]').forEach(function(b){ b.addEventListener('click',function(){ goEsStep(Number(b.dataset.esBack)); }); });
+document.getElementById('es-next-doc').addEventListener('click',function(){
+  if(!files.length){ showT('Choose at least one PDF to continue','error'); return; }
+  if(!document.getElementById('es-title').value.trim()){ showT('Add a document title to continue','error'); document.getElementById('es-title').focus(); return; }
+  goEsStep(2);
+});
+document.getElementById('es-next-rcpt').addEventListener('click',function(){
+  if(!validRecipients().length){ showT('Add a recipient name and email to continue','error'); return; }
+  goEsStep(3);
+});
 
 /* ---- navigation -------------------------------------------------------- */
 var _ST = window.ST;
@@ -516,6 +591,7 @@ function drawFields(){
   var holder = stageEl && stageEl.querySelector('.es-page');
   var c = document.getElementById('es-count');
   if(c) c.textContent = fields.length + (fields.length === 1 ? ' field placed' : ' fields placed');
+  refreshReview();
   if(!holder) return;
   var layer = holder.querySelector('.es-layer');
   layer.innerHTML = '';
@@ -603,12 +679,13 @@ var rcpts = document.getElementById('es-rcpts');
 function addRecipient(name, email){
   var row = document.createElement('div');
   row.className = 'es-rcpt es-rcpt3';
-  row.innerHTML = '<input type="text" class="es-name" placeholder="Full name">' +
-                  '<input type="text" class="es-email" placeholder="email@example.com">' +
-                  '<input type="text" class="es-phone" placeholder="Mobile (for text)">' +
-                  '<select class="es-deliv" style="padding:6px 8px;font-size:12px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;background:#fff">' +
+  row.innerHTML = '<div class="es-rcpt-num">' + (rcpts.children.length + 1) + '</div>' +
+                  '<label><span>Full legal name</span><input type="text" class="es-name" placeholder="e.g. Maria Hernandez"></label>' +
+                  '<label><span>Email address</span><input type="email" class="es-email" placeholder="maria@example.com"></label>' +
+                  '<label><span>Mobile number</span><input type="text" class="es-phone" placeholder="Optional for text delivery"></label>' +
+                  '<label><span>Deliver by</span><select class="es-deliv">' +
                     '<option value="email">Email</option><option value="sms">Text</option><option value="both">Email + text</option>' +
-                  '</select>' +
+                  '</select></label>' +
                   '<button class="es-x" type="button" title="Remove">&times;</button>';
   row.querySelector('.es-x').addEventListener('click', function(){
     if(rcpts.children.length > 1){ rcpts.removeChild(row); refreshWho(); }
@@ -773,6 +850,7 @@ function resetForm(){
   if(stageEl) stageEl.innerHTML = '';
   closePlacer();
   refreshWho();
+  goEsStep(1);
 }
 document.getElementById('es-reset').addEventListener('click', function(e){ e.preventDefault(); resetForm(); });
 
