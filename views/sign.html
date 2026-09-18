@@ -60,9 +60,11 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
 .todo{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:12.5px}
 [hidden]{display:none!important}
 </style>
+<link rel="stylesheet" href="/ui-refresh.css">
 </head>
-<body>
+<body class="signing-page">
 <div class="nav">
+  <img src="/logo.jpg" alt="Columbia Basin Insurance" class="sign-brand-logo">
   <div>
     <div class="nav-brand">Columbia Basin Insurance</div>
     <div class="nav-sub">Electronic Signature</div>
@@ -92,6 +94,11 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
   </div>
 
   <main id="main" hidden>
+    <div class="sign-progress" aria-label="Signing progress">
+      <div class="sign-step active" data-step="1"><span>1</span><div><strong>Review</strong><small>Read the document</small></div></div>
+      <div class="sign-step" data-step="2"><span>2</span><div><strong>Consent</strong><small>Agree to e-sign</small></div></div>
+      <div class="sign-step" data-step="3"><span>3</span><div><strong>Sign</strong><small>Complete &amp; submit</small></div></div>
+    </div>
     <div class="card">
       <div class="card-hd">
         <h1 id="title"></h1>
@@ -99,8 +106,10 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
       </div>
       <div class="card-bd">
         <p class="msg" id="msg" hidden></p>
+        <div class="document-toolbar"><span>Review the complete document before continuing</span><a id="doc-open" href="#" target="_blank" rel="noopener">Open full screen ↗</a></div>
         <iframe class="doc" id="doc" title="Document to sign"></iframe>
         <p class="note">If the document doesn't display, <a id="doc-link" href="#" target="_blank" rel="noopener">open it in a new tab</a>.</p>
+        <div class="review-action"><button class="btn btn-pri btn-wide" id="review-btn" type="button">I’ve reviewed the document</button></div>
       </div>
     </div>
 
@@ -114,7 +123,7 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
           <input type="checkbox" id="agree">
           <span id="agree-txt"></span>
         </label>
-        <button class="btn btn-pri" id="consent-btn" disabled>Continue to sign</button>
+        <button class="btn btn-pri btn-wide" id="consent-btn" disabled>Continue to sign</button>
       </div>
     </div>
 
@@ -154,7 +163,7 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
         </div>
 
         <div class="row" style="margin-top:18px">
-          <button class="btn btn-pri" id="submit">Sign document</button>
+          <button class="btn btn-pri btn-wide" id="submit">Sign document</button>
           <button class="btn-link" id="decline">Decline to sign</button>
         </div>
         <p class="note">By selecting Sign document you adopt the signature above as your electronic signature
@@ -175,6 +184,13 @@ var $ = function(id){ return document.getElementById(id); };
 
 function show(id){ ['loading','problem','done','declined','main'].forEach(function(k){ $(k).hidden = (k !== id); }); }
 function problem(h, p){ $('problem-h').textContent = h || (L && L.problemH) || 'Unavailable'; $('problem-p').textContent = p || ''; show('problem'); }
+function setStep(n){
+  document.querySelectorAll('.sign-step').forEach(function(step){
+    var at = Number(step.dataset.step);
+    step.classList.toggle('active', at === n);
+    step.classList.toggle('complete', at < n);
+  });
+}
 
 /* ---- signature pads ---- */
 function makePad(canvas, onDraw){
@@ -220,6 +236,7 @@ $('clear2').addEventListener('click', function(){ padAdopt.clear(); });
 var T = {
   en: {
     navSub: 'Electronic Signature',
+    reviewBtn: 'I’ve reviewed the document',
     consentH: 'Consent to use electronic records and signatures',
     agree: 'I have read the disclosure above. I consent to conduct this transaction electronically and to receive records electronically, and I confirm I can access documents in PDF format.',
     contBtn: 'Continue to sign',
@@ -268,6 +285,7 @@ var T = {
   },
   es: {
     navSub: 'Firma Electrónica',
+    reviewBtn: 'He revisado el documento',
     consentH: 'Consentimiento para usar registros y firmas electrónicas',
     agree: 'He leído la divulgación anterior. Consiento realizar esta transacción de forma electrónica y recibir registros electrónicamente, y confirmo que puedo acceder a documentos en formato PDF.',
     contBtn: 'Continuar para firmar',
@@ -321,6 +339,7 @@ function applyLanguage(lang){
   L = T[lang] || T.en;
   document.documentElement.lang = (lang === 'es') ? 'es' : 'en';
   document.querySelector('.nav-sub').textContent = L.navSub;
+  $('review-btn').textContent = L.reviewBtn;
   $('disc').innerHTML = L.disc.map(function(sec){
     var body = Array.isArray(sec[1])
       ? '<ul>' + sec[1].map(function(li){ return '<li>' + li + '</li>'; }).join('') + '</ul>'
@@ -473,23 +492,29 @@ fetch(api).then(function(r){ return r.json().then(function(d){ return { ok: r.ok
   if (d.message) { $('msg').textContent = d.message; $('msg').hidden = false; }
   $('doc').src = api + '/document';
   $('doc-link').href = api + '/document';
+  $('doc-open').href = api + '/document';
   document.title = d.title + ' — Sign';
   show('main');
+  setStep(d.consented ? 3 : 1);
   sizePad();
   FIELDS = d.fields || [];
-  if (d.consented) { $('consent-card').hidden = true; afterConsent(); }
+  if (d.consented) { $('consent-card').hidden = true; $('review-btn').hidden = true; afterConsent(); }
 })
 .catch(function(e){ problem('Could not load this document', e.message); });
 
 /* ---- consent ---- */
-$('agree').addEventListener('change', function(){ $('consent-btn').disabled = !this.checked; });
+$('review-btn').addEventListener('click', function(){
+  setStep(2);
+  $('consent-card').scrollIntoView({ behavior:'smooth', block:'start' });
+});
+$('agree').addEventListener('change', function(){ setStep(2); $('consent-btn').disabled = !this.checked; });
 $('consent-btn').addEventListener('click', function(){
   var b = this; b.disabled = true; b.textContent = 'Saving…';
   fetch(api + '/consent', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ agree: true }) })
   .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
   .then(function(res){
     if (!res.ok) throw new Error(res.d.error || 'Could not record consent');
-    $('consent-card').hidden = true; afterConsent();
+    $('consent-card').hidden = true; setStep(3); afterConsent();
   })
   .catch(function(e){ b.disabled = false; b.textContent = 'Continue to sign'; alert(e.message); });
 });
