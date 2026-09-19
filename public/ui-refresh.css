@@ -92,6 +92,10 @@ input:focus,textarea:focus,select:focus{border-color:#4f7774!important;box-shado
   .sign-progress{padding:6px}.sign-step{padding:8px 6px;justify-content:center}.sign-step div{display:none}.sign-step>span{width:28px;height:28px}
   .signing-page .card-hd,.signing-page .card-bd{padding:16px!important}.signing-page .doc{height:54vh!important}.document-toolbar span{display:none}.document-toolbar{justify-content:flex-end}
   .signing-page .row{align-items:stretch!important;flex-direction:column}.signing-page .btn-wide{width:100%}
+  .review-action.action-dock{display:flex;flex-direction:column;align-items:stretch;gap:7px;margin:0;padding:9px 10px}
+  .review-action.action-dock .tap-callout{position:static;width:100%;max-width:none;margin:0;padding:5px 8px;justify-content:center;background:#fff7e2;box-shadow:none;font-size:11px;line-height:1.3;text-align:center}
+  .review-action.action-dock .tap-callout:before{content:'↓';display:block;font-size:15px}.review-action.action-dock .tap-callout:after{display:none}
+  .review-action.action-dock .row{width:100%}.review-action.action-dock .btn-pri{width:100%;min-width:0;padding:10px 14px;font-size:14px;line-height:1.25}
 }
 
 /* Agent workspace v2 --------------------------------------------------- */
