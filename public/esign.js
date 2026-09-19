@@ -66,6 +66,9 @@ css.textContent = [
   '#f-esign .es-chip{font-family:inherit;font-size:11px;padding:4px 9px;border-radius:20px;border:1px solid var(--border2);background:#fff;color:var(--text);cursor:pointer;white-space:nowrap}',
   '#f-esign .es-chip:hover{border-color:var(--navy)}',
   '#f-esign .es-chip.on{color:#fff}',
+  '#f-esign .es-place-preview{margin:12px 0;padding:11px;border:1px solid var(--border);border-radius:10px;background:#f8faf9}#f-esign .es-place-preview>span{display:block;margin-bottom:7px;font-size:9.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}',
+  '#f-esign .es-place-preview-box{display:flex;min-height:58px;align-items:center;justify-content:center;padding:8px;border:1px solid #c8d2cd;border-radius:7px;background:#fff;color:var(--text);text-align:center;overflow:hidden}#f-esign .es-place-preview-box strong,#f-esign .es-place-preview-box small{display:block}#f-esign .es-place-preview-box small{margin-top:3px;font-size:9px;color:var(--muted)}#f-esign .es-preview-signature{font:italic 24px/1.1 "Segoe Script","Brush Script MT",cursive}#f-esign .es-preview-check{font-size:28px;color:var(--navy)}',
+  '#f-esign .es-place-preview-note{margin-top:6px;font-size:9.5px;line-height:1.4;color:var(--muted)}',
   '#f-esign .es-stage{min-width:0;min-height:0;display:flex;flex-direction:column;background:#eceae4;padding:9px;border:none;border-radius:0}',
   '#f-esign .es-scroll{flex:1 1 auto;min-height:0;width:100%;overflow:auto;display:flex;flex-direction:column;gap:24px;align-items:center;justify-content:flex-start;padding:20px}',
   '#f-esign .es-zoom{display:flex;gap:4px;align-items:center}',
@@ -184,6 +187,7 @@ var html =
       '<div class="es-palette">' +
         '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px">Click a field, then click the page</div>' +
         '<div id="es-who-list"></div>' +
+        '<div class="es-place-preview"><span>Field appearance preview</span><div class="es-place-preview-box" id="es-place-preview-box"></div><div class="es-place-preview-note">A representative preview for the agent placing fields. The signer’s actual signature and entries replace these samples.</div></div>' +
         '<button class="btn btn-sec" id="es-clearfields" style="width:100%;font-size:12px;padding:6px 10px;margin-top:4px">Clear all fields</button>' +
         '<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5"><span id="es-count">0 fields</span><br>Drag a field to move it, or its corner to resize.</div>' +
         '<div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Required: every recipient must have at least one signature field before you can continue.</div>' +
@@ -423,6 +427,23 @@ function recipientNames(){
   return out;
 }
 
+function previewInitials(name){
+  return String(name || '').trim().split(/\s+/).filter(Boolean).map(function(part){ return part.charAt(0).toUpperCase(); }).join('').slice(0, 4) || 'AB';
+}
+function updatePlacementPreview(){
+  var box = document.getElementById('es-place-preview-box');
+  if(!box) return;
+  var name = recipientNames()[pick.recipientIndex] || 'Recipient name';
+  var samples = {
+    signature: '<div><strong class="es-preview-signature">' + esc(name) + '</strong><small>Signature</small></div>',
+    initials: '<div><strong>' + esc(previewInitials(name)) + '</strong><small>Initials</small></div>',
+    date: '<div><strong>' + new Date().toLocaleDateString('en-US') + '</strong><small>Date signed</small></div>',
+    checkbox: '<div><strong class="es-preview-check">☑</strong><small>Checkbox</small></div>',
+    text: '<div><strong>Entered text</strong><small>Text field</small></div>',
+  };
+  box.innerHTML = samples[pick.type] || samples.signature;
+}
+
 function refreshWho(){
   whoListEl = document.getElementById('es-who-list');
   if(!whoListEl) return;
@@ -449,6 +470,7 @@ function refreshWho(){
       refreshWho();
     });
   });
+  updatePlacementPreview();
   drawFields();
 }
 
