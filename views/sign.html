@@ -72,12 +72,16 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
 .fb input:focus{outline:none}
 .pgn{text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px}
 .todo{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:12.5px}
+.field-preview{margin:18px 0;padding:15px;border:1px solid var(--border);border-radius:12px;background:#f8faf9}
+.field-preview-head strong,.field-preview-head span{display:block}.field-preview-head strong{font-size:13px;color:var(--navy)}.field-preview-head span{margin-top:2px;font-size:11.5px;color:var(--muted)}
+.field-preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}.preview-item{min-width:0;padding:11px;border:1px solid var(--border);border-radius:9px;background:#fff}.preview-item>span{display:block;margin-bottom:5px;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.preview-item>strong{display:block;overflow:hidden;font-size:13px;text-overflow:ellipsis;white-space:nowrap}.preview-signature{grid-column:1/-1}.preview-signature-box{display:flex;min-height:70px;align-items:center;justify-content:center;border-bottom:1px solid #999}.preview-signature-box img{max-width:100%;max-height:64px;object-fit:contain}.preview-signature-box em{font-size:11.5px;font-style:normal;color:var(--muted)}
 [hidden]{display:none!important}
 @media(max-width:640px){
   .wrap{padding:14px 10px 34px}.card-bd{padding:14px}.card-hd{padding:14px}
   .wrap.guided-signing{padding-left:4px;padding-right:4px}.signing-page .guided-signing #fields-card .card-bd{padding:10px!important}.guided-signing .pages{padding:4px}
   .doc-view{padding:6px}.pg{max-width:100%}.pg canvas{width:100%;height:auto}
   .page-controls{justify-content:space-between}.page-controls .btn{min-width:84px}
+  .review-action .tap-callout:after{content:'→';left:auto;right:-20px;bottom:50%;transform:translateY(50%)}
 }
 </style>
 <link rel="stylesheet" href="/ui-refresh.css">
@@ -181,6 +185,18 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
           <p class="hint" style="margin:6px 0 0">Typing your name records your intent to sign this document.</p>
         </div>
 
+        <div class="field-preview" id="field-preview">
+          <div class="field-preview-head"><strong id="preview-title">Signing preview</strong><span id="preview-sub">This is how your information will appear in the assigned fields.</span></div>
+          <div class="field-preview-grid">
+            <div class="preview-item preview-signature" data-preview-type="signature"><span id="preview-signature-label">Signature</span><div class="preview-signature-box"><img id="preview-signature-image" alt="Signature preview" hidden><em id="preview-signature-empty">Draw above to preview</em></div></div>
+            <div class="preview-item" data-preview-type="name"><span id="preview-name-label">Full legal name</span><strong id="preview-name">—</strong></div>
+            <div class="preview-item" data-preview-type="initials"><span id="preview-initials-label">Initials</span><strong id="preview-initials">—</strong></div>
+            <div class="preview-item" data-preview-type="date"><span id="preview-date-label">Date</span><strong id="preview-date">—</strong></div>
+            <div class="preview-item" data-preview-type="checkbox"><span id="preview-checkbox-label">Checkbox</span><strong>☑</strong></div>
+            <div class="preview-item" data-preview-type="text"><span id="preview-text-label">Text field</span><strong id="preview-text-sample">Entered text</strong></div>
+          </div>
+        </div>
+
         <div class="row" style="margin-top:18px">
           <button class="btn" id="sign-back" type="button">← Back</button>
           <button class="btn btn-pri btn-wide" id="submit">Sign document</button>
@@ -247,9 +263,10 @@ function makePad(canvas, onDraw){
     clear: function(){ ctx.clearRect(0,0,canvas.width,canvas.height); has = false; if(onDraw) onDraw(); }
   };
 }
-var padMain = makePad($('pad'));
+var padMain = makePad($('pad'), updateFieldPreview);
 function sizePad(){ padMain.size(); }
 $('clear').addEventListener('click', function(){ padMain.clear(); });
+$('typed').addEventListener('input', updateFieldPreview);
 
 /* ---- language ---------------------------------------------------------
    ESIGN 101(c) requires the consent disclosure be given in a form the consumer
@@ -283,6 +300,9 @@ var T = {
     typedHint: 'Typing your name records your intent to sign this document.',
     drawLbl: 'Draw your signature',
     signaturePointer: 'Draw your signature in the box below',
+    previewTitle: 'Signing preview', previewSub: 'This is how your information will appear in the assigned fields.',
+    previewSignature: 'Signature', previewSignatureEmpty: 'Draw above to preview', previewName: 'Full legal name',
+    previewInitials: 'Initials', previewDate: 'Date', previewCheckbox: 'Checkbox', previewText: 'Text field', previewTextSample: 'Entered text',
     drawHint: 'Draw using a mouse, trackpad or finger.',
     submit: 'Sign document',
     decline: 'Decline to sign',
@@ -342,6 +362,9 @@ var T = {
     typedHint: 'Escribir su nombre registra su intención de firmar este documento.',
     drawLbl: 'Dibuje su firma',
     signaturePointer: 'Dibuje su firma en el cuadro de abajo',
+    previewTitle: 'Vista previa de la firma', previewSub: 'Así aparecerá su información en los campos asignados.',
+    previewSignature: 'Firma', previewSignatureEmpty: 'Dibuje arriba para ver la vista previa', previewName: 'Nombre legal completo',
+    previewInitials: 'Iniciales', previewDate: 'Fecha', previewCheckbox: 'Casilla', previewText: 'Campo de texto', previewTextSample: 'Texto ingresado',
     drawHint: 'Dibuje con el mouse, el trackpad o el dedo.',
     submit: 'Firmar documento',
     decline: 'Negarse a firmar',
@@ -408,6 +431,11 @@ function applyLanguage(lang){
   var hints = $('sign-card').querySelectorAll('.hint');
   hints[0].textContent = L.drawHint; hints[1].textContent = L.typedHint;
   $('signature-pointer').textContent = L.signaturePointer;
+  $('preview-title').textContent = L.previewTitle; $('preview-sub').textContent = L.previewSub;
+  $('preview-signature-label').textContent = L.previewSignature; $('preview-signature-empty').textContent = L.previewSignatureEmpty;
+  $('preview-name-label').textContent = L.previewName; $('preview-initials-label').textContent = L.previewInitials;
+  $('preview-date-label').textContent = L.previewDate; $('preview-checkbox-label').textContent = L.previewCheckbox;
+  $('preview-text-label').textContent = L.previewText; $('preview-text-sample').textContent = L.previewTextSample;
   $('submit').textContent = L.submit;
   $('decline').textContent = L.decline;
   $('sign-card').querySelector('.note').textContent = L.signNote;
@@ -467,6 +495,26 @@ async function renderReviewPage(){
 function todayStr(){
   var d = new Date();
   return ('0'+(d.getMonth()+1)).slice(-2) + '/' + ('0'+d.getDate()).slice(-2) + '/' + d.getFullYear();
+}
+function initialsFor(name){
+  return String(name || '').trim().split(/\s+/).filter(Boolean).map(function(part){ return part.charAt(0).toUpperCase(); }).join('').slice(0, 4);
+}
+function updateFieldPreview(){
+  var name = $('typed').value.trim();
+  $('preview-name').textContent = name || '—';
+  $('preview-initials').textContent = initialsFor(name) || '—';
+  $('preview-date').textContent = todayStr();
+  var image = $('preview-signature-image'), empty = $('preview-signature-empty');
+  if(padMain && padMain.has()){
+    image.src = padMain.data(); image.hidden = false; empty.hidden = true;
+  } else {
+    image.removeAttribute('src'); image.hidden = true; empty.hidden = false;
+  }
+  var types = new Set(FIELDS.map(function(f){ return f.type; }));
+  document.querySelectorAll('[data-preview-type]').forEach(function(item){
+    var type = item.dataset.previewType;
+    item.hidden = type !== 'signature' && type !== 'name' && !types.has(type);
+  });
 }
 function fieldIsComplete(f){
   var v = values[f.id];
@@ -603,6 +651,7 @@ fetch(api).then(function(r){ return r.json().then(function(d){ return { ok: r.ok
   document.title = d.title + ' — Sign';
   FIELDS = d.fields || [];
   $('typed').value = d.recipientName || '';
+  updateFieldPreview();
   show('main');
   setStep(d.consented ? 3 : 1);
   sizePad();
