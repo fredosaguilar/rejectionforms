@@ -81,8 +81,9 @@ css.textContent = [
   '#f-esign .es-page-wrap{flex:0 0 auto;max-width:100%}',
   '#f-esign .es-page canvas{display:block}',
   '#f-esign .es-layer{position:absolute;inset:0;cursor:crosshair}',
-  '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:move;user-select:none}',
-  '#f-esign .es-fld .es-del{position:absolute;top:-9px;right:-9px;width:18px;height:18px;border-radius:50%;background:#a32219;color:#fff;font-size:12px;line-height:18px;text-align:center;cursor:pointer}',
+  '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:visible;cursor:move;user-select:none}',
+  '#f-esign .es-fld-label{display:block;max-width:100%;max-height:100%;overflow:hidden;pointer-events:none;padding:0 4px;text-align:center;line-height:1.2}',
+  '#f-esign .es-fld .es-del{position:absolute;z-index:3;top:-12px;right:-12px;width:24px;height:24px;border:2px solid #fff;border-radius:50%;background:#a32219;color:#fff;font-size:16px;line-height:20px;text-align:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.25)}',
   '#f-esign .es-fld .es-rz{position:absolute;right:-5px;bottom:-5px;width:12px;height:12px;border-radius:2px;background:#fff;border:1.5px solid currentColor;cursor:nwse-resize}',
   '#f-esign .es-rcpt3{display:grid;grid-template-columns:1fr 1fr 150px 120px auto;gap:8px;margin-bottom:8px;align-items:center}',
   '@media(max-width:900px){#f-esign .es-rcpt3{grid-template-columns:1fr}}',
@@ -649,10 +650,10 @@ function drawFields(){
     el.style.cssText = 'left:' + (f.x * r.width) + 'px;top:' + (f.y * r.height) + 'px;' +
       'width:' + (f.w * r.width) + 'px;height:' + (f.h * r.height) + 'px;' +
       'border-color:' + color + ';background:' + color + '1a;color:' + color;
-    el.innerHTML = '<span style="pointer-events:none;padding:0 4px;text-align:center;line-height:1.2">' +
+    el.innerHTML = '<span class="es-fld-label">' +
       esc(LABEL[f.type] || f.type) + '<br><span style="opacity:.75;font-size:9px">' +
       esc(names[f.recipientIndex] || '') + '</span></span>' +
-      '<span class="es-del" title="Remove">&times;</span>' +
+      '<span class="es-del" title="Delete this field" aria-label="Delete this field">&times;</span>' +
       '<span class="es-rz" title="Resize"></span>';
 
     el.querySelector('.es-del').addEventListener('mousedown', function(e){
