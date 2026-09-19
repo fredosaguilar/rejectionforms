@@ -4,6 +4,7 @@ const session        = require('express-session');
 const helmet         = require('helmet');
 const morgan         = require('morgan');
 const path           = require('path');
+const crypto         = require('crypto');
 const db             = require('./db');
 
 const authRoutes     = require('./routes/auth');
@@ -59,6 +60,43 @@ app.use('/api/forms', formRoutes);
 app.use('/api/esign', esign.router);
 // The signing ceremony is reached by token, not by login, so it sits outside requireAuth.
 app.use('/api/sign', esign.pub);
+
+// A transcript login code works like an OAuth authorization code: it is
+// random, short-lived, single-use, and only its SHA-256 hash is stored. The
+// transcript service exchanges it server-to-server, so agents never need a
+// second password and neither application has to share its session secret.
+app.post('/api/sso/transcripts/exchange', async (req, res) => {
+  try {
+    const hash = crypto.createHash('sha256').update(String(req.body.code || '')).digest('hex');
+    const { rows } = await db.query(
+      `UPDATE portal_sso_codes
+          SET used_at = NOW()
+        WHERE code_hash = $1 AND used_at IS NULL AND expires_at > NOW()
+        RETURNING agent_id, agent_name, email, role`, [hash]);
+    if (!rows[0]) return res.status(401).json({ error: 'Invalid or expired login code' });
+    res.json({ success: true, user: rows[0] });
+  } catch (e) {
+    console.error('transcript SSO exchange:', e);
+    res.status(500).json({ error: 'Could not complete sign-in' });
+  }
+});
+
+app.get('/transcripts', requireAuth, async (req, res) => {
+  try {
+    const code = crypto.randomBytes(32).toString('base64url');
+    const hash = crypto.createHash('sha256').update(code).digest('hex');
+    await db.query('DELETE FROM portal_sso_codes WHERE expires_at < NOW() OR used_at IS NOT NULL');
+    await db.query(
+      `INSERT INTO portal_sso_codes (code_hash, agent_id, agent_name, email, role, expires_at)
+       VALUES ($1,$2,$3,$4,$5,NOW() + INTERVAL '60 seconds')`,
+      [hash, req.session.agentId, req.session.agentName, req.session.email, req.session.role || 'agent']);
+    const target = (process.env.TRANSCRIPTS_BASE_URL || 'https://cbitranscripts.up.railway.app').replace(/\/$/, '');
+    res.redirect(`${target}/sso?code=${encodeURIComponent(code)}`);
+  } catch (e) {
+    console.error('transcript SSO start:', e);
+    res.status(500).send('Could not open Call Transcripts. Please try again.');
+  }
+});
 
 // The portal pages are matched before express.static, and static is told not to
 // serve index.html on its own. Otherwise static answers '/' first and the page
@@ -250,6 +288,19 @@ app.listen(PORT, async () => {
     `);
     const fs = require('fs');
     await db.query(fs.readFileSync(path.join(__dirname, 'db', 'esign.sql'), 'utf8'));
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS portal_sso_codes (
+        code_hash TEXT PRIMARY KEY,
+        agent_id INTEGER NOT NULL,
+        agent_name TEXT,
+        email TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'agent',
+        expires_at TIMESTAMPTZ NOT NULL,
+        used_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_portal_sso_expiry ON portal_sso_codes(expires_at);
+    `);
     console.log('Schema migration complete');
   } catch(e) {
     console.log('Migration note:', e.message);
