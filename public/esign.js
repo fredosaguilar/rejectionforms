@@ -45,6 +45,9 @@ css.textContent = [
   '#f-esign .es-doc-meta{font-size:11px;color:var(--muted);flex:0 0 auto}',
   '#f-esign .es-doc button{font-family:inherit;font-size:12px;line-height:1;padding:4px 8px;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;cursor:pointer;flex:0 0 auto}',
   '#f-esign .es-doc button:disabled{opacity:.35;cursor:default}',
+  '#f-esign .es-saved{display:flex;gap:10px;align-items:end;margin-bottom:16px;padding:14px;border:1px solid var(--border);border-radius:12px;background:#f8faf9}',
+  '#f-esign .es-saved label{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px}#f-esign .es-saved label>span{font-size:10.5px;font-weight:700;color:#59645f}#f-esign .es-saved select{width:100%;min-height:42px;padding:9px 10px;border:1px solid var(--border2);border-radius:9px;background:#fff;font:inherit}',
+  '@media(max-width:640px){#f-esign .es-saved{align-items:stretch;flex-direction:column}}',
   '#f-esign button.es-link.es-on{background:var(--navy);color:#fff;border-color:var(--navy)}',
   '#f-esign .es-danger:hover{border-color:#a32219}',
   // The field placer is a full-viewport workspace: the page it is preparing is
@@ -129,6 +132,7 @@ var html =
 
   '<div class="es-pane" data-es-pane="2">' +
   '<div class="sec"><div class="es-section-head"><span class="es-section-icon">02</span><div><div class="sec-title">Add recipients</div><p>Each person receives a private signing link and completes only their assigned fields.</p></div></div>' +
+    '<div class="es-saved"><label><span>Saved recipients from all agents</span><select id="es-saved"><option value="">Choose a previously used signer…</option></select></label><button class="btn btn-sec" id="es-use-saved" type="button">Use recipient</button></div>' +
     '<div id="es-rcpts"></div>' +
     '<button class="btn btn-sec" id="es-add" style="margin-top:8px">+ Add another recipient</button>' +
     '<div class="es-delivery-checks">' +
@@ -696,7 +700,8 @@ document.addEventListener('keydown', function(e){
 
 /* ---- recipients -------------------------------------------------------- */
 var rcpts = document.getElementById('es-rcpts');
-function addRecipient(name, email){
+var savedRecipients = [];
+function addRecipient(name, email, phone){
   var row = document.createElement('div');
   row.className = 'es-rcpt es-rcpt3';
   row.innerHTML = '<div class="es-rcpt-num">' + (rcpts.children.length + 1) + '</div>' +
@@ -711,10 +716,51 @@ function addRecipient(name, email){
   row.querySelector('.es-name').addEventListener('input', refreshWho);
   if(name)  row.querySelector('.es-name').value = name;
   if(email) row.querySelector('.es-email').value = email;
+  if(phone) row.querySelector('.es-phone').value = phone;
   rcpts.appendChild(row);
 }
 document.getElementById('es-add').addEventListener('click', function(e){ e.preventDefault(); addRecipient(); refreshWho(); });
 addRecipient();
+
+async function loadSavedRecipients(){
+  try {
+    var r = await fetch('/api/esign/recipients');
+    var d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Could not load saved recipients');
+    savedRecipients = d.recipients || [];
+    var select = document.getElementById('es-saved');
+    while(select.options.length > 1) select.remove(1);
+    savedRecipients.forEach(function(person, index){
+      var option = document.createElement('option');
+      option.value = String(index);
+      option.textContent = person.name + ' — ' + person.email + (person.phone ? ' · ' + person.phone : '');
+      select.appendChild(option);
+    });
+    select.disabled = !savedRecipients.length;
+    document.getElementById('es-use-saved').disabled = !savedRecipients.length;
+  } catch(e) {
+    console.warn('saved recipients:', e.message);
+  }
+}
+document.getElementById('es-use-saved').addEventListener('click', function(){
+  var select = document.getElementById('es-saved');
+  if(select.value === '') return;
+  var person = savedRecipients[Number(select.value)];
+  if(!person) return;
+  var rows = Array.from(rcpts.querySelectorAll('.es-rcpt'));
+  var row = rows.find(function(item){
+    return !item.querySelector('.es-name').value.trim() && !item.querySelector('.es-email').value.trim() && !item.querySelector('.es-phone').value.trim();
+  });
+  if(!row){ addRecipient(person.name, person.email, person.phone); }
+  else {
+    row.querySelector('.es-name').value = person.name || '';
+    row.querySelector('.es-email').value = person.email || '';
+    row.querySelector('.es-phone').value = person.phone || '';
+  }
+  select.value = '';
+  refreshWho();
+});
+loadSavedRecipients();
 
 // Prefill from the client details already on the page, when they're there.
 var gName = document.getElementById('global-client-name');
@@ -851,6 +897,7 @@ document.getElementById('es-send').addEventListener('click', async function(){
       showT('Could not email ' + d2.failed.map(function(f){ return f.email; }).join(', ') + ' — ' + d2.failed[0].error, 'error');
     }
     resetForm();
+    loadSavedRecipients();
     loadList();
   } catch(e){
     showT(e.message, 'error');
