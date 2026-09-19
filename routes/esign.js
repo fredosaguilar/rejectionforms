@@ -150,6 +150,34 @@ router.get('/envelopes', requireAuth, async (req, res) => {
   }
 });
 
+/* Shared recipient directory. It is derived from real signature requests, so
+   every person ever used by any agent is available without creating a second
+   contact record that can drift out of date. The latest name and phone win. */
+router.get('/recipients', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT email,
+              (ARRAY_AGG(name ORDER BY used_at DESC))[1] AS name,
+              (ARRAY_AGG(phone ORDER BY used_at DESC) FILTER (WHERE phone IS NOT NULL))[1] AS phone,
+              COUNT(DISTINCT envelope_id)::int AS request_count,
+              MAX(used_at) AS last_used_at
+         FROM (
+           SELECT LOWER(r.email) AS email, r.name, r.phone, r.envelope_id, e.created_at AS used_at
+             FROM envelope_recipients r
+             JOIN envelopes e ON e.id = r.envelope_id
+            WHERE r.email IS NOT NULL AND r.email <> ''
+         ) used_recipients
+        GROUP BY email
+        ORDER BY MAX(used_at) DESC, email
+        LIMIT 500`
+    );
+    res.json({ success: true, recipients: rows });
+  } catch (e) {
+    console.error('list saved recipients:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/envelopes/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await db.query(
