@@ -167,3 +167,90 @@ body:not(.signing-page) .nav-agent{color:rgba(255,255,255,.76)!important;backgro
   #f-esign .es-review-card{grid-template-columns:1fr}#f-esign .es-review-card>div{border-right:0;border-bottom:1px solid var(--border)}
   #f-esign .es-pane-actions{position:sticky;bottom:0;z-index:30;align-items:stretch}#f-esign .es-pane-actions .btn{flex:1}
 }
+
+/* Mobile agent workspace: preserve the same guided flow without desktop-sized
+   tables, navigation, or PDF controls taking over the phone viewport. */
+@media(max-width:760px){
+  html,body{max-width:100%;overflow-x:clip}
+  body:not(.signing-page) .nav{height:auto!important;min-height:0;padding:12px 16px 8px!important;display:flex;flex-wrap:wrap;gap:12px;position:relative}
+  body:not(.signing-page) .nav-left{min-width:0;flex:1 1 100%}
+  body:not(.signing-page) .nav-logo{height:40px!important;max-width:58px;object-fit:contain;border-radius:7px}
+  body:not(.signing-page) .nav-brand{font-size:14px!important;line-height:1.2}
+  body:not(.signing-page) .nav-right{display:contents}
+  body:not(.signing-page) .nav-pills{order:2;width:100%;margin:0!important;padding:4px!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px!important}
+  body:not(.signing-page) .nav-pills a{min-width:0;padding:10px 2px!important;font-size:11px!important;white-space:nowrap;line-height:1.2}
+  body:not(.signing-page) .nav-agent{order:3;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  body:not(.signing-page) #admin-link{order:4}
+  body:not(.signing-page) .nav-right form{order:5;margin-left:auto!important}
+  body:not(.signing-page) .nav-link{min-height:38px;display:inline-flex;align-items:center}
+  body:not(.signing-page) .wrap{width:100%;padding:22px 16px 56px!important}
+  body:not(.signing-page) .workspace-header{padding:0!important;margin-bottom:18px!important}
+  body:not(.signing-page) .workspace-header h1{font-size:25px!important;line-height:1.17}
+  body:not(.signing-page) .workspace-header p{font-size:13px!important;line-height:1.5}
+  .upload-panel,.top-panel,.hist-panel{padding:16px!important;border-radius:16px!important;margin-bottom:16px}
+  .top-panel .g2,.g2,.g3,.g4{grid-template-columns:minmax(0,1fr)!important}
+  .fld,input,select,textarea{min-width:0}
+  input[type=text],input[type=date],input[type=email],input[type=tel],select,textarea{font-size:16px!important;min-height:48px!important}
+  .tabs{display:flex!important;gap:7px!important;margin:0 -16px 16px!important;padding:5px 16px 10px!important;width:calc(100% + 32px);overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:thin;background:transparent}
+  .tab{flex:0 0 auto;min-height:44px;scroll-snap-align:start;border:1px solid var(--border)!important;background:#fff!important}
+  .tab.active{border-color:#a6c1b6!important}
+  .fhdr{display:block!important;padding:18px!important}.fhdr .badge{display:inline-block;margin-top:10px}
+  .ftitle{font-size:18px!important;line-height:1.3}
+  .fbody{padding:16px!important}.sec{margin-bottom:24px!important}
+  .sec-title{line-height:1.4}.cov-grid{grid-template-columns:minmax(0,1fr)!important}
+  .cov-card{padding:16px!important}.cov-top{gap:12px}.tog{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px}.tb{min-height:40px;border-radius:9px!important}
+  .ack-box{padding:15px!important}.sig-c{height:108px;touch-action:none}
+  .btn-row{position:sticky;bottom:0;z-index:30;margin:0 -16px -16px;padding:12px 16px calc(12px + env(safe-area-inset-bottom))!important;flex-wrap:wrap;background:rgba(255,255,255,.97)}
+  .btn-row .btn{flex:1 1 120px;min-height:46px;white-space:normal}
+  .hist-title{display:flex;flex-direction:column;align-items:stretch!important;gap:12px}.hist-search{width:100%;min-height:44px}
+  .hist-table,.hist-table tbody,.hist-table tr,.hist-table td{display:block;width:100%}
+  .hist-table thead{display:none}.hist-table tr{padding:14px 0;border-top:1px solid var(--border)}
+  .hist-table td{display:flex;justify-content:space-between;gap:12px;padding:5px 0!important;border:0!important;text-align:right;overflow-wrap:anywhere}
+  .hist-table td::before{flex:0 0 92px;text-align:left;color:var(--muted);font-size:11px;font-weight:700}
+  .hist-table td:nth-child(1)::before{content:'ID'}.hist-table td:nth-child(2)::before{content:'Form'}.hist-table td:nth-child(3)::before{content:'Client'}.hist-table td:nth-child(4)::before{content:'Policy'}.hist-table td:nth-child(5)::before{content:'Agent'}.hist-table td:nth-child(6)::before{content:'Date'}.hist-table td:nth-child(7)::before{content:'PDF'}
+  .hist-table td[colspan]::before{content:none}
+  #f-fee .fee-table{table-layout:fixed;width:100%;font-size:11px}
+  #f-fee .fee-table th,#f-fee .fee-table td{padding:9px 5px;overflow-wrap:anywhere;line-height:1.4}
+  #f-fee .fee-table th:first-child,#f-fee .fee-table td:first-child{width:48%}
+  #f-fee .fee-inline{align-items:flex-start}
+  #f-fee .fee-inline input[type=text]{width:100%;max-width:170px}
+  [id$='-vehicles-list']>div,[id$='-drivers-list']>div{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;padding:12px;border:1px solid var(--border);border-radius:11px}
+  [id$='-vehicles-list']>div input,[id$='-drivers-list']>div input{width:100%!important}
+  #f-esign .es-workflow-head{padding:18px!important}
+  #f-esign .es-workflow-title{font-size:21px}
+  #f-esign .es-stepper{display:flex;gap:0;padding:10px 12px;justify-content:space-between}
+  #f-esign .es-step{min-width:0;flex:1;display:flex;flex-direction:column;gap:5px;align-items:center;padding:7px 1px;text-align:center}
+  #f-esign .es-step div{display:block}
+  #f-esign .es-step strong{font-size:10px;line-height:1.15}
+  #f-esign .es-step small{display:none}
+  #f-esign .es-step>span{width:29px;height:29px;flex:0 0 29px}
+  #f-esign .es-pane{padding:18px!important}
+  #f-esign .es-pane-actions{position:sticky;bottom:0;margin:22px -18px -18px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:#fff;flex-wrap:wrap;z-index:35}
+  #f-esign .es-pane-actions>div{width:100%;display:flex;gap:8px}
+  #f-esign .es-pane-actions .btn{min-height:46px;flex:1}
+  #f-esign .es-drop{min-height:140px;padding:20px!important}
+  #f-esign .es-review-card{grid-template-columns:minmax(0,1fr)}
+  #f-esign .es-sent-section{padding:18px!important}
+  #f-esign #es-list{overflow:visible}
+  #f-esign table.es-t,#f-esign table.es-t tbody,#f-esign table.es-t tr,#f-esign table.es-t td{display:block;width:100%}
+  #f-esign table.es-t thead{display:none}
+  #f-esign table.es-t tr{padding:15px 0;border-bottom:1px solid var(--border)}
+  #f-esign table.es-t td{padding:4px 0!important;border:0;overflow-wrap:anywhere}
+  #f-esign table.es-t td:nth-child(1){font-size:14px}
+  #f-esign table.es-t td:nth-child(2)::before{content:'Agent · ';font-weight:700;color:var(--muted)}
+  #f-esign table.es-t td:nth-child(3)::before{content:'Recipients · ';font-weight:700;color:var(--muted)}
+  #f-esign table.es-t td:nth-child(5)::before{content:'Sent · ';font-weight:700;color:var(--muted)}
+  #f-esign table.es-t td:last-child{padding-top:10px!important}
+  #f-esign table.es-t .es-link{min-height:40px;display:inline-flex;align-items:center;padding:8px 10px}
+  #f-esign .es-ovbar{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:10px 12px!important}
+  #f-esign .es-ovttl{grid-column:1}
+  #f-esign #es-doneplace{grid-column:2;grid-row:1;min-height:42px}
+  #f-esign .es-pgbar{grid-column:1}.es-zoom{grid-column:2}
+  #f-esign .es-studio{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto minmax(0,1fr)!important;overflow:hidden}
+  #f-esign .es-palette{max-height:min(32vh,230px)!important;padding:12px!important;overflow:auto}
+  #f-esign .es-chips{flex-wrap:nowrap;overflow-x:auto;padding:4px 0;scrollbar-width:thin}
+  #f-esign .es-chip{min-height:38px;flex:0 0 auto}
+  #f-esign .es-stage{min-height:0!important;padding:0!important}
+  #f-esign .es-scroll{padding:14px!important;gap:18px;overflow:auto;overscroll-behavior:contain}
+  #f-esign .es-page-wrap{max-width:100%}
+}
