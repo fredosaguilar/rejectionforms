@@ -3,12 +3,19 @@ const https = require('https');
 const FROM = process.env.MAIL_FROM || 'Columbia Basin Insurance <noreply@columbiabasininsurance.com>';
 
 /* Resend's HTTP API, called directly so the app takes no extra dependency. */
-function send({ to, subject, html, replyTo }) {
+function send({ to, subject, html, replyTo, attachments }) {
   const key = process.env.RESEND_API_KEY;
   if (!key) return Promise.reject(new Error('RESEND_API_KEY is not set'));
 
   const payload = { from: FROM, to: Array.isArray(to) ? to : [to], subject, html };
   if (replyTo) payload.reply_to = replyTo;
+  // [{ filename, content: Buffer }] — Resend takes the content base64 encoded.
+  if (attachments && attachments.length) {
+    payload.attachments = attachments.map((a) => ({
+      filename: a.filename,
+      content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : String(a.content),
+    }));
+  }
   const body = JSON.stringify(payload);
 
   return new Promise((resolve, reject) => {
@@ -202,6 +209,29 @@ function signingRequest({ recipientName, agentName, title, message, url, lang })
     <p style="margin:0;font-size:12px;color:#6b6560;line-height:1.6">${esc(c.foot)}</p>`, lang);
 }
 
+/* The agency's own copy of a finished document. It is internal, so it says who
+   signed and when, and carries the signed PDF itself rather than a link: a
+   completion link is built from a signer's token, and that is not something to
+   hand to a third mailbox. */
+function agencyCopy({ title, fileName, signers, envelopeId, completedAt }) {
+  const rows = (signers || []).map((s) => `
+    <tr>
+      <td style="padding:5px 10px 5px 0;font-size:13px">${esc(s.name)}</td>
+      <td style="padding:5px 10px 5px 0;font-size:12px;color:#6b6560">${esc(s.email)}</td>
+      <td style="padding:5px 0;font-size:12px;color:#6b6560">${esc(s.signedAt || '')}</td>
+    </tr>`).join('');
+
+  return shell(`
+    <p style="margin:0 0 14px;font-size:14px"><strong>${esc(title)}</strong> has been signed by all parties.</p>
+    <p style="margin:0 0 6px;font-size:12px;color:#6b6560">The signed document, including its certificate of completion, is attached.</p>
+    <table style="margin:14px 0;border-collapse:collapse">${rows}</table>
+    <p style="margin:0;font-size:11.5px;color:#6b6560">
+      Original file: ${esc(fileName || '—')}<br>
+      Envelope: ${esc(envelopeId || '—')}<br>
+      Completed: ${esc(completedAt || '')}
+    </p>`);
+}
+
 function completedNotice({ recipientName, title, url, lang }) {
   const c = copy(lang);
   return shellL(`
@@ -213,4 +243,4 @@ function completedNotice({ recipientName, title, url, lang }) {
     <p style="margin:0;font-size:12px;color:#6b6560">${esc(c.doneFoot)}</p>`, lang);
 }
 
-module.exports = { send, signingRequest, completedNotice, esc, copy, status, fromAddress };
+module.exports = { send, signingRequest, completedNotice, agencyCopy, esc, copy, status, fromAddress };

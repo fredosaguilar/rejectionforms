@@ -254,6 +254,15 @@ router.get('/envelopes/:id', requireAuth, async (req, res) => {
   }
 });
 
+/* A filename that reads like the document rather than like a database row. */
+function signedFileName(title) {
+  const base = String(title || 'document')
+    .replace(/[^\w\s.-]+/g, '')
+    .trim().replace(/\s+/g, '-')
+    .slice(0, 80) || 'document';
+  return `${base}-signed.pdf`;
+}
+
 router.post('/envelopes', requireAuth, upload.array('document', 12), async (req, res) => {
   try {
     const uploads = req.files || [];
@@ -692,6 +701,38 @@ pub.post('/:token/sign', async (req, res) => {
           // A failed copy must not undo a completed signature.
           console.error('completion email failed:', err.message);
           await logEvent(r.env_id, 'send_failed', req, { recipientId: p.id, detail: { to: p.email, error: err.message } });
+        }
+      }
+
+      // The agency keeps its own copy of everything that completes. It is sent
+      // the signed PDF as an attachment rather than a link, because the link
+      // above carries a signer's token and that is not for a shared mailbox.
+      const agency = (process.env.AGENCY_COPY_EMAIL || 'info@columbiabasininsurance.com').trim();
+      if (agency) {
+        try {
+          await mail.send({
+            to: agency,
+            subject: `Signed: ${envRows[0].title}`,
+            html: mail.agencyCopy({
+              title: envRows[0].title,
+              fileName: envRows[0].file_name,
+              envelopeId: envRows[0].public_id,
+              completedAt: new Date().toUTCString(),
+              signers: recips.map((p) => ({
+                name: p.name, email: p.email,
+                signedAt: p.signed_at ? new Date(p.signed_at).toUTCString() : '',
+              })),
+            }),
+            attachments: [{
+              filename: signedFileName(envRows[0].title),
+              content: bytes,
+            }],
+          });
+          await logEvent(r.env_id, 'agency_copy_sent', req, { detail: { to: agency } });
+        } catch (err) {
+          // Same rule as above: the signature stands whatever the mail does.
+          console.error('agency copy failed:', err.message);
+          await logEvent(r.env_id, 'send_failed', req, { detail: { to: agency, error: err.message, kind: 'agency copy' } });
         }
       }
     } else {

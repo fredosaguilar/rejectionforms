@@ -123,7 +123,6 @@ var html =
     '<div id="es-files"></div>' +
     '<div class="es-grid" style="margin-top:12px">' +
       '<div class="fld"><div class="lbl">Document title</div><input type="text" id="es-title" placeholder="e.g. Broker fee agreement — G. Ayala"></div>' +
-      '<div class="fld"><div class="lbl">Message to recipients (optional)</div><input type="text" id="es-msg" placeholder="Shown in the email and on the signing page"></div>' +
     '</div>' +
     '<div class="fld" style="margin-top:10px;max-width:320px"><div class="lbl">Signing language / Idioma de firma</div>' +
       '<select id="es-lang" style="width:100%;padding:7px 9px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;background:#fff">' +
@@ -887,7 +886,6 @@ document.getElementById('es-send').addEventListener('click', async function(){
     var fd = new FormData();
     files.forEach(function(f){ fd.append('document', f); });
     fd.append('title', title);
-    fd.append('message', document.getElementById('es-msg').value.trim());
     fd.append('recipients', JSON.stringify(list));
     fd.append('fields', JSON.stringify(fields));
     fd.append('language', document.getElementById('es-lang').value);
@@ -920,7 +918,6 @@ function resetForm(){
   files = []; docs = []; input.value = '';
   renderFiles();
   document.getElementById('es-title').value = '';
-  document.getElementById('es-msg').value = '';
   rcpts.innerHTML = ''; addRecipient();
   fields = [];
   pdfDoc = null;
