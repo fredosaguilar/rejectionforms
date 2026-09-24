@@ -53,6 +53,44 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
 .btn-link{background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;font:inherit;font-size:12.5px;padding:0}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .note{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6}
+/* The finish button, once every field is done. It pulses twice and stops:
+   enough to be found, not enough to nag. */
+.btn.ready{box-shadow:0 0 0 0 rgba(26,74,74,.45);animation:readyPulse 1.1s ease-out 2}
+@keyframes readyPulse{to{box-shadow:0 0 0 16px rgba(26,74,74,0)}}
+@media (prefers-reduced-motion: reduce){.btn.ready{animation:none}}
+#disc-lang{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:8px}
+.disc-note{font-size:11.5px;color:var(--muted)}
+/* ---- completion ---- */
+.done-mark{display:flex;justify-content:center;margin-bottom:14px}
+.dm-ring{stroke:var(--ok);stroke-dasharray:239;stroke-dashoffset:239;animation:dmRing .55s ease-out forwards}
+.dm-tick{stroke:var(--ok);stroke-dasharray:64;stroke-dashoffset:64;animation:dmTick .4s ease-out .45s forwards}
+@keyframes dmRing{to{stroke-dashoffset:0}}
+@keyframes dmTick{to{stroke-dashoffset:0}}
+
+.review-invite{max-width:430px;margin:30px auto 0;padding:24px 22px;background:var(--card);
+  border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 28px rgba(26,74,74,.09);
+  opacity:0;transform:translateY(14px);animation:riIn .5s ease-out .9s forwards}
+@keyframes riIn{to{opacity:1;transform:none}}
+.ri-stars{display:flex;justify-content:center;gap:5px;margin-bottom:10px;font-size:20px;color:var(--gold)}
+.ri-stars span{opacity:0;transform:scale(.4);animation:riStar .34s cubic-bezier(.2,1.5,.4,1) forwards}
+.ri-stars span:nth-child(1){animation-delay:1.15s}.ri-stars span:nth-child(2){animation-delay:1.27s}
+.ri-stars span:nth-child(3){animation-delay:1.39s}.ri-stars span:nth-child(4){animation-delay:1.51s}
+.ri-stars span:nth-child(5){animation-delay:1.63s}
+@keyframes riStar{to{opacity:1;transform:none}}
+.review-invite h3{font-size:16px;margin:0 0 6px;color:var(--navy)}
+.review-invite p{font-size:13.5px;color:var(--muted);margin:0 0 16px}
+.ri-gift{display:flex;align-items:center;gap:10px;text-align:left;font-size:13px;line-height:1.5;
+  background:#fdf7ec;border:1px solid #f0e2c4;border-radius:11px;padding:12px 14px;margin-bottom:18px}
+.ri-gift-ico{font-size:20px;flex:0 0 auto;animation:riGift 2.4s ease-in-out 1.9s 2}
+@keyframes riGift{0%,100%{transform:none}25%{transform:rotate(-11deg)}75%{transform:rotate(11deg)}}
+.ri-btn{display:block;width:100%;text-decoration:none;margin-bottom:8px}
+.ri-skip{display:block;margin:0 auto;font-size:12.5px}
+@media (prefers-reduced-motion: reduce){
+  .dm-ring,.dm-tick,.review-invite,.ri-stars span,.ri-gift-ico{animation:none}
+  .dm-ring,.dm-tick{stroke-dashoffset:0}
+  .review-invite{opacity:1;transform:none}
+  .ri-stars span{opacity:1;transform:none}
+}
 .state{text-align:center;padding:48px 20px}
 .state .ico{font-size:34px;margin-bottom:10px}
 .state h2{font-size:18px;margin:0 0 6px}
@@ -104,10 +142,35 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
   </div>
 
   <div id="done" class="state" hidden>
-    <div class="ico">✓</div>
-    <h2>Signed</h2>
-    <p id="done-p">Thank you. A copy will be emailed to you once everyone has signed.</p>
+    <div class="done-mark" aria-hidden="true">
+      <svg viewBox="0 0 84 84" width="84" height="84">
+        <circle class="dm-ring" cx="42" cy="42" r="38" fill="none" stroke-width="3"/>
+        <path class="dm-tick" d="M25 43.5 L37 55 L59 31" fill="none" stroke-width="5"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h2 id="done-h">Thank you for signing</h2>
+    <p id="done-p">A copy will be emailed to you once everyone has signed.</p>
     <p style="margin-top:18px"><a id="done-dl" class="btn" href="#" hidden>Download signed document</a></p>
+
+    <!-- The review invitation. Held back a beat so the confirmation reads
+         first: someone needs to know the signing worked before they are asked
+         for anything. -->
+    <div class="review-invite" id="review-invite" hidden>
+      <div class="ri-stars" aria-hidden="true">
+        <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+      </div>
+      <h3 id="ri-h">Would you tell us how we did?</h3>
+      <p id="ri-p">A review on Google helps us see what to improve, and helps other
+        families find us.</p>
+      <div class="ri-gift" id="ri-gift">
+        <span class="ri-gift-ico" aria-hidden="true">🎁</span>
+        <span id="ri-gift-t">Leave a review and we'll send you a $10 Amazon gift card as thanks.</span>
+      </div>
+      <a class="btn btn-pri ri-btn" id="ri-btn" target="_blank" rel="noopener noreferrer"
+         href="https://share.google/jhS2IMU13VlrRRJRt">Leave a Google review</a>
+      <button class="btn-link ri-skip" id="ri-skip" type="button">No thanks</button>
+    </div>
   </div>
 
   <div id="declined" class="state" hidden>
@@ -141,6 +204,10 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
     <div class="card" id="consent-card" hidden>
       <div class="card-hd"><h1 style="font-size:16px">Consent to use electronic records and signatures</h1></div>
       <div class="card-bd">
+        <div id="disc-lang" hidden>
+          <button class="btn-link" id="disc-toggle" type="button"></button>
+          <span class="disc-note" id="disc-controls"></span>
+        </div>
         <div class="disc" id="disc"></div>
 
         <div class="tap-callout" id="consent-pointer">Tap the box below to agree</div>
@@ -283,6 +350,9 @@ var T = {
     reviewBtn: 'I’ve reviewed the document',
     reviewPointer: 'Finished reviewing? Tap the button below.',
     consentH: 'Consent to use electronic records and signatures',
+    discReadEs: 'Leer en español',
+    discReadEn: 'Read in English',
+    discControls: 'The English version is the one that applies.',
     agree: 'I have read the disclosure above. I consent to conduct this transaction electronically and to receive records electronically, and I confirm I can access documents in PDF format.',
     consentPointer: 'Tap the box below to agree',
     continuePointer: 'Now tap Continue',
@@ -309,7 +379,12 @@ var T = {
     signNote: 'By selecting Sign document you adopt the signature above as your electronic signature on this record. The date, time, your IP address and browser will be recorded in the certificate of completion.',
     openTab: 'If the document doesn\'t display, ',
     openTabLink: 'open it in a new tab',
-    doneH: 'Signed',
+    doneH: 'Thank you for signing',
+    riH: 'Would you tell us how we did?',
+    riP: 'A review on Google helps us see what to improve, and helps other families find us.',
+    riGift: "Leave a review and we'll send you a $10 Amazon gift card as thanks.",
+    riBtn: 'Leave a Google review',
+    riSkip: 'No thanks',
     doneP: 'Thank you. A copy will be emailed to you once everyone has signed.',
     doneAll: 'Thank you. Everyone has now signed, and a copy has been emailed to you.',
     doneDl: 'Download signed document',
@@ -343,6 +418,9 @@ var T = {
     reviewBtn: 'He revisado el documento',
     reviewPointer: '¿Terminó de revisar? Toque el botón de abajo.',
     consentH: 'Consentimiento para usar registros y firmas electrónicas',
+    discReadEs: 'Leer en español',
+    discReadEn: 'Leer en inglés',
+    discControls: 'La versión en inglés es la que rige. La traducción se ofrece por conveniencia.',
     agree: 'He leído la divulgación anterior. Consiento realizar esta transacción de forma electrónica y recibir registros electrónicamente, y confirmo que puedo acceder a documentos en formato PDF.',
     consentPointer: 'Toque la casilla de abajo para aceptar',
     continuePointer: 'Ahora toque Continuar',
@@ -369,7 +447,12 @@ var T = {
     signNote: 'Al seleccionar Firmar documento, usted adopta la firma anterior como su firma electrónica en este registro. La fecha, la hora, su dirección IP y su navegador quedarán registrados en el certificado de finalización.',
     openTab: 'Si el documento no se muestra, ',
     openTabLink: 'ábralo en una pestaña nueva',
-    doneH: 'Firmado',
+    doneH: 'Gracias por firmar',
+    riH: '¿Nos cuenta cómo lo hicimos?',
+    riP: 'Una reseña en Google nos ayuda a saber qué mejorar y ayuda a otras familias a encontrarnos.',
+    riGift: 'Deje una reseña y le enviaremos una tarjeta de regalo de Amazon de $10 como agradecimiento.',
+    riBtn: 'Dejar una reseña en Google',
+    riSkip: 'No, gracias',
     doneP: 'Gracias. Se le enviará una copia cuando todos hayan firmado.',
     doneAll: 'Gracias. Todos han firmado y se le ha enviado una copia.',
     doneDl: 'Descargar documento firmado',
@@ -400,19 +483,18 @@ var T = {
   },
 };
 var L = T.en;
+var LANG = 'en';
 
 function applyLanguage(lang){
   L = T[lang] || T.en;
+  LANG = T[lang] ? lang : 'en';
+  // A signer served in another language still reads the governing text first.
+  discLang = 'en';
   document.documentElement.lang = (lang === 'es') ? 'es' : 'en';
   document.querySelector('.nav-sub').textContent = L.navSub;
   $('review-btn').textContent = L.reviewBtn;
   $('review-pointer').textContent = L.reviewPointer;
-  $('disc').innerHTML = L.disc.map(function(sec){
-    var body = Array.isArray(sec[1])
-      ? '<ul>' + sec[1].map(function(li){ return '<li>' + li + '</li>'; }).join('') + '</ul>'
-      : '<p style="margin:0">' + sec[1] + '</p>';
-    return '<h3>' + sec[0] + '</h3>' + body;
-  }).join('');
+  renderDisclosure();
   $('agree-txt').textContent = L.agree;
   $('consent-pointer').textContent = L.consentPointer;
   $('continue-pointer').textContent = L.continuePointer;
@@ -436,7 +518,12 @@ function applyLanguage(lang){
   $('done-dl').textContent = L.doneDl;
   $('declined').querySelector('h2').textContent = L.declinedH;
   $('declined').querySelector('p').textContent = L.declinedP;
-  $('done').querySelector('h2').textContent = L.doneH;
+  $('done-h').textContent = L.doneH;
+  $('ri-h').textContent = L.riH;
+  $('ri-p').textContent = L.riP;
+  $('ri-gift-t').textContent = L.riGift;
+  $('ri-btn').textContent = L.riBtn;
+  $('ri-skip').textContent = L.riSkip;
   var dl = $('doc-link');
   dl.previousSibling.textContent = L.openTab;
 }
@@ -510,7 +597,16 @@ function updateTodo(){
 function focusNextRequired(){
   requestAnimationFrame(function(){
     var next = document.querySelector('.fb.needs-attention');
-    if(next) next.scrollIntoView({ behavior:'smooth', block:'center' });
+    if(next){
+      next.scrollIntoView({ behavior:'smooth', block:'center' });
+      $('field-submit').classList.remove('ready');
+      return;
+    }
+    // Nothing left to fill. Finishing is now the only thing to do, so take
+    // them to it rather than leaving them to find it below the document.
+    var finish = $('field-submit');
+    finish.classList.add('ready');
+    finish.scrollIntoView({ behavior:'smooth', block:'center' });
   });
 }
 
@@ -678,6 +774,37 @@ function afterConsent(){
   sizePad();
   $('typed').focus();
 }
+/* The consent disclosure.
+ *
+ * The English text is the one that governs, so it is what a Spanish-speaking
+ * signer sees first — a translation of legally operative wording is a
+ * convenience, not the agreement. Reading it in Spanish is one tap away, and
+ * the page says which version controls. Every other word on this page — the
+ * buttons, the steps, the instructions — stays in the signer's language.
+ */
+var discLang = 'en';
+function renderDisclosure(){
+  var src = T[discLang] || T.en;
+  $('disc').innerHTML = src.disc.map(function(sec){
+    var body = Array.isArray(sec[1])
+      ? '<ul>' + sec[1].map(function(li){ return '<li>' + li + '</li>'; }).join('') + '</ul>'
+      : '<p style="margin:0">' + sec[1] + '</p>';
+    return '<h3>' + sec[0] + '</h3>' + body;
+  }).join('');
+
+  // Only offered when the signer is being served in another language.
+  var box = $('disc-lang');
+  if(LANG === 'en'){ box.hidden = true; return; }
+  box.hidden = false;
+  $('disc-toggle').textContent = discLang === 'en' ? L.discReadEs : L.discReadEn;
+  $('disc-controls').textContent = L.discControls;
+}
+$('ri-skip').addEventListener('click', function(){ $('review-invite').hidden = true; });
+$('disc-toggle').addEventListener('click', function(){
+  discLang = discLang === 'en' ? 'es' : 'en';
+  renderDisclosure();
+});
+
 function adoptedSignature(){ return padMain; }
 
 function openPlacement(){
@@ -733,6 +860,9 @@ function finishSigning(button){
       $('done-p').textContent = L.doneAll;
       var dl = $('done-dl'); dl.href = api + '/document?signed=1'; dl.hidden = false;
     }
+    // Only after a signature of their own — not when the link was already
+    // used, and not on any failure.
+    $('review-invite').hidden = false;
   })
   .catch(function(e){ b.disabled = false; b.textContent = FIELDS.length ? L.finish : L.submit; err.textContent = e.message; err.hidden = false; });
 }
