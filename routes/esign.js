@@ -814,12 +814,25 @@ pub.post('/:token/sign', async (req, res) => {
 
       for (const p of recips) {
         try {
+          // Each signer gets a link built from their own token. This used to
+          // send everyone a link carrying the last signer's token: it worked,
+          // because by then everyone has signed, but it handed one party
+          // another party's signing credential, and a record every signer is
+          // entitled to should not be reached through someone else's.
+          //
+          // The token is re-issued here rather than reused. Only the hash is
+          // stored, so the signing token cannot be recovered to send again —
+          // and retiring it once signing is done is the better half of the
+          // trade anyway: the link that remains is for retrieval only.
+          const retrieval = newSigningToken();
+          await db.query(`UPDATE envelope_recipients SET token_hash = $2 WHERE id = $1`,
+            [p.id, hashToken(retrieval)]);
           await mail.send({
             to: p.email,
             subject: mail.copy(envRows[0].language).subjDone(envRows[0].title),
             html: mail.completedNotice({
               recipientName: p.name, title: envRows[0].title, lang: envRows[0].language,
-              url: `${baseUrl(req)}/api/sign/${req.params.token}/document?signed=1`,
+              url: `${baseUrl(req)}/api/sign/${retrieval}/document?signed=1`,
             }),
           });
         } catch (err) {
