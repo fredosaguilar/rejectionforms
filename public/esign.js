@@ -916,6 +916,7 @@ document.getElementById('es-send').addEventListener('click', async function(){
 
 function resetForm(){
   if(files.length) try { localStorage.removeItem(localFieldKey()); } catch(_) {}
+  document.getElementById('es-layout-select').value = '';
   files = []; docs = []; input.value = '';
   renderFiles();
   document.getElementById('es-title').value = '';
