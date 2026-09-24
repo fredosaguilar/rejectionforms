@@ -147,6 +147,10 @@ var html =
     '<div class="sec"><div class="es-section-head"><span class="es-section-icon">03</span><div><div class="sec-title">Place required signature fields</div><p>The PDF opens in a continuous, scrollable view. Add at least one signature field for every recipient.</p></div></div>' +
       '<div class="es-review-card"><div><span>Document</span><strong id="es-place-doc">PDF ready</strong></div><div><span>Recipients</span><strong id="es-place-rcpts">1 recipient</strong></div><div><span>Requirement</span><strong>Signature for each person</strong></div></div>' +
       '<button class="btn btn-pri" id="es-openplace" type="button" hidden>Open field placement &rarr;</button>' +
+      '<div id="es-place-problem" hidden style="margin-top:10px;font-size:12.5px;color:#a32219;line-height:1.6">' +
+        '<div id="es-place-problem-text"></div>' +
+        '<button class="btn btn-sec" id="es-place-retry" type="button" style="margin-top:8px;font-size:12px;padding:6px 14px">Try again</button>' +
+      '</div>' +
     '</div>' +
     '<div class="es-pane-actions"><button class="btn btn-sec" data-es-back="2" type="button">&larr; Back</button><span>Complete field placement to continue</span></div>' +
   '</div>' +
@@ -508,10 +512,10 @@ function loadPdfJs(){
   if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
   return new Promise(function(res, rej){
     var sc = document.createElement('script');
-    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    sc.src = '/vendor/pdfjs/pdf.min.js';
     sc.onload = function(){
       window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        '/vendor/pdfjs/pdf.worker.min.js';
       res(window.pdfjsLib);
     };
     sc.onerror = function(){ rej(new Error('Could not load the PDF viewer')); };
@@ -553,6 +557,7 @@ async function loadDocs(){
       var doc = await pdfjs.getDocument({ data: await files[i].arrayBuffer() }).promise;
       docs.push({ doc: doc, pages: doc.numPages });
     }
+    showPlaceProblem(null);
     pageCount = docs.reduce(function(n, d){ return n + d.pages; }, 0);
     pdfDoc = docs.length ? docs[0].doc : null;
     renderFiles();                       // page counts are known now
@@ -561,6 +566,10 @@ async function loadDocs(){
   } catch(e){
     pdfDoc = null; docs = [];
     if(note) note.textContent = e.message + ' — choose a readable PDF before continuing.';
+    // The same failure, said on the placement step. Without this the step
+    // renders with no controls and no reason, which reads as the feature
+    // having been removed.
+    showPlaceProblem(e.message);
     if(openNow) stageEl.innerHTML = '<div style="padding:16px;font-size:12.5px;color:#a32219;max-width:420px">' +
       esc(e.message) + '. Choose a readable PDF before continuing.</div>';
   }
@@ -681,6 +690,21 @@ function drawFields(){
     });
   });
 }
+
+/* Says why the placement step is empty, on the step itself. */
+function showPlaceProblem(msg){
+  var box = document.getElementById('es-place-problem');
+  if(!box) return;
+  if(!msg){ box.hidden = true; return; }
+  document.getElementById('es-place-problem-text').textContent =
+    msg + ' Field placement needs the document to load first.';
+  box.hidden = false;
+}
+document.getElementById('es-place-retry').addEventListener('click', function(e){
+  e.preventDefault();
+  showPlaceProblem(null);
+  loadDocs().then(function(){ if(docs.length) goEsStep(3); });
+});
 
 function localFieldKey(){ return 'esign-fields:' + files.map(function(f){return f.name + ':' + f.size;}).join('|'); }
 function saveLocalFields(){
