@@ -121,6 +121,22 @@ app.get('/quote', (req, res) => {
 // gets a 304 when nothing changed, but it can never serve a stale script after
 // a deploy. Without an explicit directive browsers invent their own freshness
 // lifetime from Last-Modified and hold old files for hours.
+/* The PDF viewer is served from the app rather than a CDN.
+ *
+ * It was loaded from cdnjs, and when that request failed — a filtered network,
+ * an outage, a captive portal — field placement disappeared: the editor never
+ * opened, the button to open it stayed hidden, and the only explanation was
+ * written onto a step the agent had already left. A signing tool should not
+ * lose its core screen because a third party is unreachable.
+ *
+ * Immutable because the URL carries the version: a new version is a new path.
+ */
+app.use('/vendor/pdfjs', express.static(path.join(__dirname, 'node_modules', 'pdfjs-dist', 'build'), {
+  immutable: true,
+  maxAge: '1y',
+  setHeaders: (res) => res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'),
+}));
+
 app.use(express.static(path.join(__dirname, 'public'), {
   index: false,
   setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
