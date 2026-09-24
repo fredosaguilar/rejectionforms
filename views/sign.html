@@ -49,7 +49,6 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
 .btn{padding:11px 20px;font:inherit;font-size:14px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--border2);background:#fff;color:var(--text)}
 .btn-pri{background:var(--navy);border-color:var(--navy);color:#fff}
 .btn-pri:disabled{opacity:.45;cursor:not-allowed}
-.btn-pri.next-ready{animation:readyPulse 1.15s ease-in-out 2}@keyframes readyPulse{50%{box-shadow:0 0 0 7px rgba(26,74,74,.16)}}
 .btn-link{background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;font:inherit;font-size:12.5px;padding:0}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .note{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6}
@@ -87,6 +86,7 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
   .review-invite{opacity:1;transform:none}
   .ri-stars span{opacity:1;transform:none}
 }
+.fb.prefilled{opacity:.9}
 .state{text-align:center;padding:48px 20px}
 .state .ico{font-size:34px;margin-bottom:10px}
 .state h2{font-size:18px;margin:0 0 6px}
@@ -264,6 +264,7 @@ var token = location.pathname.split('/').filter(Boolean).pop();
 var api = '/api/sign/' + encodeURIComponent(token);
 var $ = function(id){ return document.getElementById(id); };
 var SIGN_STAGE = 'capture';
+var docReviewed = false;
 
 function show(id){ ['loading','problem','done','declined','main'].forEach(function(k){ $(k).hidden = (k !== id); }); }
 function problem(h, p){ $('problem-h').textContent = h || (L && L.problemH) || 'Unavailable'; $('problem-p').textContent = p || ''; show('problem'); }
@@ -278,6 +279,11 @@ function setStep(n){
   $('fields-card').hidden = n !== 3 || !FIELDS.length || SIGN_STAGE !== 'place';
   $('sign-card').hidden = n !== 3 || (FIELDS.length && SIGN_STAGE !== 'capture');
   window.scrollTo({ top:0, behavior:'smooth' });
+  // Leaving a step drops its nudge, so coming back to it nudges again.
+  ['review-btn','consent-btn','submit','field-submit'].forEach(function(id){
+    var el = $(id); if(el){ el.dataset.ready = ''; el.classList.remove('ready'); }
+  });
+  refreshReady();
 }
 
 /* ---- signature pads ---- */
@@ -308,12 +314,17 @@ function makePad(canvas, onDraw){
   }
   function down(e){ drawing = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
   function mv(e){ if(!drawing) return; var p = pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); has = true; e.preventDefault(); }
-  function up(){ if(drawing && has && onDraw) onDraw(); drawing = false; }
+  function up(){
+    if(drawing && has){ if(onDraw) onDraw(); draws.forEach(function(fn){ fn(); }); }
+    drawing = false;
+  }
   canvas.addEventListener('mousedown', down); canvas.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
   canvas.addEventListener('touchstart', down, {passive:false}); canvas.addEventListener('touchmove', mv, {passive:false}); canvas.addEventListener('touchend', up);
   window.addEventListener('resize', size);
+  var draws = [];
   return {
     size: size,
+    onDraw: function(fn){ draws.push(fn); },
     has: function(){ return has; },
     data: function(){ return canvas.toDataURL('image/png'); },
     clear: function(){
@@ -322,7 +333,9 @@ function makePad(canvas, onDraw){
       ctx.save(); ctx.setTransform(1,0,0,1,0,0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.restore();
-      has = false; if(onDraw) onDraw();
+      has = false;
+      if(onDraw) onDraw();
+      draws.forEach(function(fn){ fn(); });
     }
   };
 }
@@ -344,6 +357,7 @@ var T = {
     consentH: 'Consent to use electronic records and signatures',
     discReadEs: 'Leer en español',
     discReadEn: 'Read in English',
+    preparedBySender: 'Filled in by the sender',
     discControls: 'The English version is the one that applies.',
     agree: 'I have read the disclosure above. I consent to conduct this transaction electronically and to receive records electronically, and I confirm I can access documents in PDF format.',
     consentPointer: 'Tap the box below to agree',
@@ -411,6 +425,7 @@ var T = {
     consentH: 'Consentimiento para usar registros y firmas electrónicas',
     discReadEs: 'Leer en español',
     discReadEn: 'Leer en inglés',
+    preparedBySender: 'Completado por el remitente',
     discControls: 'La versión en inglés es la que rige. La traducción se ofrece por conveniencia.',
     agree: 'He leído la divulgación anterior. Consiento realizar esta transacción de forma electrónica y recibir registros electrónicamente, y confirmo que puedo acceder a documentos en formato PDF.',
     consentPointer: 'Toque la casilla de abajo para aceptar',
@@ -556,9 +571,14 @@ async function renderReviewPage(){
     $('review-count').textContent = 'Page ' + reviewPage + ' of ' + doc.numPages;
     $('review-prev').disabled = reviewPage === 1;
     $('review-next').disabled = reviewPage === doc.numPages;
+    docReviewed = true;
+    refreshReady();
   }catch(e){
     $('review-view').innerHTML = '<div class="err">Could not display the PDF here. Use Open full screen above.</div>';
     $('review-pages').hidden = true;
+    // Nothing to read here, so carrying on is the only move left.
+    docReviewed = true;
+    refreshReady();
   }
 }
 
@@ -568,7 +588,10 @@ function todayStr(){
 }
 function fieldIsComplete(f){
   var v = values[f.id];
-  return !!(v && (v.valuePng || (v.value && String(v.value).trim())));
+  if(v && (v.valuePng || (v.value && String(v.value).trim()))) return true;
+  // Text the sender typed while preparing the document. It is theirs, not the
+  // signer's, so it counts as done and is shown rather than asked for.
+  return !!(f.type === 'text' && String(f.value || '').trim());
 }
 function nextRequiredField(){
   return FIELDS.find(function(f){ return f.required && !fieldIsComplete(f); });
@@ -579,22 +602,44 @@ function remaining(){
   }).length;
 }
 function updateTodo(){
+  refreshReady();
   var n = remaining();
   $('todo').textContent = n === 0 ? L.todoDone : L.todoLeft(n);
   $('todo').style.color = n === 0 ? 'var(--ok)' : 'var(--muted)';
 }
+/* Marks the button that is now the thing to do.
+ *
+ * It fires on the change, not on every keystroke, or it would flicker
+ * continuously while someone types. Showing a step clears the flag first, so
+ * arriving at a step whose work is already done gives a fresh nudge.
+ */
+function setReady(el, on){
+  if(!el) return;
+  var was = el.dataset.ready === '1';
+  if(on === was) return;
+  el.dataset.ready = on ? '1' : '';
+  el.classList.remove('ready');
+  if(on){ void el.offsetWidth; el.classList.add('ready'); }
+}
+function refreshReady(){
+  setReady($('review-btn'), !$('review-card').hidden && docReviewed);
+  setReady($('consent-btn'), !$('consent-card').hidden && $('agree').checked);
+  setReady($('submit'), !$('sign-card').hidden && !!$('typed').value.trim() && padMain.has());
+  setReady($('field-submit'), !$('fields-card').hidden && remaining() === 0);
+}
+
 function focusNextRequired(){
   requestAnimationFrame(function(){
     var next = document.querySelector('.fb.needs-attention');
     if(next){
       next.scrollIntoView({ behavior:'smooth', block:'center' });
-      $('field-submit').classList.remove('ready');
+      setReady($('field-submit'), false);
       return;
     }
     // Nothing left to fill. Finishing is now the only thing to do, so take
     // them to it rather than leaving them to find it below the document.
     var finish = $('field-submit');
-    finish.classList.add('ready');
+    setReady(finish, true);
     finish.scrollIntoView({ behavior:'smooth', block:'center' });
   });
 }
@@ -626,6 +671,12 @@ function renderFields(){
     } else if(v && v.value){
       el.className = 'fb done';
       el.textContent = f.type === 'checkbox' ? '✓' : v.value;
+    } else if(f.type === 'text' && String(f.value || '').trim()){
+      // Filled in by the sender when the document was prepared: shown as it
+      // will print, not offered for editing.
+      el.className = 'fb done prefilled';
+      el.textContent = f.value;
+      el.title = L.preparedBySender;
     } else if(f.type === 'text'){
       var inp = document.createElement('input');
       inp.type = 'text'; inp.placeholder = f.label || 'Type here';
@@ -734,15 +785,21 @@ $('review-next').addEventListener('click', function(){ reviewPage++; renderRevie
 $('consent-back').addEventListener('click', function(){ setStep(1); renderReviewPage(); });
 $('sign-back').addEventListener('click', function(){
   setStep(2); $('agree').checked = true; $('consent-btn').disabled = false;
-  $('consent-pointer').hidden = true; $('continue-pointer').hidden = false; $('consent-btn').classList.add('next-ready');
+  $('consent-pointer').hidden = true; $('continue-pointer').hidden = false;
+  refreshReady();
 });
 $('agree').addEventListener('change', function(){
   var ready = this.checked;
   $('consent-btn').disabled = !ready;
   $('consent-pointer').hidden = ready;
   $('continue-pointer').hidden = !ready;
-  $('consent-btn').classList.toggle('next-ready', ready);
+  refreshReady();
 });
+
+// The sign button waits on a typed name and a drawn signature; both can change
+// at any moment, so both are watched.
+$('typed').addEventListener('input', refreshReady);
+padMain.onDraw(refreshReady);
 $('consent-btn').addEventListener('click', function(){
   var b = this; b.disabled = true; b.textContent = 'Saving…';
   fetch(api + '/consent', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ agree: true }) })
