@@ -82,7 +82,6 @@ css.textContent = [
   '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:visible;cursor:move;user-select:none;touch-action:none}',
   '#f-esign .es-fld-label{display:block;max-width:100%;max-height:100%;overflow:hidden;pointer-events:none;padding:0 4px;text-align:center;line-height:1.2}',
   '#f-esign .es-chip{border-radius:7px;min-width:105px;min-height:44px;touch-action:none;cursor:grab;white-space:normal;text-align:center}#f-esign .es-chip:active{cursor:grabbing}',
-  '#f-esign .es-layout-tools{display:grid;gap:7px;margin:14px 0;padding:11px;border:1px solid var(--border);border-radius:9px}#f-esign .es-layout-tools label{font-size:11px;font-weight:700}#f-esign .es-layout-tools select{width:100%;min-height:38px;border:1px solid var(--border2);border-radius:7px;background:#fff}',
   '#f-esign .es-field-sample{display:block;font-size:11px;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#f-esign .es-chip small{display:block;font-size:9px;opacity:.7}',
   '.es-drag-ghost{position:fixed;z-index:1000;pointer-events:none;display:flex;align-items:center;justify-content:center;width:150px;height:44px;border:2px solid;border-radius:5px;background:#fff;box-shadow:0 8px 22px #0003;font-size:11px}',
   '#f-esign .es-fld .es-del{position:absolute;z-index:3;top:-12px;right:-12px;width:24px;height:24px;border:2px solid #fff;border-radius:50%;background:#a32219;color:#fff;font-size:16px;line-height:20px;text-align:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.25)}',
@@ -177,13 +176,13 @@ var html =
         '<button id="es-zin" type="button" title="Larger">+</button>' +
         '<span id="es-zlvl" style="min-width:40px;text-align:right;font-size:11.5px;color:var(--muted)">100%</span>' +
       '</span>' +
+      '<button class="btn btn-sec" id="es-savedraft" type="button" style="font-size:12px;padding:6px 14px">Save &amp; exit</button>' +
       '<button class="btn btn-pri" id="es-doneplace" type="button" style="font-size:12px;padding:6px 18px">Done</button>' +
     '</div>' +
     '<div class="es-studio">' +
       '<div class="es-palette">' +
         '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px">Drag a field onto the PDF</div>' +
         '<div id="es-who-list"></div>' +
-        '<div class="es-layout-tools"><label for="es-layout-select">Saved field layouts</label><select id="es-layout-select"><option value="">Choose a layout…</option></select><button class="btn btn-sec" id="es-load-layout" type="button">Load</button><button class="btn btn-sec" id="es-save-layout" type="button">Save layout</button></div>' +
         '<button class="btn btn-sec" id="es-clearfields" style="width:100%;font-size:12px;padding:6px 10px;margin-top:4px">Clear all fields</button>' +
         '<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5"><span id="es-count">0 fields</span><br>Drag a field to move it, or its corner to resize.</div>' +
         '<div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Required: every recipient must have at least one signature field before you can continue.</div>' +
@@ -689,52 +688,16 @@ function saveLocalFields(){
   try { localStorage.setItem(localFieldKey(), JSON.stringify(fields)); } catch(_) {}
 }
 function restoreLocalFields(){
+  // A draft reopened from the server already holds the fields that were saved
+  // with it. The local autosave is keyed on file name and size, so a resumed
+  // draft matches an older key and would otherwise overwrite the real thing.
+  if(resumeId){ refreshWho(); return; }
   try {
     var saved = JSON.parse(localStorage.getItem(localFieldKey()) || '[]');
     if(Array.isArray(saved) && saved.every(function(f){return f.page>=1 && f.page<=pageCount;})) fields=saved;
   } catch(_) {}
   refreshWho();
 }
-var savedLayouts=[];
-async function loadLayouts(){
-  try {
-    var r=await fetch('/api/esign/field-layouts'), d=await r.json();
-    if(!r.ok || !d.success) throw new Error(d.error || 'Could not load layouts');
-    savedLayouts=d.layouts || [];
-    var select=document.getElementById('es-layout-select');
-    select.innerHTML='<option value="">Choose a layout…</option>' + savedLayouts.map(function(layout){
-      return '<option value="' + layout.id + '">' + esc(layout.name) + '</option>';
-    }).join('');
-  } catch(e){ console.warn('field layouts:',e.message); }
-}
-document.getElementById('es-load-layout').addEventListener('click', function(){
-  var id=Number(document.getElementById('es-layout-select').value);
-  var layout=savedLayouts.find(function(x){return x.id===id;});
-  if(!layout) return;
-  if(layout.fields.some(function(f){return f.page>pageCount || f.recipientIndex>=rcpts.children.length;})){
-    showT('This layout needs more PDF pages or recipients than this request has', 'error'); return;
-  }
-  fields=layout.fields.map(function(f){return Object.assign({}, f);});
-  drawFields(); showT('Layout loaded. Drag fields to adjust them, then save your changes.', 'success');
-});
-async function saveLayout(askForName){
-  if(!fields.length) throw new Error('Place fields before saving a layout');
-  var select=document.getElementById('es-layout-select');
-  var existing=savedLayouts.find(function(x){return x.id===Number(select.value);});
-  var defaultName=document.getElementById('es-title').value.trim() || (files[0]&&files[0].name) || 'Document fields';
-  var name=askForName ? prompt('Name this field layout', existing?existing.name:defaultName) : (existing?existing.name:defaultName);
-  if(!name || !name.trim()) { if(!askForName) throw new Error('Give the document a title'); return; }
-    var r=await fetch('/api/esign/field-layouts' + (existing?'/'+existing.id:''),{
-      method:existing?'PUT':'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:name.trim(),fields:fields,recipientCount:rcpts.children.length})});
-    var d=await r.json(); if(!r.ok || !d.success) throw new Error(d.error || 'Could not save layout');
-    await loadLayouts(); select.value=String(d.layout.id);
-    if(askForName) showT('Field layout saved for future requests', 'success');
-}
-document.getElementById('es-save-layout').addEventListener('click', function(){
-  saveLayout(true).catch(function(e){showT(e.message,'error');});
-});
-loadLayouts();
 
 function setZoom(z){ zoom = Math.max(0.5, Math.min(3, z)); renderAllPages(); }
 document.getElementById('es-zin').addEventListener('click',  function(e){ e.preventDefault(); setZoom(zoom + 0.25); });
@@ -750,11 +713,69 @@ window.addEventListener('resize', function(){
 });
 
 document.getElementById('es-clearfields').addEventListener('click', function(e){ e.preventDefault(); fields = []; drawFields(); });
+/* The id of the draft being continued, or null for a new request. Everything
+   that writes has to know which of the two it is doing. */
+var resumeId = null;
+
+/* Saves the request without sending it: the document, the recipients and the
+   fields as they stand, to be picked up later. */
+async function saveDraftAndExit(btn){
+  var title = document.getElementById('es-title').value.trim();
+  if(!title){ showT('Give the document a title before saving', 'error'); goEsStep(1); return; }
+  var list = collectRecipients();
+  if(!list.length){ showT('Add a recipient before saving', 'error'); goEsStep(2); return; }
+
+  var was = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    if(resumeId){
+      var r = await fetch('/api/esign/envelopes/' + resumeId + '/draft', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title, recipients: JSON.stringify(list), fields: JSON.stringify(fields) }),
+      });
+      var d = await r.json();
+      if(!r.ok || !d.success) throw new Error(d.error || 'Could not save');
+    } else {
+      if(!files.length) throw new Error('Choose a PDF first');
+      var fd = new FormData();
+      files.forEach(function(f){ fd.append('document', f); });
+      fd.append('title', title);
+      fd.append('recipients', JSON.stringify(list));
+      fd.append('fields', JSON.stringify(fields));
+      fd.append('language', document.getElementById('es-lang').value);
+      var r2 = await fetch('/api/esign/envelopes', { method: 'POST', body: fd });
+      var d2 = await r2.json();
+      if(!r2.ok || !d2.success) throw new Error(d2.error || 'Could not save');
+    }
+    showT('Saved. Pick it up from the list below whenever you are ready.', 'success');
+    closePlacer();
+    resetForm();
+    loadList();
+  } catch(err){
+    showT(err.message, 'error');
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = was; }
+  }
+}
+
+function collectRecipients(){
+  var list = [];
+  rcpts.querySelectorAll('.es-rcpt').forEach(function(r){
+    var n = r.querySelector('.es-name').value.trim(), e = r.querySelector('.es-email').value.trim();
+    var ph = r.querySelector('.es-phone').value.trim();
+    if(n && e && ph) list.push({ name: n, email: e, phone: ph, delivery: 'both' });
+  });
+  return list;
+}
+
+document.getElementById('es-savedraft').addEventListener('click', function(e){
+  e.preventDefault(); saveDraftAndExit(this);
+});
+
 document.getElementById('es-doneplace').addEventListener('click', async function(e){
   e.preventDefault();
   var missing = missingSignatureRecipients();
   if(missing.length){ showT('Add a signature field for ' + missing.join(', '), 'error'); return; }
-  try { await saveLayout(false); } catch(err){ showT('Could not save field placement: ' + err.message, 'error'); return; }
   closePlacer(); goEsStep(4);
 });
 document.getElementById('es-openplace').addEventListener('click', function(e){
@@ -914,7 +935,7 @@ document.getElementById('es-send').addEventListener('click', async function(){
 
 function resetForm(){
   if(files.length) try { localStorage.removeItem(localFieldKey()); } catch(_) {}
-  document.getElementById('es-layout-select').value = '';
+  resumeId = null;
   files = []; docs = []; input.value = '';
   renderFiles();
   document.getElementById('es-title').value = '';
@@ -937,9 +958,85 @@ function when(ts){ return ts ? new Date(ts).toLocaleString('en-US', { month:'sho
 /* What the status means to the sender, rather than the column name. The
    stored value stays as it is — 'completed' is what the signing flow sets when
    the last signature lands, and reading that as "Signed" is the whole point. */
-function statusLabel(s){
+function statusLabel(s, e){
+  // A draft that has fields on it is work someone stopped part way through,
+  // which is a different thing to an empty one.
+  if(s === 'draft') return (e && e.field_count > 0) ? 'Field placement' : 'Draft';
   return ({ draft: 'Draft', sent: 'Sent', completed: 'Signed',
             declined: 'Declined', voided: 'Voided' })[s] || s;
+}
+
+/* Reopens a saved draft in the editor: its document, its recipients and its
+   fields, exactly as they were left. */
+async function continueDraft(id){
+  showT('Opening…', 'info');
+  try {
+    var r = await fetch('/api/esign/envelopes/' + id);
+    var d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Could not open it');
+
+    // The stored document comes back as the one file this request is now made
+    // of, however many were uploaded to build it.
+    var blob = await (await fetch('/api/esign/envelopes/' + id + '/document')).blob();
+    var f = new File([blob], d.envelope.file_name || 'document.pdf', { type: 'application/pdf' });
+
+    resetForm();
+    resumeId = id;
+    files = [f];
+    document.getElementById('es-title').value = d.envelope.title || '';
+    renderFiles();
+
+    rcpts.innerHTML = '';
+    (d.recipients || []).forEach(function(p){
+      addRecipient(p.name, p.email);
+      var row = rcpts.lastElementChild;
+      if(row && p.phone) row.querySelector('.es-phone').value = p.phone;
+    });
+    if(!rcpts.children.length) addRecipient();
+
+    await loadDocs();
+    fields = (d.fields || []).map(function(x){
+      return { recipientIndex: Number(x.recipientIndex) || 0, type: x.type, page: Number(x.page) || 1,
+               x: Number(x.x), y: Number(x.y), w: Number(x.w), h: Number(x.h),
+               label: x.label || '', required: x.required !== false };
+    });
+    suppressFieldAutosave = false;
+    saveLocalFields();                   // the net now matches what was restored
+    refreshWho();
+    goEsStep(3);                         // which opens the editor and draws the pages
+    showT(fields.length + (fields.length === 1 ? ' field' : ' fields') + ' restored — carry on where you left off', 'success');
+  } catch(err){
+    showT(err.message, 'error');
+  }
+}
+
+async function onContinue(e){
+  e.preventDefault();
+  await continueDraft(this.dataset.id);
+}
+
+/* Pulls a sent request back. Destructive enough to say so plainly first. */
+async function onRecall(e){
+  e.preventDefault();
+  var btn = this, id = btn.dataset.id, title = btn.dataset.title;
+  var signed = Number(btn.dataset.signed || 0);
+  var warn = 'Recall "' + title + '"?\n\nThe links already sent will stop working.';
+  if(signed) warn += '\n\n' + signed + (signed === 1 ? ' signature that has' : ' signatures that have') +
+    ' already been given will be discarded.';
+  warn += '\n\nYou can then change the fields and send it again.';
+  if(!confirm(warn)) return;
+  btn.disabled = true;
+  try {
+    var r = await fetch('/api/esign/envelopes/' + id + '/recall', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    var d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Could not recall it');
+    showT('Recalled. The old links no longer work.', 'success');
+    loadList();
+    await continueDraft(id);
+  } catch(err){
+    showT(err.message, 'error');
+  } finally { btn.disabled = false; }
 }
 
 async function onResend(e){
@@ -1015,9 +1112,21 @@ async function loadList(){
         ? '<span class="es-link" title="Automatic reminders at 3 PM Pacific each business day, up to seven times">Reminders on</span>'
         : '';
 
-      var actions =
+      var signedCount = (e.recipients || []).filter(function(p){ return p.status === 'signed'; }).length;
+      var cont = e.status === 'draft'
+        ? '<button class="es-link es-act" data-act="continue" data-id="' + e.id + '" type="button">Continue</button>'
+        : '';
+      // Recall applies to something out for signature; a finished document is
+      // a record, and Delete is the deliberate way to be rid of one.
+      var recall = e.status === 'sent'
+        ? '<button class="es-link es-act" data-act="recall" data-id="' + e.id +
+          '" data-title="' + esc(e.title) + '" data-signed="' + signedCount + '" type="button" ' +
+          'title="Stop the links that were sent and edit this request">Recall</button>'
+        : '';
+
+      var actions = cont +
         (canResend ? '<button class="es-link es-act" data-act="resend" data-id="' + e.id + '" type="button">' +
-                     (e.status === 'draft' ? 'Send' : 'Resend') + '</button>' : '') + rem +
+                     (e.status === 'draft' ? 'Send' : 'Resend') + '</button>' : '') + rem + recall +
         '<button class="es-link es-act es-danger" data-act="delete" data-id="' + e.id +
           '" data-title="' + esc(e.title) + '" data-status="' + esc(e.status) + '" type="button">Delete</button>';
 
@@ -1026,7 +1135,7 @@ async function loadList(){
           '<div style="color:var(--muted);font-size:11.5px">' + esc(e.file_name) + '</div>' + fail + '</td>' +
         '<td>' + esc(e.agent_name || '—') + '</td>' +
         '<td>' + who + '</td>' +
-        '<td><span class="es-pill es-' + esc(e.status) + '">' + esc(statusLabel(e.status)) + '</span></td>' +
+        '<td><span class="es-pill es-' + esc(e.status) + '">' + esc(statusLabel(e.status, e)) + '</span></td>' +
         '<td>' + when(e.sent_at || e.created_at) + '</td>' +
         '<td><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">' + dl + actions + '</div></td>' +
       '</tr>';
@@ -1037,7 +1146,9 @@ async function loadList(){
       '</tr></thead><tbody>' + rows + '</tbody></table>';
     el.querySelectorAll('.es-act').forEach(function(b){
       b.addEventListener('click',
-        b.dataset.act === 'resend' ? onResend : onDelete);
+        b.dataset.act === 'resend'   ? onResend :
+        b.dataset.act === 'continue' ? onContinue :
+        b.dataset.act === 'recall'   ? onRecall : onDelete);
     });
   } catch(e){
     // A raw driver error ("connect ECONNREFUSED 127.0.0.1:5432") tells an agent
