@@ -57,6 +57,15 @@ function baseUrl(req) {
 }
 
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '').trim());
+const FIELD_TYPES = new Set(['signature', 'initials', 'date', 'checkbox', 'text']);
+
+function validateLayout(fields, recipientCount) {
+  if (!Array.isArray(fields) || fields.length > 300) return false;
+  return fields.every((f) => FIELD_TYPES.has(f.type) && Number.isInteger(Number(f.page)) && Number(f.page) > 0 &&
+    Number.isInteger(Number(f.recipientIndex)) && Number(f.recipientIndex) >= 0 && Number(f.recipientIndex) < recipientCount &&
+    ['x','y','w','h'].every((k) => Number.isFinite(Number(f[k])) && Number(f[k]) >= 0 && Number(f[k]) <= 1) &&
+    Number(f.w) > 0 && Number(f.h) > 0 && Number(f.x) + Number(f.w) <= 1.001 && Number(f.y) + Number(f.h) <= 1.001);
+}
 
 /* ==========================================================================
    Agent-facing API
@@ -130,7 +139,7 @@ router.get('/envelopes', requireAuth, async (req, res) => {
       `SELECT e.id, e.public_id, e.title, e.status, e.file_name, e.agent_name,
               e.created_at, e.sent_at, e.completed_at,
               COALESCE(json_agg(json_build_object(
-                'name', r.name, 'email', r.email, 'status', r.status,
+                'name', r.name, 'email', r.email, 'status', r.status, 'order', r.routing_order,
                 'signed_at', r.signed_at
               ) ORDER BY r.routing_order, r.id) FILTER (WHERE r.id IS NOT NULL), '[]') AS recipients,
               (SELECT detail FROM envelope_events ev
@@ -176,6 +185,49 @@ router.get('/recipients', requireAuth, async (req, res) => {
     console.error('list saved recipients:', e);
     res.status(500).json({ error: e.message });
   }
+});
+
+router.get('/field-layouts', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, name, fields, updated_at FROM esign_field_layouts WHERE agent_id = $1 ORDER BY updated_at DESC LIMIT 100`,
+      [req.session.agentId]);
+    res.json({ success: true, layouts: rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/field-layouts', requireAuth, async (req, res) => {
+  const name = String(req.body.name || '').trim().slice(0, 120);
+  const fields = req.body.fields;
+  const recipientCount = Number(req.body.recipientCount);
+  if (!name || !Number.isInteger(recipientCount) || recipientCount < 1 || recipientCount > 50 ||
+      !validateLayout(fields, recipientCount)) {
+    return res.status(400).json({ error: 'Provide a layout name and valid fields for its recipients.' });
+  }
+  try {
+    const { rows } = await db.query(
+      `INSERT INTO esign_field_layouts (agent_id, name, fields) VALUES ($1,$2,$3) RETURNING id, name, updated_at`,
+      [req.session.agentId, name, JSON.stringify(fields)]);
+    res.json({ success: true, layout: rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.put('/field-layouts/:id', requireAuth, async (req, res) => {
+  const name = String(req.body.name || '').trim().slice(0, 120);
+  const fields = req.body.fields;
+  const recipientCount = Number(req.body.recipientCount);
+  if (!name || !Number.isInteger(recipientCount) || recipientCount < 1 || recipientCount > 50 ||
+      !validateLayout(fields, recipientCount)) {
+    return res.status(400).json({ error: 'Provide a layout name and valid fields for its recipients.' });
+  }
+  try {
+    const { rows } = await db.query(
+      `UPDATE esign_field_layouts SET name=$3, fields=$4, updated_at=NOW()
+        WHERE id=$1 AND agent_id=$2 RETURNING id, name, updated_at`,
+      [req.params.id, req.session.agentId, name, JSON.stringify(fields)]);
+    if (!rows.length) return res.status(404).json({ error: 'Layout not found' });
+    res.json({ success: true, layout: rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.get('/envelopes/:id', requireAuth, async (req, res) => {
@@ -261,6 +313,9 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
     try { fields = JSON.parse(req.body.fields || '[]') || []; } catch {
       return res.status(400).json({ error: 'Signing fields could not be read' });
     }
+    if (!validateLayout(fields, recipients.length)) {
+      return res.status(400).json({ error: 'One or more signing fields are outside the document or assigned to an invalid recipient.' });
+    }
     const missingSignature = recipients.findIndex((_, i) =>
       !fields.some((f) => Number(f.recipientIndex) === i && f.type === 'signature')
     );
@@ -273,8 +328,8 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
 
     const { rows } = await db.query(
       `INSERT INTO envelopes (public_id, agent_id, agent_name, agent_email, title, message,
-                              file_name, file_mime, file_bytes, file_sha256, language)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, public_id`,
+                              file_name, file_mime, file_bytes, file_sha256, language, reminders_enabled)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,TRUE) RETURNING id, public_id`,
       [publicId(), req.session.agentId, req.session.agentName, req.session.email,
        title, (req.body.message || '').trim() || null,
        fileName, 'application/pdf', merged, sha256(merged), language]
@@ -296,7 +351,7 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
 
     // Placed fields, if the sender used the placement editor. Each references a
     // recipient by index into the list above.
-    const TYPES = new Set(['signature', 'initials', 'date', 'checkbox', 'text']);
+    const TYPES = FIELD_TYPES;
     let placedCount = 0;
     for (const f of fields) {
       const ri = Number(f.recipientIndex);
@@ -348,7 +403,7 @@ router.post('/envelopes/:id/send', requireAuth, async (req, res) => {
 
     if (sent.length) {
       await db.query(
-        `UPDATE envelopes SET status = 'sent', sent_at = COALESCE(sent_at, NOW()) WHERE id = $1`,
+        `UPDATE envelopes SET status = 'sent', sent_at = COALESCE(sent_at, NOW()), reminders_enabled = TRUE WHERE id = $1`,
         [env.id]);
     }
     res.json({ success: sent.length > 0, sent, failed });
@@ -455,6 +510,13 @@ async function loadByToken(token) {
   return rows[0] || null;
 }
 
+async function currentTurn(r) {
+  const { rows } = await db.query(
+    `SELECT MIN(routing_order)::int AS turn FROM envelope_recipients
+      WHERE envelope_id=$1 AND status <> 'signed'`, [r.env_id]);
+  return rows[0]?.turn === r.routing_order;
+}
+
 const pub = express.Router();
 
 pub.get('/:token', async (req, res) => {
@@ -462,6 +524,10 @@ pub.get('/:token', async (req, res) => {
     const r = await loadByToken(req.params.token);
     if (!r) return res.status(404).json({ error: 'This signing link is not valid. It may have been replaced by a newer one.' });
     if (r.env_status === 'voided') return res.status(410).json({ error: 'This document has been voided by the sender.' });
+    if (r.env_status === 'declined') return res.status(410).json({ error: 'This signing request has been declined.' });
+    if (r.status !== 'signed' && !(await currentTurn(r))) {
+      return res.status(403).json({ error: 'This document is waiting for the previous recipient to sign.' });
+    }
 
     if (r.status === 'pending') {
       await db.query(`UPDATE envelope_recipients SET status='viewed', viewed_at=NOW() WHERE id=$1 AND status='pending'`, [r.id]);
@@ -489,6 +555,7 @@ pub.get('/:token/document', async (req, res) => {
   try {
     const r = await loadByToken(req.params.token);
     if (!r) return res.status(404).send('Not found');
+    if (r.status !== 'signed' && !(await currentTurn(r))) return res.status(403).send('Waiting for the previous signer');
     const { rows } = await db.query(
       `SELECT file_bytes, signed_bytes, file_name FROM envelopes WHERE id = $1`, [r.env_id]);
     const wantSigned = req.query.signed === '1' && rows[0].signed_bytes;
@@ -506,6 +573,7 @@ pub.post('/:token/consent', async (req, res) => {
     const r = await loadByToken(req.params.token);
     if (!r) return res.status(404).json({ error: 'This signing link is not valid.' });
     if (r.env_status === 'voided') return res.status(410).json({ error: 'This document has been voided.' });
+    if (r.env_status === 'declined' || !(await currentTurn(r))) return res.status(403).json({ error: 'It is not your turn to sign.' });
     if (req.body.agree !== true) return res.status(400).json({ error: 'Consent was not given' });
 
     await db.query(
@@ -523,6 +591,7 @@ pub.post('/:token/decline', async (req, res) => {
   try {
     const r = await loadByToken(req.params.token);
     if (!r) return res.status(404).json({ error: 'This signing link is not valid.' });
+    if (r.env_status !== 'sent' || !(await currentTurn(r))) return res.status(403).json({ error: 'It is not your turn to respond.' });
     const reason = (req.body.reason || '').trim() || 'No reason given';
     await db.query(`UPDATE envelope_recipients SET status='declined', decline_reason=$2 WHERE id=$1`, [r.id, reason]);
     await db.query(`UPDATE envelopes SET status='declined' WHERE id=$1 AND status <> 'completed'`, [r.env_id]);
@@ -538,6 +607,7 @@ pub.post('/:token/sign', async (req, res) => {
     const r = await loadByToken(req.params.token);
     if (!r) return res.status(404).json({ error: 'This signing link is not valid.' });
     if (r.env_status === 'voided') return res.status(410).json({ error: 'This document has been voided.' });
+    if (r.env_status !== 'sent' || !(await currentTurn(r))) return res.status(403).json({ error: 'It is not your turn to sign.' });
     if (r.status === 'signed') return res.status(400).json({ error: 'You have already signed this document.' });
     if (!r.consent_at) return res.status(400).json({ error: 'Electronic records consent is required before signing.' });
 
@@ -622,6 +692,20 @@ pub.post('/:token/sign', async (req, res) => {
           // A failed copy must not undo a completed signature.
           console.error('completion email failed:', err.message);
           await logEvent(r.env_id, 'send_failed', req, { recipientId: p.id, detail: { to: p.email, error: err.message } });
+        }
+      }
+    } else {
+      // Send the next signer their own link only after the previous signer has
+      // completed the document. A failed delivery remains retryable via Send.
+      const next = await pendingRecipients(r.env_id);
+      if (next.length) {
+        const { rows: envRows } = await db.query(`SELECT * FROM envelopes WHERE id=$1`, [r.env_id]);
+        try {
+          await deliverSigningLinks({ env: envRows[0], recipients: next, baseUrl: baseUrl(req),
+            req, actor: 'signing order' });
+        } catch (err) {
+          console.error('next signer delivery failed:', err);
+          await logEvent(r.env_id, 'send_failed', req, { detail: { nextRecipient: next[0].id, error: err.message } });
         }
       }
     }

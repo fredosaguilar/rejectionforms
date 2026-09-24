@@ -133,7 +133,7 @@ body:not(.signing-page) .nav-agent{color:rgba(255,255,255,.76)!important;backgro
 #f-esign .es-grid{grid-template-columns:1fr 1fr!important;gap:16px!important}
 #f-esign .es-pane-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:26px -28px -28px;padding:16px 28px;background:#fafbfa;border-top:1px solid var(--border)}
 #f-esign .es-pane-actions>div{display:flex;gap:8px}
-#f-esign .es-rcpt3{position:relative;display:grid!important;grid-template-columns:38px minmax(180px,1fr) minmax(210px,1.2fr) minmax(180px,.9fr) minmax(140px,.7fr) 40px!important;gap:12px!important;align-items:end!important;padding:18px!important;margin-bottom:12px!important;background:#f8faf9!important;border:1px solid var(--border)!important;border-radius:13px!important}
+#f-esign .es-rcpt3{position:relative;display:grid!important;grid-template-columns:38px minmax(180px,1fr) minmax(210px,1.2fr) minmax(180px,.9fr) 78px 40px!important;gap:12px!important;align-items:end!important;padding:18px!important;margin-bottom:12px!important;background:#f8faf9!important;border:1px solid var(--border)!important;border-radius:13px!important}
 #f-esign .es-rcpt3 label{display:flex;flex-direction:column;gap:6px;min-width:0}
 #f-esign .es-rcpt3 label>span{font-size:10.5px;font-weight:700;color:#59645f}
 #f-esign .es-rcpt3 input,#f-esign .es-rcpt3 select{width:100%;min-width:0;min-height:42px!important;background:#fff!important;border:1px solid var(--border2)!important;border-radius:9px!important;padding:9px 10px!important}
@@ -155,14 +155,14 @@ body:not(.signing-page) .nav-agent{color:rgba(255,255,255,.76)!important;backgro
 @media(max-width:900px){
   body:not(.signing-page) .workspace-header h1{font-size:26px!important}
   #f-esign .es-pane{padding:20px}#f-esign .es-pane-actions{margin:22px -20px -20px;padding:14px 20px}
-  #f-esign .es-rcpt3{grid-template-columns:32px 1fr 1fr!important;align-items:end!important}#f-esign .es-rcpt3 label:nth-of-type(3),#f-esign .es-rcpt3 label:nth-of-type(4){grid-column:2/4}#f-esign .es-rcpt3 .es-x{grid-column:3!important;grid-row:1!important;justify-self:end}
+  #f-esign .es-rcpt3{grid-template-columns:32px 1fr 1fr!important;align-items:end!important}#f-esign .es-rcpt3 label:nth-of-type(3){grid-column:2/4}#f-esign .es-rcpt3 .es-rcpt-nav{grid-column:2;grid-row:1}#f-esign .es-rcpt3 .es-x{grid-column:3!important;grid-row:1!important;justify-self:end}
   #f-esign .es-review-grid{grid-template-columns:1fr}
 }
 @media(max-width:620px){
   #f-esign .es-workflow-head{padding:18px}#f-esign .es-autosave{display:none}
   #f-esign .es-stepper{padding:8px;gap:4px}#f-esign .es-step{justify-content:center;padding:9px 5px}#f-esign .es-step div{display:none}
   #f-esign .es-grid{grid-template-columns:1fr!important}
-  #f-esign .es-rcpt3{grid-template-columns:32px 1fr 40px!important}#f-esign .es-rcpt3 label,#f-esign .es-rcpt3 label:nth-of-type(3),#f-esign .es-rcpt3 label:nth-of-type(4){grid-column:1/-1!important}#f-esign .es-rcpt3 .es-rcpt-num{grid-column:1}#f-esign .es-rcpt3 .es-x{grid-column:3!important;grid-row:1!important}
+  #f-esign .es-rcpt3{grid-template-columns:32px 1fr 40px!important}#f-esign .es-rcpt3 label,#f-esign .es-rcpt3 label:nth-of-type(3){grid-column:1/-1!important}#f-esign .es-rcpt3 .es-rcpt-num{grid-column:1}#f-esign .es-rcpt3 .es-rcpt-nav{grid-column:2;grid-row:1}#f-esign .es-rcpt3 .es-x{grid-column:3!important;grid-row:1!important}
   #f-esign .es-delivery-checks{grid-template-columns:1fr 1fr}#f-esign .es-delivery-checks>div{grid-column:1/-1}
   #f-esign .es-review-card{grid-template-columns:1fr}#f-esign .es-review-card>div{border-right:0;border-bottom:1px solid var(--border)}
   #f-esign .es-pane-actions{position:sticky;bottom:0;z-index:30;align-items:stretch}#f-esign .es-pane-actions .btn{flex:1}
@@ -248,7 +248,7 @@ body:not(.signing-page) .nav-agent{color:rgba(255,255,255,.76)!important;backgro
   #f-esign .es-pgbar{grid-column:1}.es-zoom{grid-column:2}
   #f-esign .es-studio{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto minmax(0,1fr)!important;overflow:hidden}
   #f-esign .es-palette{max-height:min(32vh,230px)!important;padding:12px!important;overflow:auto}
-  #f-esign .es-chips{flex-wrap:nowrap;overflow-x:auto;padding:4px 0;scrollbar-width:thin}
+  #f-esign .es-chips{flex-wrap:wrap;overflow:visible;padding:4px 0}
   #f-esign .es-chip{min-height:38px;flex:0 0 auto}
   #f-esign .es-stage{min-height:0!important;padding:0!important}
   #f-esign .es-scroll{padding:14px!important;gap:18px;overflow:auto;overscroll-behavior:contain}

@@ -108,8 +108,21 @@ ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'e
 ALTER TABLE envelope_recipients ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE envelope_recipients ADD COLUMN IF NOT EXISTS delivery TEXT NOT NULL DEFAULT 'email';  -- email|sms|both
 
--- Daily reminders. Opt-in per envelope, capped so a client is nudged rather
--- than harassed, and stopped by the signing flow the moment everyone signs.
-ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminders_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+-- Daily reminders are on for new envelopes, capped at seven sends, and stop
+-- when the signing flow completes.
+ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminders_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE envelopes ALTER COLUMN reminders_enabled SET DEFAULT TRUE;
 ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminder_last_at  TIMESTAMPTZ;
 ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminder_count    INTEGER NOT NULL DEFAULT 0;
+
+-- Reusable placement layouts belong to their creator. The envelope's own
+-- envelope_fields rows remain the authoritative copy after sending.
+CREATE TABLE IF NOT EXISTS esign_field_layouts (
+  id SERIAL PRIMARY KEY,
+  agent_id INTEGER REFERENCES agents(id),
+  name TEXT NOT NULL,
+  fields JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_esign_layout_agent ON esign_field_layouts(agent_id, updated_at DESC);
