@@ -266,7 +266,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
         <button onclick="addOtherProduct('auto')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add product / Agregar producto</button>
       </div>
     </div>
-    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-auto')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-auto" onclick="submitForm('auto_cov','auto')">Save &amp; Download PDF</button></div>
+    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-auto')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-auto" onclick="submitForm('auto_cov','auto')">Save &amp; Download PDF</button><button class="btn btn-green" id="esign-auto" onclick="submitForm('auto_cov','auto','esign')">Save &amp; send for e-signature</button></div>
   </div>
   <div id="f-home" class="fc">
     <div class="fhdr"><div><div class="ftitle">Homeowners Coverage Recommendation / Recomendación de Cobertura para Hogar</div><div class="fsub">Personal Lines — Residential / Líneas Personales — Residencial</div></div><span class="badge badge-cov">Coverage Rec.</span></div>
@@ -304,7 +304,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
         <button onclick="addOtherProduct('home')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add product / Agregar producto</button>
       </div>
     </div>
-    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-home')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-home" onclick="submitForm('home_cov','home')">Save &amp; Download PDF</button></div>
+    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-home')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-home" onclick="submitForm('home_cov','home')">Save &amp; Download PDF</button><button class="btn btn-green" id="esign-home" onclick="submitForm('home_cov','home','esign')">Save &amp; send for e-signature</button></div>
   </div>
 
   <!-- TRUCKING -->
@@ -357,7 +357,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
         <button onclick="addOtherProduct('truck')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add product / Agregar producto</button>
       </div>
     </div>
-    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-truck')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-truck" onclick="submitForm('trucking_cov','truck')">Save &amp; Download PDF</button></div>
+    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-truck')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-truck" onclick="submitForm('trucking_cov','truck')">Save &amp; Download PDF</button><button class="btn btn-green" id="esign-truck" onclick="submitForm('trucking_cov','truck','esign')">Save &amp; send for e-signature</button></div>
   </div>
 
   <!-- CONTRACTOR -->
@@ -397,7 +397,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
         <button onclick="addOtherProduct('cont')" style="font-size:12px;padding:5px 12px;border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;margin-top:6px">+ Add product / Agregar producto</button>
       </div>
     </div>
-    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-cont')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-cont" onclick="submitForm('contractor_cov','cont')">Save &amp; Download PDF</button></div>
+    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-cont')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-cont" onclick="submitForm('contractor_cov','cont')">Save &amp; Download PDF</button><button class="btn btn-green" id="esign-cont" onclick="submitForm('contractor_cov','cont','esign')">Save &amp; send for e-signature</button></div>
   </div>
 
   <!-- THIRD-PARTY AUTHORIZATION -->
@@ -489,7 +489,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
       </div></div>
 
     </div>
-    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-auth')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" onclick="downloadAuthPDF()">Save &amp; Download PDF</button></div>
+    <div class="btn-row"><button class="btn btn-sec" onclick="CF('f-auth')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" onclick="downloadAuthPDF()">Save &amp; Download PDF</button><button class="btn btn-green" onclick="downloadAuthPDF('esign')">Save &amp; send for e-signature</button></div>
   </div>
 
   <!-- History -->
@@ -658,7 +658,10 @@ if(title&&sub){
 function ST2(btn,val){const t=btn.closest('.tog');t.querySelectorAll('.tb').forEach(b=>b.className='tb');btn.classList.add(val);}
 function CF(id){const f=document.getElementById(id);f.querySelectorAll('input[type=text],input[type=date],input[type=email],textarea').forEach(el=>{if(!el.readOnly)el.value='';});f.querySelectorAll('input[type=checkbox],input[type=radio]').forEach(el=>el.checked=false);f.querySelectorAll('.tb').forEach(b=>b.className='tb');f.querySelectorAll('.rp').forEach(p=>p.classList.remove('sel'));f.querySelectorAll('canvas').forEach(c=>{const ctx=c.getContext('2d');if(ctx)ctx.clearRect(0,0,c.width,c.height);});showT('Form cleared','info');}
 function syncClientName(){const n=document.getElementById('global-client-name').value;['veh-client','auto-client','home-client','truck-client','cont-client','auth-name'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=n;});}
-function downloadAuthPDF(){
+/* The third-party authorisation, built once and then either downloaded or
+   handed to the signature workflow. */
+function downloadAuthPDF(mode){
+  const toEsign=mode==='esign';
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:'pt',format:'letter'});
   const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();
@@ -871,15 +874,38 @@ function downloadAuthPDF(){
     doc.text('Columbia Basin Insurance | Quincy Alliance Insurance LLC DBA Columbia Basin Insurance',M,H-10);
     doc.text('Page '+i+' of '+pages,W-M,H-10,{align:'right'});
   }
-  doc.save('Auth-EO-'+(gvl('auth-name')||'Client').replace(/\s+/g,'-')+'.pdf');
+  const authName=gvl('auth-name')||'Client';
+  const authFile='Auth-EO-'+authName.replace(/\s+/g,'-')+'.pdf';
+  if(toEsign){
+    if(typeof window.esignAttachPdf!=='function'){showT('The signature workspace has not loaded yet','error');return;}
+    var authEmail=(document.getElementById('global-client-email')||{}).value||'';
+    window.esignAttachPdf(new File([doc.output('blob')],authFile,{type:'application/pdf'}),
+      {title:'Third Party Authorization'+(gvl('auth-name')?' — '+gvl('auth-name'):''),
+       clientName:gvl('auth-name'), clientEmail:authEmail, from:'auth'});
+    // Sending it for signature makes it a record, so it joins the history the
+    // way every other form does.
+    fetch('/api/forms/submit',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({formType:'third_party_auth',clientName:gvl('auth-name'),clientEmail:authEmail,
+        formData:{agentName:(document.getElementById('global-agent-name')||{}).value||''}})})
+      .then(function(r){return r.json();})
+      .then(function(d){ if(d&&d.success&&typeof loadHistory==='function') loadHistory(); })
+      .catch(function(e){ showT('Added to the signature request, but save failed: '+e.message,'error'); });
+    return;
+  }
+  doc.save(authFile);
   showT('PDF downloaded!','success');
 }
 function collectCoverages(gridId){return Array.from(document.querySelectorAll('#'+gridId+' .cov-card')).map(card=>{const name=card.dataset.name||'';const off=card.querySelector('.tb.offered');const dec=card.querySelector('.tb.declined');const status=off?'offered':dec?'declined':'not_set';const inputs=card.querySelectorAll('.combo-input');return{name,status,recommended:inputs[0]?.value||'',selected:inputs[1]?.value||''};});}
-async function submitForm(formType,prefix){
-  const btn=document.getElementById('submit-'+prefix);
+/* A coverage form, either downloaded as a PDF or handed straight to the
+   signature workflow. It is saved to the submission history either way; only
+   what happens to the finished file differs. */
+async function submitForm(formType,prefix,mode){
+  const toEsign=mode==='esign';
+  const btn=document.getElementById((toEsign?'esign-':'submit-')+prefix);
+  const wasLabel=btn.textContent;
   btn.disabled=true;btn.textContent='Generating PDF…';
   const gv=id=>(document.getElementById(id)||{}).value||'';
-  const FORM_LABELS2={vehicle_removal:'Vehicle Removal E&O Acknowledgment',auto_cov:'Auto Coverage Recommendation',home_cov:'Homeowners Coverage Recommendation',trucking_cov:'Trucking Coverage Recommendation',contractor_cov:'Contractor Coverage Recommendation'};
+  const FORM_LABELS2={third_party_auth:'Third Party Authorization',fee_agreement:'Broker Fee Agreement',vehicle_removal:'Vehicle Removal E&O Acknowledgment',auto_cov:'Auto Coverage Recommendation',home_cov:'Homeowners Coverage Recommendation',trucking_cov:'Trucking Coverage Recommendation',contractor_cov:'Contractor Coverage Recommendation'};
   try{
     const {jsPDF}=window.jspdf;
     const doc=new jsPDF({unit:'pt',format:'letter'});
@@ -1157,18 +1183,29 @@ async function submitForm(formType,prefix){
       doc.text('Columbia Basin Insurance  |  Auto • Home • Commercial • Farms  |  '+date+'  |  Page '+i+' of '+pages,W/2,768,{align:'center'});
     }
     const clientName=gv(prefix+'-client')||gv('veh-client')||'form';
-    doc.save('EO-'+formType+'-'+clientName.replace(/\s+/g,'-')+'-'+date.replace(/,?\s+/g,'-')+'.pdf');
+    const fileName='EO-'+formType+'-'+clientName.replace(/\s+/g,'-')+'-'+date.replace(/,?\s+/g,'-')+'.pdf';
+    const label=FORM_LABELS2[formType]||formType;
+    if(toEsign){
+      if(typeof window.esignAttachPdf!=='function')throw new Error('The signature workspace has not loaded yet');
+      window.esignAttachPdf(new File([doc.output('blob')],fileName,{type:'application/pdf'}),
+        {title:label+(clientName&&clientName!=='form'?' — '+clientName:''),
+         clientName:clientName==='form'?'':clientName,
+         clientEmail:gv('global-client-email'), from:prefix});
+    } else {
+      doc.save(fileName);
+    }
     savePayload.signatureClient=(sigC&&sigC.width>0)?sigC.toDataURL('image/png'):null;
     savePayload.signatureAgent=(sigA&&sigA.width>0)?sigA.toDataURL('image/png'):null;
     savePayload.formData={...savePayload.formData,agentName:gv('global-agent-name')};
+    const got=toEsign?'Added to the signature request':'PDF downloaded';
     try{
       const saveResp=await fetch('/api/forms/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(savePayload)});
       const saveData=await saveResp.json();
-      if(saveResp.ok&&saveData.success){showT('PDF downloaded & saved as EO-'+saveData.submissionId,'success');loadHistory();}
-      else{showT('PDF downloaded, but save failed: '+(saveData.error||'unknown error'),'error');}
-    }catch(saveErr){showT('PDF downloaded, but save failed: '+saveErr.message,'error');}
+      if(saveResp.ok&&saveData.success){if(!toEsign)showT(got+' & saved as EO-'+saveData.submissionId,'success');loadHistory();}
+      else{showT(got+', but save failed: '+(saveData.error||'unknown error'),'error');}
+    }catch(saveErr){showT(got+', but save failed: '+saveErr.message,'error');}
   }catch(e){showT('PDF error: '+e.message,'error');}
-  finally{btn.disabled=false;btn.textContent='Save & Download PDF';}
+  finally{btn.disabled=false;btn.textContent=wasLabel;}
 }
 async function loadHistory(){
   try{
@@ -1177,7 +1214,7 @@ async function loadHistory(){
     if(!r.ok)return;
     const rows=await r.json();
     const tbody=document.getElementById('hist-body');
-    const FL={vehicle_removal:'Vehicle Removal E&O',auto_cov:'Auto Coverage',home_cov:'Home Coverage',trucking_cov:'Trucking Coverage',contractor_cov:'Contractor Coverage'};
+    const FL={third_party_auth:'Third Party Auth',fee_agreement:'Broker Fee Agreement',vehicle_removal:'Vehicle Removal E&O',auto_cov:'Auto Coverage',home_cov:'Home Coverage',trucking_cov:'Trucking Coverage',contractor_cov:'Contractor Coverage'};
     if(!rows.length){tbody.innerHTML='<tr><td colspan="7" style="color:var(--hint);padding:14px 10px">No submissions yet</td></tr>';return;}
     tbody.innerHTML=rows.map(s=>'<tr><td style="color:var(--muted)">#'+s.id+'</td><td>'+(FL[s.form_type]||s.form_type)+'</td><td style="font-weight:500">'+(s.client_name||'--')+'</td><td>'+(s.policy_number||'--')+'</td><td>'+(s.agent_name||'--')+'</td><td>'+new Date(s.submitted_at).toLocaleDateString()+'</td><td><a class="dl-link" href="/api/forms/'+s.id+'/pdf">Download PDF</a></td></tr>').join('');
   }catch(e){}
