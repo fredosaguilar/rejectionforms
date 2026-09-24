@@ -83,6 +83,10 @@ css.textContent = [
   '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:visible;cursor:move;user-select:none;touch-action:none}',
   '#f-esign .es-fld-label{display:block;max-width:100%;max-height:100%;overflow:hidden;pointer-events:none;padding:0 4px;text-align:center;line-height:1.2}',
   // Inset, so the border it leaves is still something to drag the field by.
+  // Not scoped to #f-esign: this one sits on the form panels, which is where
+  // the agent is standing when a form is saved for signature.
+  '.es-ready-pill{margin-right:auto;display:inline-flex;align-items:center;padding:8px 14px;border:1px solid #16a34a;border-radius:9px;background:#f0fdf4;color:#15803d;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;line-height:1.25}',
+  '.es-ready-pill:hover{background:#dcfce7}',
   '#f-esign .es-fld-text{position:absolute;inset:5px;pointer-events:auto;display:block;border:none;background:transparent;font-family:inherit;font-size:12px;line-height:1.2;color:inherit;text-align:center;padding:0;outline:none;cursor:text;resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:break-word}',
   '#f-esign .es-fld-text::placeholder{color:currentColor;opacity:.45;font-size:9px}',
   '#f-esign .es-fld-text:focus{background:rgba(255,255,255,.75);border-radius:3px}',
@@ -130,6 +134,13 @@ var html =
       '<input type="file" id="es-input" accept="application/pdf" multiple style="display:none">' +
     '</div>' +
     '<div id="es-files"></div>' +
+    // Shown once a form from this workspace has been added, because the way
+    // to add a second one is not in this panel.
+    '<div id="es-fromforms" hidden style="font-size:11.5px;color:var(--muted);margin-top:8px;padding:8px 10px;border:1px dashed var(--border2);border-radius:8px">' +
+      'Filling in another form for the same client? ' +
+      '<button type="button" class="es-link" id="es-backforms">Go back to the forms</button>' +
+      ' and save it for e-signature too — it joins this request.' +
+    '</div>' +
     '<div class="es-grid" style="margin-top:12px">' +
       '<div class="fld"><div class="lbl">Document title</div><input type="text" id="es-title" placeholder="e.g. Broker fee agreement — G. Ayala"></div>' +
     '</div>' +
@@ -402,8 +413,36 @@ function removeFile(i){
 }
 
 document.getElementById('es-title').addEventListener('input', refreshReady);
+document.getElementById('es-backforms').addEventListener('click', function(e){
+  e.preventDefault(); ST(cameFrom);
+});
+
+/* What is waiting on the signature request, shown on the form panels.
+
+   Saving a form for signature leaves the agent where they are, so the count is
+   how they know it landed — and how they get to the request once they have
+   filled in everything they mean to send. */
+function renderFormCount(){
+  var n = files.length;
+  document.querySelectorAll('.fc .btn-row').forEach(function(row){
+    if(row.closest('#f-esign')) return;
+    var pill = row.querySelector('.es-ready-pill');
+    if(!n){ if(pill) pill.remove(); return; }
+    if(!pill){
+      pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = 'es-ready-pill';
+      pill.addEventListener('click', function(e){
+        e.preventDefault(); ST('esign'); goEsStep(1);
+      });
+      row.insertBefore(pill, row.firstChild);
+    }
+    pill.textContent = n + (n === 1 ? ' form' : ' forms') + ' ready for signature — review & send →';
+  });
+}
 
 function renderFiles(){
+  renderFormCount();
   var el = document.getElementById('es-files');
   var label = document.getElementById('es-file');
   if(!files.length){
@@ -1146,6 +1185,8 @@ function resetForm(){
   if(files.length) try { localStorage.removeItem(localFieldKey()); } catch(_) {}
   resumeId = null;
   files = []; docs = []; input.value = '';
+  var note = document.getElementById('es-fromforms');
+  if(note) note.hidden = true;
   renderFiles();
   document.getElementById('es-title').value = '';
   rcpts.innerHTML = ''; addRecipient();
@@ -1373,5 +1414,50 @@ async function loadList(){
     if (again) again.addEventListener('click', function(ev){ ev.preventDefault(); loadList(); });
   }
 }
+
+/* ---- a form filled elsewhere on this page, handed straight to a request ----
+   The coverage forms and the fee agreement build their PDF in the browser.
+   Rather than make the agent download one and then choose it back, they pass
+   the file here. It joins whatever is already on the request, so several forms
+   filled in one sitting go out as a single document for one signature.
+   -------------------------------------------------------------------------- */
+var cameFrom = 'auto';           // the form panel the last attachment came from
+window.esignAttachPdf = function(file, meta){
+  meta = meta || {};
+  if(meta.from) cameFrom = meta.from;
+  // Named before the file lands, because an untitled request otherwise takes
+  // the file name, and "Auto Coverage Recommendation — Maria Hernandez" reads
+  // better to the person being asked to sign than "EO-auto_cov-MARIA-...".
+  var title = document.getElementById('es-title');
+  if(!title.value.trim() && meta.title) title.value = meta.title;
+
+  var before = files.length;
+  addFiles([file]);
+  if(files.length === before){
+    showT('That form is already on this request', 'info');
+  }
+
+  // The first recipient is the client the form was filled in for — unless
+  // someone has already been put there, which is not ours to overwrite.
+  var row = rcpts.querySelector('.es-rcpt');
+  if(row){
+    var n = row.querySelector('.es-name'), m = row.querySelector('.es-email');
+    if(n && !n.value.trim() && meta.clientName)  n.value  = meta.clientName;
+    if(m && !m.value.trim() && meta.clientEmail) m.value = meta.clientEmail;
+  }
+
+  refreshWho();
+  var note = document.getElementById('es-fromforms');
+  if(note) note.hidden = false;
+  closePlacer();            // the request has changed; the editor reopens at step 3
+  // Deliberately staying put: filling in the next form for the same client is
+  // the common next move, and the count below says the last one landed.
+  if(files.length > before){
+    showT(files.length === 1
+      ? 'Saved and added — 1 form ready for signature.'
+      : 'Saved and added — ' + files.length + ' forms ready, sent as one document.', 'success');
+  }
+  return files.length;
+};
 
 })();

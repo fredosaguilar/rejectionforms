@@ -146,7 +146,7 @@ var html =
   '</div></div>' +
 
   '</div>' +
-  '<div class="btn-row"><button class="btn btn-sec" onclick="CF(\'f-fee\')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-fee" onclick="submitFeeAgreement()">Save &amp; Download PDF</button></div>' +
+  '<div class="btn-row"><button class="btn btn-sec" onclick="CF(\'f-fee\')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-fee" onclick="submitFeeAgreement()">Save &amp; Download PDF</button><button class="btn btn-green" id="esign-fee" onclick="submitFeeAgreement(\'esign\')">Save &amp; send for e-signature</button></div>' +
 '</div>';
 
 lastForm.insertAdjacentHTML('afterend', html);
@@ -497,13 +497,28 @@ window.buildFeeAgreementPDF = function(){
 /* --------------------------------------------------------------------------
    5. Save & download
    -------------------------------------------------------------------------- */
-window.submitFeeAgreement = async function(){
-  var btn=document.getElementById('submit-fee');
+/* The fee agreement, either downloaded as a PDF or handed straight to the
+   signature workflow. It is saved to the submission history either way. */
+window.submitFeeAgreement = async function(mode){
+  var toEsign = mode === 'esign';
+  var btn=document.getElementById(toEsign ? 'esign-fee' : 'submit-fee');
+  var wasLabel=btn.textContent;
   btn.disabled=true; btn.textContent='Generating PDF…';
   try{
     var doc=window.buildFeeAgreementPDF();
     var client=gv('fee-client')||'Client';
-    doc.save('WA-Fee-Agreement-'+client.replace(/\s+/g,'-')+'.pdf');
+    var fileName='WA-Fee-Agreement-'+client.replace(/\s+/g,'-')+'.pdf';
+    if(toEsign){
+      if(typeof window.esignAttachPdf!=='function') throw new Error('The signature workspace has not loaded yet');
+      window.esignAttachPdf(new File([doc.output('blob')], fileName, {type:'application/pdf'}), {
+        title: 'Broker Fee Agreement' + (gv('fee-client') ? ' — ' + gv('fee-client') : ''),
+        clientName: gv('fee-client'),
+        clientEmail: gv('global-client-email'),
+        from: 'fee',
+      });
+    } else {
+      doc.save(fileName);
+    }
     var payload={
       formType:'fee_agreement',
       clientName:gv('fee-client'),
@@ -525,14 +540,15 @@ window.submitFeeAgreement = async function(){
       },
       signatureClient:sigData('s-fee-c'), signatureAgent:sigData('s-fee-a')
     };
+    var got = toEsign ? 'Added to the signature request' : 'PDF downloaded';
     try{
       var r=await fetch('/api/forms/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       var d=await r.json();
-      if(r.ok&&d.success){ showT('PDF downloaded & saved as EO-'+d.submissionId,'success'); if(typeof loadHistory==='function') loadHistory(); }
-      else showT('PDF downloaded, but save failed: '+(d.error||'unknown error'),'error');
-    }catch(e){ showT('PDF downloaded, but save failed: '+e.message,'error'); }
+      if(r.ok&&d.success){ if(!toEsign) showT(got+' & saved as EO-'+d.submissionId,'success'); if(typeof loadHistory==='function') loadHistory(); }
+      else showT(got+', but save failed: '+(d.error||'unknown error'),'error');
+    }catch(e){ showT(got+', but save failed: '+e.message,'error'); }
   }catch(e){ showT('PDF error: '+e.message,'error'); console.error(e); }
-  finally{ btn.disabled=false; btn.textContent='Save & Download PDF'; }
+  finally{ btn.disabled=false; btn.textContent=wasLabel; }
 };
 
 })();
