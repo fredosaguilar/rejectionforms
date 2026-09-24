@@ -115,14 +115,8 @@ ALTER TABLE envelopes ALTER COLUMN reminders_enabled SET DEFAULT TRUE;
 ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminder_last_at  TIMESTAMPTZ;
 ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS reminder_count    INTEGER NOT NULL DEFAULT 0;
 
--- Reusable placement layouts belong to their creator. The envelope's own
--- envelope_fields rows remain the authoritative copy after sending.
-CREATE TABLE IF NOT EXISTS esign_field_layouts (
-  id SERIAL PRIMARY KEY,
-  agent_id INTEGER REFERENCES agents(id),
-  name TEXT NOT NULL,
-  fields JSONB NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_esign_layout_agent ON esign_field_layouts(agent_id, updated_at DESC);
+-- Reusable placement layouts are gone, replaced by drafts that can be saved
+-- part way through and picked up again. The index goes with the table; this
+-- file runs on every boot, so both statements have to tolerate being repeated.
+DROP INDEX IF EXISTS idx_esign_layout_agent;
+DROP TABLE IF EXISTS esign_field_layouts;
