@@ -83,6 +83,10 @@ css.textContent = [
   '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:visible;cursor:move;user-select:none;touch-action:none}',
   '#f-esign .es-fld-label{display:block;max-width:100%;max-height:100%;overflow:hidden;pointer-events:none;padding:0 4px;text-align:center;line-height:1.2}',
   // Inset, so the border it leaves is still something to drag the field by.
+  // Not scoped to #f-esign: this one sits on the form panels, which is where
+  // the agent is standing when a form is saved for signature.
+  '.es-ready-pill{margin-right:auto;display:inline-flex;align-items:center;padding:8px 14px;border:1px solid #16a34a;border-radius:9px;background:#f0fdf4;color:#15803d;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;line-height:1.25}',
+  '.es-ready-pill:hover{background:#dcfce7}',
   '#f-esign .es-fld-text{position:absolute;inset:5px;pointer-events:auto;display:block;border:none;background:transparent;font-family:inherit;font-size:12px;line-height:1.2;color:inherit;text-align:center;padding:0;outline:none;cursor:text;resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:break-word}',
   '#f-esign .es-fld-text::placeholder{color:currentColor;opacity:.45;font-size:9px}',
   '#f-esign .es-fld-text:focus{background:rgba(255,255,255,.75);border-radius:3px}',
@@ -413,7 +417,32 @@ document.getElementById('es-backforms').addEventListener('click', function(e){
   e.preventDefault(); ST(cameFrom);
 });
 
+/* What is waiting on the signature request, shown on the form panels.
+
+   Saving a form for signature leaves the agent where they are, so the count is
+   how they know it landed — and how they get to the request once they have
+   filled in everything they mean to send. */
+function renderFormCount(){
+  var n = files.length;
+  document.querySelectorAll('.fc .btn-row').forEach(function(row){
+    if(row.closest('#f-esign')) return;
+    var pill = row.querySelector('.es-ready-pill');
+    if(!n){ if(pill) pill.remove(); return; }
+    if(!pill){
+      pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = 'es-ready-pill';
+      pill.addEventListener('click', function(e){
+        e.preventDefault(); ST('esign'); goEsStep(1);
+      });
+      row.insertBefore(pill, row.firstChild);
+    }
+    pill.textContent = n + (n === 1 ? ' form' : ' forms') + ' ready for signature — review & send →';
+  });
+}
+
 function renderFiles(){
+  renderFormCount();
   var el = document.getElementById('es-files');
   var label = document.getElementById('es-file');
   if(!files.length){
@@ -1421,12 +1450,12 @@ window.esignAttachPdf = function(file, meta){
   var note = document.getElementById('es-fromforms');
   if(note) note.hidden = false;
   closePlacer();            // the request has changed; the editor reopens at step 3
-  ST('esign');
-  goEsStep(1);
+  // Deliberately staying put: filling in the next form for the same client is
+  // the common next move, and the count below says the last one landed.
   if(files.length > before){
     showT(files.length === 1
-      ? 'Added. Fill in the recipients, or add another form first.'
-      : files.length + ' forms on this request, sent as one document.', 'success');
+      ? 'Saved and added — 1 form ready for signature.'
+      : 'Saved and added — ' + files.length + ' forms ready, sent as one document.', 'success');
   }
   return files.length;
 };
