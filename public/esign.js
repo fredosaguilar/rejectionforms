@@ -81,8 +81,9 @@ css.textContent = [
   '#f-esign .es-layer{position:absolute;inset:0;cursor:default}',
   '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:visible;cursor:move;user-select:none;touch-action:none}',
   '#f-esign .es-fld-label{display:block;max-width:100%;max-height:100%;overflow:hidden;pointer-events:none;padding:0 4px;text-align:center;line-height:1.2}',
-  '#f-esign .es-fld-text{pointer-events:auto;width:100%;border:none;background:transparent;font-family:inherit;font-size:12px;color:inherit;text-align:center;padding:2px 0;outline:none;cursor:text}',
-  '#f-esign .es-fld-text::placeholder{color:currentColor;opacity:.45;font-size:10px}',
+  // Inset, so the border it leaves is still something to drag the field by.
+  '#f-esign .es-fld-text{position:absolute;inset:5px;pointer-events:auto;display:block;border:none;background:transparent;font-family:inherit;font-size:12px;line-height:1.2;color:inherit;text-align:center;padding:0;outline:none;cursor:text;resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:break-word}',
+  '#f-esign .es-fld-text::placeholder{color:currentColor;opacity:.45;font-size:9px}',
   '#f-esign .es-fld-text:focus{background:rgba(255,255,255,.75);border-radius:3px}',
   '#f-esign .es-fld-tag{position:absolute;left:0;right:0;bottom:-14px;font-size:9px;opacity:.75;text-align:center;pointer-events:none;white-space:nowrap}',
   // The button that is now the thing to do. Twice, then it stops.
@@ -504,6 +505,32 @@ function refreshWho(){
   drawFields();
 }
 
+var measureCanvas;
+function textWidth(text, font){
+  measureCanvas = measureCanvas || document.createElement('canvas');
+  var ctx = measureCanvas.getContext('2d');
+  ctx.font = font;
+  return ctx.measureText(String(text || '')).width;
+}
+
+/* How big a field should arrive, in PDF points, from what will go in it. A
+   signature for "Bartholomew Featherstonehaugh" needs a wider box than one for
+   "Al Ng", and the box is what the signature is then fitted into. Points rather
+   than screen pixels, so the same drop lands the same size at any zoom. The
+   resize handle still has the last word. */
+function dropSize(type, name){
+  if(type === 'checkbox') return { w: 26, h: 26 };
+  if(type === 'date')     return { w: 100, h: 26 };
+  if(type === 'initials'){
+    return { w: Math.max(44, textWidth(previewInitials(name), '600 16px system-ui') + 18), h: 30 };
+  }
+  if(type === 'signature'){
+    var w = textWidth(name || 'Full name', 'italic 20px "Segoe Script","Brush Script MT",cursive');
+    return { w: Math.max(120, Math.min(380, w + 34)), h: 40 };
+  }
+  return { w: 170, h: 30 };   // text: a starting box, which grows as it is typed into
+}
+
 function beginFieldDrag(e){
   if(e.button !== 0 && e.pointerType === 'mouse') return;
   e.preventDefault();
@@ -532,11 +559,14 @@ function beginFieldDrag(e){
     ghost.remove();
     if(!layer) return;
     var rect = layer.getBoundingClientRect();
-    var w = Math.min(150, rect.width), h = Math.min(44, rect.height);
-    var x = Math.max(0, Math.min(rect.width - w, ev.clientX - rect.left - w/2));
-    var y = Math.max(0, Math.min(rect.height - h, ev.clientY - rect.top - h/2));
-    fields.push({ page:Number(layer.parentElement.dataset.page), type:type, recipientIndex:index,
-      x:x/rect.width, y:y/rect.height, w:w/rect.width, h:h/rect.height });
+    var holder = layer.parentElement;
+    var pw = Number(holder.dataset.pw) || 612, ph = Number(holder.dataset.ph) || 792;
+    var size = dropSize(type, recipientNames()[index]);
+    var w = Math.min(size.w / pw, 1), h = Math.min(size.h / ph, 1);
+    var x = Math.max(0, Math.min(1 - w, (ev.clientX - rect.left) / rect.width  - w / 2));
+    var y = Math.max(0, Math.min(1 - h, (ev.clientY - rect.top)  / rect.height - h / 2));
+    fields.push({ page:Number(holder.dataset.page), type:type, recipientIndex:index,
+      x:x, y:y, w:w, h:h });
     drawFields();
   }
   function cancel(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); ghost.remove(); }
@@ -652,6 +682,9 @@ async function renderAllPages(){
     wrap.appendChild(label);
     var holder = document.createElement('div');
     holder.className = 'es-page'; holder.dataset.page = n;
+    // The page's own size in points. Field sizes are worked out in points so a
+    // field lands the same size whatever the editor happens to be zoomed to.
+    holder.dataset.pw = v1.width; holder.dataset.ph = v1.height;
     var cv = document.createElement('canvas');
     cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
     cv.style.width = Math.round(v1.width * cssScale) + 'px';
@@ -695,9 +728,9 @@ function drawFields(){
     // signer. Left empty, it stays a box for them to fill.
     var typed = f.type === 'text' && String(f.value || '').trim();
     var inner = f.type === 'text'
-      ? '<span class="es-fld-label"><input class="es-fld-text" type="text" ' +
-          'value="' + esc(f.value || '') + '" placeholder="Type here, or leave for the signer" ' +
-          'aria-label="Text for this field"></span>' +
+      ? '<textarea class="es-fld-text" rows="1" ' +
+          'placeholder="Type here, or leave for the signer" ' +
+          'aria-label="Text for this field">' + esc(f.value || '') + '</textarea>' +
         '<span class="es-fld-tag">' + (typed ? 'You fill this' : 'Signer fills this') + '</span>'
       : '<span class="es-fld-label"><span class="es-field-sample">' +
           sampleFor(f.type, names[f.recipientIndex]) + '</span><span style="opacity:.75;font-size:9px">' +
@@ -709,14 +742,29 @@ function drawFields(){
 
     var box = el.querySelector('.es-fld-text');
     if(box){
+      // There is no ceiling on what can go in a text field, so the box grows
+      // down to hold it. What is on screen is then what prints: the same text,
+      // wrapped to the same width.
+      var grow = function(){
+        var lr = layer.getBoundingClientRect();
+        box.style.height = 'auto';
+        var needed = Math.max(20, box.scrollHeight + 10);   // 5px inset, top and bottom
+        if(needed > f.h * lr.height){
+          f.h = Math.min(1 - f.y, needed / lr.height);
+          el.style.height = (f.h * lr.height) + 'px';
+        }
+        box.style.height = '';
+      };
       // Typing must not drag the field out from under the cursor.
       box.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
       box.addEventListener('input', function(){
         f.value = this.value;
         var tag = el.querySelector('.es-fld-tag');
         if(tag) tag.textContent = String(f.value || '').trim() ? 'You fill this' : 'Signer fills this';
+        grow();
         saveLocalFields();
       });
+      requestAnimationFrame(grow);       // a restored value sizes its box too
     }
 
     el.querySelector('.es-del').addEventListener('pointerdown', function(e){
