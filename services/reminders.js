@@ -3,7 +3,7 @@ const { deliverSigningLinks, pendingRecipients } = require('./delivery');
 
 /* Daily reminders for documents still waiting on a signature.
  *
- * Opt-in per envelope. The cap exists because an unattended loop pointed at a
+ * Enabled for new envelopes. The cap exists because an unattended loop pointed at a
  * client's phone is a way to lose a client: after MAX_REMINDERS the envelope
  * stops nudging and stays for the agent to deal with.
  *
@@ -28,7 +28,7 @@ function localHour(now = new Date()) {
   return parseInt(h, 10) % 24;
 }
 
-/* Envelopes that are opted in, still out for signature, and not reminded in
+/* Envelopes with reminders enabled, still out for signature, and not reminded in
    the last 20 hours — a margin under 24 so a daily run never skips a day by
    drifting a few minutes later each time. */
 function dueEnvelopes() {
