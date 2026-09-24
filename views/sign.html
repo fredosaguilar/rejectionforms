@@ -223,19 +223,29 @@ function setStep(n){
 
 /* ---- signature pads ---- */
 function makePad(canvas, onDraw){
-  var ctx = canvas.getContext('2d'), drawing = false, has = false;
+  var ctx = canvas.getContext('2d'), drawing = false, has = false, density = 1;
   function size(){
     var r = canvas.getBoundingClientRect();
     if(!r.width) return;
     var data = has ? canvas.toDataURL() : null;
-    canvas.width = Math.round(r.width); canvas.height = Math.round(r.height);
+    // The pad was sized in CSS pixels, so a signature drawn on a phone was
+    // captured at a third of the resolution of the screen it was drawn on —
+    // and that image is what goes into the signed PDF and the certificate.
+    // The document canvases already draw at device density; this one now does
+    // too. Capped like theirs, since the image is embedded rather than shown.
+    density = Math.min(window.devicePixelRatio || 1, 2.5);
+    canvas.width  = Math.round(r.width  * density);
+    canvas.height = Math.round(r.height * density);
     ctx = canvas.getContext('2d');
+    // Drawing stays in CSS pixels; the transform puts it on the denser canvas,
+    // so the stroke keeps its on-screen weight.
+    ctx.setTransform(density, 0, 0, density, 0, 0);
     ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1a1a1a';
-    if(data){ var i = new Image(); i.onload = function(){ ctx.drawImage(i,0,0,canvas.width,canvas.height); }; i.src = data; }
+    if(data){ var i = new Image(); i.onload = function(){ ctx.drawImage(i, 0, 0, r.width, r.height); }; i.src = data; }
   }
   function pos(e){
     var r = canvas.getBoundingClientRect(), p = e.touches ? e.touches[0] : e;
-    return { x: (p.clientX - r.left) * (canvas.width / r.width), y: (p.clientY - r.top) * (canvas.height / r.height) };
+    return { x: p.clientX - r.left, y: p.clientY - r.top };
   }
   function down(e){ drawing = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
   function mv(e){ if(!drawing) return; var p = pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); has = true; e.preventDefault(); }
@@ -247,7 +257,14 @@ function makePad(canvas, onDraw){
     size: size,
     has: function(){ return has; },
     data: function(){ return canvas.toDataURL('image/png'); },
-    clear: function(){ ctx.clearRect(0,0,canvas.width,canvas.height); has = false; if(onDraw) onDraw(); }
+    clear: function(){
+      // Clearing works on the raw canvas, so it must step outside the density
+      // transform or it would wipe only the top-left corner.
+      ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+      has = false; if(onDraw) onDraw();
+    }
   };
 }
 var padMain = makePad($('pad'));
