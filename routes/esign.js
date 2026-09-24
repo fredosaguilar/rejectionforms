@@ -59,6 +59,38 @@ function baseUrl(req) {
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '').trim());
 const FIELD_TYPES = new Set(['signature', 'initials', 'date', 'checkbox', 'text']);
 
+/* The recipient rules, in one place: creating a request and saving a draft
+   have to agree about who counts as a recipient. Returns { recipients } or
+   { error }. */
+function parseRecipients(raw) {
+  let list;
+  try {
+    list = typeof raw === 'string' ? JSON.parse(raw || '[]') : (raw || []);
+  } catch {
+    return { error: 'Recipients could not be read' };
+  }
+  const recipients = (list || [])
+    .map((r, i) => ({
+      name: String(r.name || '').trim(),
+      email: String(r.email || '').trim().toLowerCase(),
+      phone: sms.normalisePhone(r.phone) || null,
+      delivery: 'both',
+      order: i + 1,
+    }))
+    .filter((r) => r.name && r.email);
+
+  if (!recipients.length) return { error: 'At least one recipient is required' };
+  const bad = recipients.find((r) => !validEmail(r.email));
+  if (bad) return { error: `Not a valid email address: ${bad.email}` };
+  const emails = recipients.map((r) => r.email);
+  if (new Set(emails).size !== emails.length) {
+    return { error: 'Each recipient must have a different email address' };
+  }
+  const noPhone = recipients.find((r) => !r.phone);
+  if (noPhone) return { error: `A mobile number is required for ${noPhone.name}` };
+  return { recipients };
+}
+
 function validateLayout(fields, recipientCount) {
   if (!Array.isArray(fields) || fields.length > 300) return false;
   return fields.every((f) => FIELD_TYPES.has(f.type) && Number.isInteger(Number(f.page)) && Number(f.page) > 0 &&
@@ -145,7 +177,8 @@ router.get('/envelopes', requireAuth, async (req, res) => {
               (SELECT detail FROM envelope_events ev
                 WHERE ev.envelope_id = e.id AND ev.event = 'send_failed'
                 ORDER BY ev.at DESC LIMIT 1) AS last_failure,
-              e.reminders_enabled, e.reminder_count, e.reminder_last_at
+              e.reminders_enabled, e.reminder_count, e.reminder_last_at,
+              (SELECT COUNT(*)::int FROM envelope_fields ef WHERE ef.envelope_id = e.id) AS field_count
          FROM envelopes e
          LEFT JOIN envelope_recipients r ON r.envelope_id = e.id
         GROUP BY e.id
@@ -187,49 +220,6 @@ router.get('/recipients', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/field-layouts', requireAuth, async (req, res) => {
-  try {
-    const { rows } = await db.query(
-      `SELECT id, name, fields, updated_at FROM esign_field_layouts WHERE agent_id = $1 ORDER BY updated_at DESC LIMIT 100`,
-      [req.session.agentId]);
-    res.json({ success: true, layouts: rows });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-router.post('/field-layouts', requireAuth, async (req, res) => {
-  const name = String(req.body.name || '').trim().slice(0, 120);
-  const fields = req.body.fields;
-  const recipientCount = Number(req.body.recipientCount);
-  if (!name || !Number.isInteger(recipientCount) || recipientCount < 1 || recipientCount > 50 ||
-      !validateLayout(fields, recipientCount)) {
-    return res.status(400).json({ error: 'Provide a layout name and valid fields for its recipients.' });
-  }
-  try {
-    const { rows } = await db.query(
-      `INSERT INTO esign_field_layouts (agent_id, name, fields) VALUES ($1,$2,$3) RETURNING id, name, updated_at`,
-      [req.session.agentId, name, JSON.stringify(fields)]);
-    res.json({ success: true, layout: rows[0] });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-router.put('/field-layouts/:id', requireAuth, async (req, res) => {
-  const name = String(req.body.name || '').trim().slice(0, 120);
-  const fields = req.body.fields;
-  const recipientCount = Number(req.body.recipientCount);
-  if (!name || !Number.isInteger(recipientCount) || recipientCount < 1 || recipientCount > 50 ||
-      !validateLayout(fields, recipientCount)) {
-    return res.status(400).json({ error: 'Provide a layout name and valid fields for its recipients.' });
-  }
-  try {
-    const { rows } = await db.query(
-      `UPDATE esign_field_layouts SET name=$3, fields=$4, updated_at=NOW()
-        WHERE id=$1 AND agent_id=$2 RETURNING id, name, updated_at`,
-      [req.params.id, req.session.agentId, name, JSON.stringify(fields)]);
-    if (!rows.length) return res.status(404).json({ error: 'Layout not found' });
-    res.json({ success: true, layout: rows[0] });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 router.get('/envelopes/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await db.query(
@@ -239,15 +229,23 @@ router.get('/envelopes/:id', requireAuth, async (req, res) => {
          FROM envelopes WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Envelope not found' });
 
-    const [{ rows: recipients }, { rows: events }] = await Promise.all([
-      db.query(`SELECT id, name, email, status, routing_order, consent_at, viewed_at,
+    const [{ rows: recipients }, { rows: events }, { rows: fields }] = await Promise.all([
+      db.query(`SELECT id, name, email, phone, delivery, status, routing_order, consent_at, viewed_at,
                        signed_at, signed_ip, decline_reason
                   FROM envelope_recipients WHERE envelope_id = $1
                  ORDER BY routing_order, id`, [req.params.id]),
       db.query(`SELECT event, actor, ip, at FROM envelope_events
                  WHERE envelope_id = $1 ORDER BY at`, [req.params.id]),
+      db.query(`SELECT id, recipient_id, page, x, y, w, h, type, label, required
+                  FROM envelope_fields WHERE envelope_id = $1 ORDER BY page, y, x`, [req.params.id]),
     ]);
-    res.json({ success: true, envelope: rows[0], recipients, events });
+    // Placed fields are returned against the recipient's position in the list
+    // above, which is the form the placement editor works in.
+    const order = new Map(recipients.map((r, i) => [r.id, i]));
+    res.json({
+      success: true, envelope: rows[0], recipients, events,
+      fields: fields.map((f) => ({ ...f, recipientIndex: order.has(f.recipient_id) ? order.get(f.recipient_id) : 0 })),
+    });
   } catch (e) {
     console.error('get envelope:', e);
     res.status(500).json({ error: e.message });
@@ -297,27 +295,10 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
     } catch {
       return res.status(400).json({ error: 'Recipients could not be read' });
     }
-    recipients = (recipients || [])
-      .map((r, i) => ({
-        name: String(r.name || '').trim(),
-        email: String(r.email || '').trim().toLowerCase(),
-        phone: sms.normalisePhone(r.phone) || null,
-        delivery: 'both',
-        order: i + 1,
-      }))
-      .filter((r) => r.name && r.email);
-
-    if (!recipients.length) return res.status(400).json({ error: 'At least one recipient is required' });
-    const bad = recipients.find((r) => !validEmail(r.email));
-    if (bad) return res.status(400).json({ error: `Not a valid email address: ${bad.email}` });
+    const parsedRcpts = parseRecipients(recipients);
+    if (parsedRcpts.error) return res.status(400).json({ error: parsedRcpts.error });
+    recipients = parsedRcpts.recipients;
     const emails = recipients.map((r) => r.email);
-    if (new Set(emails).size !== emails.length) {
-      return res.status(400).json({ error: 'Each recipient must have a different email address' });
-    }
-    const noPhone = recipients.find((r) => !r.phone);
-    if (noPhone) {
-      return res.status(400).json({ error: `A mobile number is required for ${noPhone.name}` });
-    }
     let fields = [];
     try { fields = JSON.parse(req.body.fields || '[]') || []; } catch {
       return res.status(400).json({ error: 'Signing fields could not be read' });
@@ -389,6 +370,150 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
   } catch (e) {
     console.error('create envelope:', e);
     res.status(500).json({ error: e.message });
+  }
+});
+
+/* Replaces the recipients and placed fields on a draft.
+ *
+ * Saving from the placement step leaves an envelope that has not gone anywhere:
+ * the document is stored, the fields are stored, and the agent can come back to
+ * it. Only a draft may be written to — once a document is out for signature its
+ * fields are what the signers are being asked to fill, and changing those under
+ * them is what Recall is for.
+ *
+ * Recipients are replaced rather than patched, so their ids change; the fields
+ * are rewritten against the new ids in the same pass. Both happen in one
+ * transaction, because a draft with recipients and no fields — or the reverse —
+ * is not a state worth being able to reach.
+ */
+router.put('/envelopes/:id/draft', requireAuth, async (req, res) => {
+  const client = await db.pool.connect();
+  try {
+    const { rows } = await client.query(`SELECT id, status FROM envelopes WHERE id = $1`, [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Envelope not found' });
+    if (rows[0].status !== 'draft') {
+      return res.status(409).json({ error: 'Only a draft can be edited. Recall the request first to change a document that has been sent.' });
+    }
+
+    const parsed = parseRecipients(req.body.recipients);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    const recipients = parsed.recipients;
+
+    let fields = [];
+    try { fields = JSON.parse(req.body.fields || '[]') || []; } catch { fields = []; }
+
+    const title = String(req.body.title || '').trim();
+
+    await client.query('BEGIN');
+    if (title) await client.query(`UPDATE envelopes SET title = $2 WHERE id = $1`, [req.params.id, title]);
+    // Deleting the recipients cascades their fields, so both are rebuilt here.
+    await client.query(`DELETE FROM envelope_recipients WHERE envelope_id = $1`, [req.params.id]);
+
+    const issued = [];
+    for (const r of recipients) {
+      const token = newSigningToken();
+      const { rows: rr } = await client.query(
+        `INSERT INTO envelope_recipients (envelope_id, name, email, phone, delivery, routing_order, token_hash)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+        [req.params.id, r.name, r.email, r.phone, r.delivery, r.order, hashToken(token)]);
+      issued.push({ ...r, id: rr[0].id });
+    }
+
+    let placed = 0;
+    for (const f of fields) {
+      const target = issued[Number(f.recipientIndex)];
+      if (!target || !FIELD_TYPES.has(f.type)) continue;
+      const num = (v) => Math.min(1, Math.max(0, Number(v) || 0));
+      await client.query(
+        `INSERT INTO envelope_fields (envelope_id, recipient_id, page, x, y, w, h, type, label, required)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [req.params.id, target.id, Math.max(1, parseInt(f.page, 10) || 1),
+         num(f.x), num(f.y), num(f.w), num(f.h), f.type,
+         (f.label || '').slice(0, 80) || null, f.required !== false]);
+      placed++;
+    }
+    await client.query('COMMIT');
+
+    await logEvent(req.params.id, 'draft_saved', req, {
+      actor: req.session.agentName,
+      detail: { recipients: recipients.length, fields: placed },
+    });
+    res.json({ success: true, fields: placed, recipients: recipients.length });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error('save draft:', e);
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
+/* Pulls a sent request back so it can be changed and sent again.
+ *
+ * Every outstanding link stops working, because each recipient's token is
+ * replaced with one nobody holds. Anything already signed is discarded — a
+ * signature belongs to the document as it stood when it was given, and this
+ * document is about to become a different one. That is destructive enough to
+ * name in the audit trail, and to refuse outright once everyone has signed: a
+ * completed envelope is the evidentiary record, and Delete is the deliberate
+ * way to be rid of one.
+ */
+router.post('/envelopes/:id/recall', requireAuth, async (req, res) => {
+  const client = await db.pool.connect();
+  try {
+    const { rows } = await client.query(
+      `SELECT id, title, status FROM envelopes WHERE id = $1`, [req.params.id]);
+    const env = rows[0];
+    if (!env) return res.status(404).json({ error: 'Envelope not found' });
+    if (env.status === 'completed') {
+      return res.status(409).json({ error: 'This document is signed and complete. It cannot be recalled — delete it instead if it must go.' });
+    }
+    if (env.status === 'draft') {
+      return res.status(409).json({ error: 'This request has not been sent yet.' });
+    }
+
+    const { rows: signed } = await client.query(
+      `SELECT COUNT(*)::int AS n FROM envelope_recipients WHERE envelope_id = $1 AND status = 'signed'`,
+      [req.params.id]);
+
+    await client.query('BEGIN');
+    // A fresh hash of a token nobody was given: every link in circulation dies.
+    const { rows: recips } = await client.query(
+      `SELECT id FROM envelope_recipients WHERE envelope_id = $1`, [req.params.id]);
+    for (const r of recips) {
+      await client.query(
+        `UPDATE envelope_recipients
+            SET token_hash = $2, status = 'pending',
+                consent_at = NULL, consent_ip = NULL, consent_ua = NULL,
+                viewed_at = NULL, signed_at = NULL, signed_ip = NULL, signed_ua = NULL,
+                signature_png = NULL, typed_name = NULL, decline_reason = NULL
+          WHERE id = $1`,
+        [r.id, hashToken(newSigningToken())]);
+    }
+    await client.query(
+      `UPDATE envelope_fields SET value = NULL, value_png = NULL, filled_at = NULL WHERE envelope_id = $1`,
+      [req.params.id]);
+    await client.query(
+      `UPDATE envelopes
+          SET status = 'draft', sent_at = NULL, completed_at = NULL,
+              signed_bytes = NULL, signed_sha256 = NULL,
+              reminders_enabled = FALSE, reminder_count = 0, reminder_last_at = NULL
+        WHERE id = $1`, [req.params.id]);
+    await client.query('COMMIT');
+
+    await logEvent(req.params.id, 'recalled', req, {
+      actor: req.session.agentName,
+      detail: { signaturesDiscarded: signed[0].n, reason: (req.body.reason || '').slice(0, 200) || null },
+    });
+    console.log(`esign: envelope ${env.id} ("${env.title}") recalled by ${req.session.agentName || req.session.email}` +
+                `, ${signed[0].n} signature(s) discarded`);
+    res.json({ success: true, signaturesDiscarded: signed[0].n });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error('recall envelope:', e);
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
   }
 });
 
