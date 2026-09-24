@@ -33,6 +33,10 @@ function pendingRecipients(envelopeId) {
   return db.query(
     `SELECT * FROM envelope_recipients
       WHERE envelope_id = $1 AND status IN ('pending','viewed')
+        AND routing_order = (
+          SELECT MIN(routing_order) FROM envelope_recipients
+          WHERE envelope_id = $1 AND status IN ('pending','viewed')
+        )
       ORDER BY routing_order, id`, [envelopeId]).then((r) => r.rows);
 }
 
