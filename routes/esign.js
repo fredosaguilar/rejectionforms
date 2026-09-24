@@ -236,7 +236,7 @@ router.get('/envelopes/:id', requireAuth, async (req, res) => {
                  ORDER BY routing_order, id`, [req.params.id]),
       db.query(`SELECT event, actor, ip, at FROM envelope_events
                  WHERE envelope_id = $1 ORDER BY at`, [req.params.id]),
-      db.query(`SELECT id, recipient_id, page, x, y, w, h, type, label, required
+      db.query(`SELECT id, recipient_id, page, x, y, w, h, type, label, required, value
                   FROM envelope_fields WHERE envelope_id = $1 ORDER BY page, y, x`, [req.params.id]),
     ]);
     // Placed fields are returned against the recipient's position in the list
@@ -350,11 +350,17 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
       if (!TYPES.has(f.type)) continue;
       const num = (v) => Math.min(1, Math.max(0, Number(v) || 0));
       const page = Math.max(1, parseInt(f.page, 10) || 1);
+      // A value supplied here was typed by the agent while placing the field.
+      // It is stored as already filled, so it prints with everything else and
+      // is not demanded of the signer.
+      const preset = f.type === 'text' ? String(f.value || '').trim().slice(0, 300) : '';
       await db.query(
-        `INSERT INTO envelope_fields (envelope_id, recipient_id, page, x, y, w, h, type, label, required)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        `INSERT INTO envelope_fields (envelope_id, recipient_id, page, x, y, w, h, type, label, required, value, filled_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
         [envelope.id, target.id, page, num(f.x), num(f.y), num(f.w), num(f.h),
-         f.type, (f.label || '').slice(0, 80) || null, f.required !== false]
+         f.type, (f.label || '').slice(0, 80) || null,
+         preset ? false : f.required !== false,
+         preset || null, preset ? new Date() : null]
       );
       placedCount++;
     }
@@ -424,12 +430,15 @@ router.put('/envelopes/:id/draft', requireAuth, async (req, res) => {
       const target = issued[Number(f.recipientIndex)];
       if (!target || !FIELD_TYPES.has(f.type)) continue;
       const num = (v) => Math.min(1, Math.max(0, Number(v) || 0));
+      const preset = f.type === 'text' ? String(f.value || '').trim().slice(0, 300) : '';
       await client.query(
-        `INSERT INTO envelope_fields (envelope_id, recipient_id, page, x, y, w, h, type, label, required)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        `INSERT INTO envelope_fields (envelope_id, recipient_id, page, x, y, w, h, type, label, required, value, filled_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
         [req.params.id, target.id, Math.max(1, parseInt(f.page, 10) || 1),
          num(f.x), num(f.y), num(f.w), num(f.h), f.type,
-         (f.label || '').slice(0, 80) || null, f.required !== false]);
+         (f.label || '').slice(0, 80) || null,
+         preset ? false : f.required !== false,
+         preset || null, preset ? new Date() : null]);
       placed++;
     }
     await client.query('COMMIT');
@@ -668,7 +677,7 @@ pub.get('/:token', async (req, res) => {
       await logEvent(r.env_id, 'viewed', req, { recipientId: r.id, actor: r.email });
     }
     const { rows: fields } = await db.query(
-      `SELECT id, page, x, y, w, h, type, label, required
+      `SELECT id, page, x, y, w, h, type, label, required, value
          FROM envelope_fields
         WHERE envelope_id = $1 AND recipient_id = $2
         ORDER BY page, y, x`, [r.env_id, r.id]);

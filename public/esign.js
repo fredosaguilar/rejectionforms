@@ -81,6 +81,14 @@ css.textContent = [
   '#f-esign .es-layer{position:absolute;inset:0;cursor:default}',
   '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:visible;cursor:move;user-select:none;touch-action:none}',
   '#f-esign .es-fld-label{display:block;max-width:100%;max-height:100%;overflow:hidden;pointer-events:none;padding:0 4px;text-align:center;line-height:1.2}',
+  '#f-esign .es-fld-text{pointer-events:auto;width:100%;border:none;background:transparent;font-family:inherit;font-size:12px;color:inherit;text-align:center;padding:2px 0;outline:none;cursor:text}',
+  '#f-esign .es-fld-text::placeholder{color:currentColor;opacity:.45;font-size:10px}',
+  '#f-esign .es-fld-text:focus{background:rgba(255,255,255,.75);border-radius:3px}',
+  '#f-esign .es-fld-tag{position:absolute;left:0;right:0;bottom:-14px;font-size:9px;opacity:.75;text-align:center;pointer-events:none;white-space:nowrap}',
+  // The button that is now the thing to do. Twice, then it stops.
+  '#f-esign .btn.ready{box-shadow:0 0 0 0 rgba(26,74,74,.45);animation:esReady 1.1s ease-out 2}',
+  '@keyframes esReady{to{box-shadow:0 0 0 16px rgba(26,74,74,0)}}',
+  '@media (prefers-reduced-motion: reduce){#f-esign .btn.ready{animation:none}}',
   '#f-esign .es-chip{border-radius:7px;min-width:105px;min-height:44px;touch-action:none;cursor:grab;white-space:normal;text-align:center}#f-esign .es-chip:active{cursor:grabbing}',
   '#f-esign .es-field-sample{display:block;font-size:11px;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#f-esign .es-chip small{display:block;font-size:9px;opacity:.7}',
   '.es-drag-ghost{position:fixed;z-index:1000;pointer-events:none;display:flex;align-items:center;justify-content:center;width:150px;height:44px;border:2px solid;border-radius:5px;background:#fff;box-shadow:0 8px 22px #0003;font-size:11px}',
@@ -206,6 +214,29 @@ lastForm.insertAdjacentHTML('afterend', html);
 
 /* ---- guided request workflow ----------------------------------------- */
 var esStep = 1;
+/* Marks the button that is now the thing to do. Fires on the change, not on
+   every keystroke, so it nudges once rather than flickering while you type. */
+function setReady(el, on){
+  if(!el) return;
+  var was = el.dataset.ready === '1';
+  if(on === was) return;
+  el.dataset.ready = on ? '1' : '';
+  el.classList.remove('ready');
+  if(on){ void el.offsetWidth; el.classList.add('ready'); }
+}
+function refreshReady(){
+  var titled = !!document.getElementById('es-title').value.trim();
+  setReady(document.getElementById('es-next-doc'), esStep === 1 && files.length > 0 && titled);
+  var rows = rcpts ? rcpts.querySelectorAll('.es-rcpt').length : 0;
+  setReady(document.getElementById('es-next-rcpt'),
+    esStep === 2 && rows > 0 && validRecipients().length === rows);
+  var place = document.getElementById('es-openplace');
+  setReady(place, esStep === 3 && place && !place.hidden);
+  setReady(document.getElementById('es-doneplace'),
+    !document.getElementById('es-place-sec').hidden && missingSignatureRecipients().length === 0);
+  setReady(document.getElementById('es-send'), esStep === 4);
+}
+
 function goEsStep(n){
   esStep = Math.max(1, Math.min(4, n));
   document.querySelectorAll('#f-esign .es-pane').forEach(function(p){
@@ -221,6 +252,11 @@ function goEsStep(n){
     openPlacer(); renderAllPages();
   }
   if(esStep === 4) refreshReview();
+  // Leaving a step drops its nudge, so coming back to it nudges again.
+  ['es-next-doc','es-next-rcpt','es-openplace','es-doneplace','es-send'].forEach(function(id){
+    var el = document.getElementById(id); if(el){ el.dataset.ready = ''; el.classList.remove('ready'); }
+  });
+  refreshReady();
   var panel = document.getElementById('f-esign');
   if(panel) panel.scrollIntoView({ behavior:'smooth', block:'start' });
 }
@@ -362,6 +398,8 @@ function removeFile(i){
     if(re) re.hidden = true;
   }
 }
+
+document.getElementById('es-title').addEventListener('input', refreshReady);
 
 function renderFiles(){
   var el = document.getElementById('es-files');
@@ -534,6 +572,7 @@ function closePlacer(){
   document.body.style.overflow = '';
   var re = document.getElementById('es-openplace');
   if(re) re.hidden = !pdfDoc;
+  refreshReady();
 }
 
 /* Reads the chosen PDFs so page counts are known and the editor has something
@@ -630,6 +669,7 @@ async function renderAllPages(){
 }
 
 function drawFields(){
+  refreshReady();
   var c = document.getElementById('es-count');
   if(c) c.textContent = fields.length + (fields.length === 1 ? ' field placed' : ' fields placed');
   refreshReview();
@@ -650,11 +690,34 @@ function drawFields(){
     el.style.cssText = 'left:' + (f.x * r.width) + 'px;top:' + (f.y * r.height) + 'px;' +
       'width:' + (f.w * r.width) + 'px;height:' + (f.h * r.height) + 'px;' +
       'border-color:' + color + ';background:' + color + '1a;color:' + color;
-    el.innerHTML = '<span class="es-fld-label"><span class="es-field-sample">' +
-      sampleFor(f.type, names[f.recipientIndex]) + '</span><span style="opacity:.75;font-size:9px">' +
-      esc(LABEL[f.type] || f.type) + ' · ' + esc(names[f.recipientIndex] || '') + '</span></span>' +
+    // A text field can be typed into here and now. Anything typed is the
+    // agent's own entry: it prints with the document and is not asked of the
+    // signer. Left empty, it stays a box for them to fill.
+    var typed = f.type === 'text' && String(f.value || '').trim();
+    var inner = f.type === 'text'
+      ? '<span class="es-fld-label"><input class="es-fld-text" type="text" ' +
+          'value="' + esc(f.value || '') + '" placeholder="Type here, or leave for the signer" ' +
+          'aria-label="Text for this field"></span>' +
+        '<span class="es-fld-tag">' + (typed ? 'You fill this' : 'Signer fills this') + '</span>'
+      : '<span class="es-fld-label"><span class="es-field-sample">' +
+          sampleFor(f.type, names[f.recipientIndex]) + '</span><span style="opacity:.75;font-size:9px">' +
+          esc(LABEL[f.type] || f.type) + ' · ' + esc(names[f.recipientIndex] || '') + '</span></span>';
+
+    el.innerHTML = inner +
       '<span class="es-del" title="Delete this field" aria-label="Delete this field">&times;</span>' +
       '<span class="es-rz" title="Resize"></span>';
+
+    var box = el.querySelector('.es-fld-text');
+    if(box){
+      // Typing must not drag the field out from under the cursor.
+      box.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+      box.addEventListener('input', function(){
+        f.value = this.value;
+        var tag = el.querySelector('.es-fld-tag');
+        if(tag) tag.textContent = String(f.value || '').trim() ? 'You fill this' : 'Signer fills this';
+        saveLocalFields();
+      });
+    }
 
     el.querySelector('.es-del').addEventListener('pointerdown', function(e){
       e.stopPropagation(); fields.splice(idx, 1); drawFields();
@@ -814,6 +877,7 @@ document.addEventListener('keydown', function(e){
 
 /* ---- recipients -------------------------------------------------------- */
 var rcpts = document.getElementById('es-rcpts');
+rcpts.addEventListener('input', refreshReady);
 var savedRecipients = [];
 function renumberRecipients(){
   rcpts.querySelectorAll('.es-rcpt').forEach(function(row, i){
@@ -1022,7 +1086,7 @@ async function continueDraft(id){
     fields = (d.fields || []).map(function(x){
       return { recipientIndex: Number(x.recipientIndex) || 0, type: x.type, page: Number(x.page) || 1,
                x: Number(x.x), y: Number(x.y), w: Number(x.w), h: Number(x.h),
-               label: x.label || '', required: x.required !== false };
+               label: x.label || '', required: x.required !== false, value: x.value || '' };
     });
     suppressFieldAutosave = false;
     saveLocalFields();                   // the net now matches what was restored
