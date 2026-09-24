@@ -66,7 +66,8 @@ css.textContent = [
   '#f-esign .es-chip{font-family:inherit;font-size:11px;padding:4px 9px;border-radius:20px;border:1px solid var(--border2);background:#fff;color:var(--text);cursor:pointer;white-space:nowrap}',
   '#f-esign .es-chip:hover{border-color:var(--navy)}',
   '#f-esign .es-chip.on{color:#fff}',
-  '#f-esign .es-preview-signature{font:italic 16px/1.1 "Segoe Script","Brush Script MT",cursive}#f-esign .es-preview-check{font-size:18px;color:var(--navy)}',
+  // Relative sizes, so a preview shrinks with the field it sits in.
+  '#f-esign .es-preview-signature{font:italic 1.45em/1.1 "Segoe Script","Brush Script MT",cursive}#f-esign .es-preview-check{font-size:1.6em;color:var(--navy)}',
   '#f-esign .es-stage{min-width:0;min-height:0;display:flex;flex-direction:column;background:#eceae4;padding:9px;border:none;border-radius:0}',
   '#f-esign .es-scroll{flex:1 1 auto;min-height:0;width:100%;overflow:auto;display:flex;flex-direction:column;gap:24px;align-items:center;justify-content:flex-start;padding:20px}',
   '#f-esign .es-zoom{display:flex;gap:4px;align-items:center}',
@@ -513,22 +514,66 @@ function textWidth(text, font){
   return ctx.measureText(String(text || '')).width;
 }
 
-/* How big a field should arrive, in PDF points, from what will go in it. A
-   signature for "Bartholomew Featherstonehaugh" needs a wider box than one for
-   "Al Ng", and the box is what the signature is then fitted into. Points rather
-   than screen pixels, so the same drop lands the same size at any zoom. The
-   resize handle still has the last word. */
-function dropSize(type, name){
-  if(type === 'checkbox') return { w: 26, h: 26 };
-  if(type === 'date')     return { w: 100, h: 26 };
+/* The size of the document's own text, wherever the field is being dropped.
+
+   Read off the page's text layer: the nearest line's font size in points, or
+   the median of the nearest few where they disagree. A scanned page carries no
+   text layer, so 11pt stands in — about the size of body text on a form. */
+var pageText = {};
+function docTextSize(pageNum, xf, yf){
+  var items = pageText[pageNum];
+  if(!items || !items.length) return 11;
+  var band = items.filter(function(t){ return Math.abs(t.yf - yf) < 0.02; });
+  if(!band.length){
+    band = items.slice().sort(function(a, b){
+      return (Math.abs(a.yf - yf) * 3 + Math.abs(a.xf - xf)) -
+             (Math.abs(b.yf - yf) * 3 + Math.abs(b.xf - xf));
+    }).slice(0, 5);
+  }
+  var sizes = band.map(function(t){ return t.size; }).sort(function(a, b){ return a - b; });
+  var mid = sizes[Math.floor(sizes.length / 2)];
+  if(!(mid > 0)) return 11;
+  // Held to the range real body text lives in. A page whose only text is a
+  // banner headline should not hand out fields the size of the headline.
+  return Math.max(6, Math.min(16, mid));
+}
+
+var measureCanvas;
+function textWidth(text, font){
+  measureCanvas = measureCanvas || document.createElement('canvas');
+  var ctx = measureCanvas.getContext('2d');
+  ctx.font = font;
+  return ctx.measureText(String(text || '')).width;
+}
+
+/* How big a field should arrive, in PDF points.
+
+   Two things decide it. The document sets the scale: a field dropped on a form
+   set in 9pt text comes in smaller than one dropped on a 14pt page, so the
+   signature ends up sitting on the line rather than towering over it. What goes
+   in the field sets the width: a signature for "Bartholomew Featherstonehaugh"
+   needs a wider box than one for "Al Ng".
+
+   Points rather than screen pixels, so the same drop lands the same size at any
+   zoom. The resize handle still has the last word. */
+function dropSize(type, name, docSize){
+  var u = docSize || 11;                       // the document's own text size
+  if(type === 'checkbox') return { w: u * 1.4, h: u * 1.4 };
+  if(type === 'date'){
+    return { w: textWidth(new Date().toLocaleDateString('en-US'), u + 'px system-ui') + u, h: u * 1.6 };
+  }
   if(type === 'initials'){
-    return { w: Math.max(44, textWidth(previewInitials(name), '600 16px system-ui') + 18), h: 30 };
+    var iw = textWidth(previewInitials(name), '600 ' + u + 'px system-ui');
+    return { w: Math.max(u * 2.4, iw + u), h: u * 1.8 };
   }
   if(type === 'signature'){
-    var w = textWidth(name || 'Full name', 'italic 20px "Segoe Script","Brush Script MT",cursive');
-    return { w: Math.max(120, Math.min(380, w + 34)), h: 40 };
+    // Twice the height of the text it sits among: a signature reads as a
+    // signature without overwhelming the line it is written on.
+    var h = u * 2;
+    var sw = textWidth(name || 'Full name', 'italic ' + (u * 1.5) + 'px "Segoe Script","Brush Script MT",cursive');
+    return { w: Math.max(h * 2.5, Math.min(h * 9, sw + u * 2)), h: h };
   }
-  return { w: 170, h: 30 };   // text: a starting box, which grows as it is typed into
+  return { w: u * 15, h: u * 1.7 };   // text: a starting box, which grows as it is typed into
 }
 
 function beginFieldDrag(e){
@@ -561,11 +606,13 @@ function beginFieldDrag(e){
     var rect = layer.getBoundingClientRect();
     var holder = layer.parentElement;
     var pw = Number(holder.dataset.pw) || 612, ph = Number(holder.dataset.ph) || 792;
-    var size = dropSize(type, recipientNames()[index]);
+    var pageNum = Number(holder.dataset.page);
+    var size = dropSize(type, recipientNames()[index],
+      docTextSize(pageNum, (ev.clientX - rect.left) / rect.width, (ev.clientY - rect.top) / rect.height));
     var w = Math.min(size.w / pw, 1), h = Math.min(size.h / ph, 1);
     var x = Math.max(0, Math.min(1 - w, (ev.clientX - rect.left) / rect.width  - w / 2));
     var y = Math.max(0, Math.min(1 - h, (ev.clientY - rect.top)  / rect.height - h / 2));
-    fields.push({ page:Number(holder.dataset.page), type:type, recipientIndex:index,
+    fields.push({ page:pageNum, type:type, recipientIndex:index,
       x:x, y:y, w:w, h:h });
     drawFields();
   }
@@ -694,11 +741,34 @@ async function renderAllPages(){
     layer.className = 'es-layer'; holder.appendChild(layer);
     wrap.appendChild(holder); stageEl.appendChild(wrap);
     await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    // The page's own text, in points and page fractions, so a field dropped
+    // here can come in at the size of the type around it.
+    try {
+      var tc = await page.getTextContent();
+      pageText[n] = tc.items.filter(function(it){ return String(it.str || '').trim(); })
+        .map(function(it){
+          var t = it.transform;
+          return { xf: t[4] / v1.width, yf: 1 - t[5] / v1.height, size: Math.hypot(t[1], t[3]) };
+        });
+    } catch(_) { pageText[n] = []; }
   }
   document.getElementById('es-pgnum').textContent = pageCount + (pageCount === 1 ? ' page' : ' pages') + ' · scroll to review all';
   document.getElementById('es-zlvl').textContent = Math.round(zoom * 100) + '%';
   drawFields();
   stageEl.scrollTop = previousScroll;
+}
+
+/* Scales a field's preview to the box it was given, so a field sized to fine
+   print reads as fine print instead of spilling over its own borders. */
+function fitSample(el, heightPx){
+  var sample = el.querySelector('.es-field-sample');
+  if(!sample) return;
+  sample.style.fontSize = Math.max(5, Math.min(14, heightPx * 0.46)) + 'px';
+  var meta = sample.nextElementSibling;
+  if(!meta) return;
+  var ms = heightPx * 0.26;
+  meta.style.display = ms < 6 ? 'none' : '';
+  meta.style.fontSize = Math.min(9, ms) + 'px';
 }
 
 function drawFields(){
@@ -740,6 +810,8 @@ function drawFields(){
       '<span class="es-del" title="Delete this field" aria-label="Delete this field">&times;</span>' +
       '<span class="es-rz" title="Resize"></span>';
 
+    fitSample(el, f.h * r.height);
+
     var box = el.querySelector('.es-fld-text');
     if(box){
       // There is no ceiling on what can go in a text field, so the box grows
@@ -778,6 +850,7 @@ function drawFields(){
         f.h = Math.max(0.012, Math.min(1 - f.y, (ev.clientY - lr.top)  / lr.height - f.y));
         el.style.width = (f.w * lr.width) + 'px';
         el.style.height = (f.h * lr.height) + 'px';
+        fitSample(el, f.h * lr.height);
       }
       function up(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); saveLocalFields(); }
       window.addEventListener('pointermove', move); window.addEventListener('pointerup', up, { once:true });
