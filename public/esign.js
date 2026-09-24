@@ -1012,7 +1012,7 @@ async function loadList(){
           esc(e.last_failure.error || '') + '</div>'
         : '';
       var rem = e.status === 'sent' && e.reminders_enabled
-        ? '<span class="es-link" title="Automatic reminders at 9 AM Pacific, up to seven times">Daily reminders on</span>'
+        ? '<span class="es-link" title="Automatic reminders at 3 PM Pacific each business day, up to seven times">Reminders on</span>'
         : '';
 
       var actions =

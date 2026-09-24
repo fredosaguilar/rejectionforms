@@ -9,13 +9,13 @@ const { deliverSigningLinks, pendingRecipients } = require('./delivery');
  *
  * Environment:
  *   REMINDERS            'off' disables the scheduler entirely
- *   REMINDER_HOUR        hour of the day to send, Pacific (default 9)
+ *   REMINDER_HOUR        hour of the day to send, Pacific (default 15, i.e. 3pm)
  *   REMINDER_MAX         how many reminders before giving up (default 7)
  *   REMINDER_TIMEZONE    IANA zone for REMINDER_HOUR (default America/Los_Angeles)
  */
 
 const TZ    = process.env.REMINDER_TIMEZONE || 'America/Los_Angeles';
-const HOUR  = Math.min(23, Math.max(0, parseInt(process.env.REMINDER_HOUR || '9', 10) || 9));
+const HOUR  = Math.min(23, Math.max(0, parseInt(process.env.REMINDER_HOUR || '15', 10) || 15));
 const MAX   = Math.max(1, parseInt(process.env.REMINDER_MAX || '7', 10) || 7);
 
 /* The hour where the agency is, so a reminder does not arrive at 3am. Reading
@@ -46,7 +46,21 @@ function baseUrl() {
 }
 
 /* One pass. Exported so it can be run and tested without waiting for a clock. */
+/* The weekday where the agency is, read from the zone for the same reason the
+   hour is: it stays right across the daylight saving change. */
+function localWeekday(now = new Date()) {
+  return new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' }).format(now);
+}
+
+function isBusinessDay(now = new Date()) {
+  const d = localWeekday(now);
+  return d !== 'Sat' && d !== 'Sun';
+}
+
 async function runOnce({ force = false } = {}) {
+  // Nothing at the weekend: a signing reminder at 3pm on a Sunday is not a
+  // nudge, and it spends a text to make that impression.
+  if (!force && !isBusinessDay()) return { skipped: 'not a business day', sent: 0 };
   if (!force && localHour() !== HOUR) return { skipped: 'outside the reminder hour', sent: 0 };
   if (!baseUrl()) {
     console.warn('reminders: APP_BASE_URL is not set, so signing links would be wrong — skipping');
@@ -98,10 +112,10 @@ function start() {
   timer = setInterval(tick, 60 * 60 * 1000);
   if (timer.unref) timer.unref();
   setTimeout(tick, 30 * 1000).unref?.();   // once shortly after boot, not during it
-  console.log(`reminders: on — ${HOUR}:00 ${TZ}, up to ${MAX} per document`);
+  console.log(`reminders: on — ${HOUR}:00 ${TZ} on business days, up to ${MAX} per document`);
   return timer;
 }
 
 function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
-module.exports = { start, stop, runOnce, dueEnvelopes, localHour, MAX, HOUR, TZ };
+module.exports = { start, stop, runOnce, dueEnvelopes, localHour, MAX, HOUR, TZ, localWeekday, isBusinessDay };
