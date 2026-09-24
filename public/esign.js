@@ -79,7 +79,7 @@ css.textContent = [
   '#f-esign .es-page-wrap{flex:0 0 auto;max-width:100%}',
   '#f-esign .es-page canvas{display:block}',
   '#f-esign .es-layer{position:absolute;inset:0;cursor:default}',
-  '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:visible;cursor:move;user-select:none}',
+  '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:visible;cursor:move;user-select:none;touch-action:none}',
   '#f-esign .es-fld-label{display:block;max-width:100%;max-height:100%;overflow:hidden;pointer-events:none;padding:0 4px;text-align:center;line-height:1.2}',
   '#f-esign .es-chip{border-radius:7px;min-width:105px;min-height:44px;touch-action:none;cursor:grab;white-space:normal;text-align:center}#f-esign .es-chip:active{cursor:grabbing}',
   '#f-esign .es-layout-tools{display:grid;gap:7px;margin:14px 0;padding:11px;border:1px solid var(--border);border-radius:9px}#f-esign .es-layout-tools label{font-size:11px;font-weight:700}#f-esign .es-layout-tools select{width:100%;min-height:38px;border:1px solid var(--border2);border-radius:7px;background:#fff}',
@@ -649,10 +649,10 @@ function drawFields(){
       '<span class="es-del" title="Delete this field" aria-label="Delete this field">&times;</span>' +
       '<span class="es-rz" title="Resize"></span>';
 
-    el.querySelector('.es-del').addEventListener('mousedown', function(e){
+    el.querySelector('.es-del').addEventListener('pointerdown', function(e){
       e.stopPropagation(); fields.splice(idx, 1); drawFields();
     });
-    el.querySelector('.es-rz').addEventListener('mousedown', function(e){
+    el.querySelector('.es-rz').addEventListener('pointerdown', function(e){
       e.stopPropagation(); e.preventDefault();
       var lr = layer.getBoundingClientRect();
       function move(ev){
@@ -661,10 +661,10 @@ function drawFields(){
         el.style.width = (f.w * lr.width) + 'px';
         el.style.height = (f.h * lr.height) + 'px';
       }
-      function up(){ window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); saveLocalFields(); }
-      window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+      function up(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); saveLocalFields(); }
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up, { once:true });
     });
-    el.addEventListener('mousedown', function(e){
+    el.addEventListener('pointerdown', function(e){
       if(e.target.classList.contains('es-del') || e.target.classList.contains('es-rz')) return;
       e.stopPropagation(); e.preventDefault();
       var lr = layer.getBoundingClientRect();
@@ -676,8 +676,8 @@ function drawFields(){
         el.style.left = (f.x * lr.width) + 'px';
         el.style.top  = (f.y * lr.height) + 'px';
       }
-      function up(){ window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); saveLocalFields(); }
-      window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+      function up(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); saveLocalFields(); }
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up, { once:true });
     });
     layer.appendChild(el);
     });
