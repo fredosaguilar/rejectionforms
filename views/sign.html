@@ -78,15 +78,11 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
 .ri-stars span:nth-child(5){animation-delay:1.63s}
 @keyframes riStar{to{opacity:1;transform:none}}
 .review-invite h3{font-size:16px;margin:0 0 6px;color:var(--navy)}
-.review-invite p{font-size:13.5px;color:var(--muted);margin:0 0 16px}
-.ri-gift{display:flex;align-items:center;gap:10px;text-align:left;font-size:13px;line-height:1.5;
-  background:#fdf7ec;border:1px solid #f0e2c4;border-radius:11px;padding:12px 14px;margin-bottom:18px}
-.ri-gift-ico{font-size:20px;flex:0 0 auto;animation:riGift 2.4s ease-in-out 1.9s 2}
-@keyframes riGift{0%,100%{transform:none}25%{transform:rotate(-11deg)}75%{transform:rotate(11deg)}}
+.review-invite p{font-size:13.5px;color:var(--muted);margin:0 0 20px}
 .ri-btn{display:block;width:100%;text-decoration:none;margin-bottom:8px}
 .ri-skip{display:block;margin:0 auto;font-size:12.5px}
 @media (prefers-reduced-motion: reduce){
-  .dm-ring,.dm-tick,.review-invite,.ri-stars span,.ri-gift-ico{animation:none}
+  .dm-ring,.dm-tick,.review-invite,.ri-stars span{animation:none}
   .dm-ring,.dm-tick{stroke-dashoffset:0}
   .review-invite{opacity:1;transform:none}
   .ri-stars span{opacity:1;transform:none}
@@ -163,10 +159,6 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
       <h3 id="ri-h">Would you tell us how we did?</h3>
       <p id="ri-p">A review on Google helps us see what to improve, and helps other
         families find us.</p>
-      <div class="ri-gift" id="ri-gift">
-        <span class="ri-gift-ico" aria-hidden="true">🎁</span>
-        <span id="ri-gift-t">Leave a review and we'll send you a $10 Amazon gift card as thanks.</span>
-      </div>
       <a class="btn btn-pri ri-btn" id="ri-btn" target="_blank" rel="noopener noreferrer"
          href="https://share.google/jhS2IMU13VlrRRJRt">Leave a Google review</a>
       <button class="btn-link ri-skip" id="ri-skip" type="button">No thanks</button>
@@ -382,7 +374,6 @@ var T = {
     doneH: 'Thank you for signing',
     riH: 'Would you tell us how we did?',
     riP: 'A review on Google helps us see what to improve, and helps other families find us.',
-    riGift: "Leave a review and we'll send you a $10 Amazon gift card as thanks.",
     riBtn: 'Leave a Google review',
     riSkip: 'No thanks',
     doneP: 'Thank you. A copy will be emailed to you once everyone has signed.',
@@ -450,7 +441,6 @@ var T = {
     doneH: 'Gracias por firmar',
     riH: '¿Nos cuenta cómo lo hicimos?',
     riP: 'Una reseña en Google nos ayuda a saber qué mejorar y ayuda a otras familias a encontrarnos.',
-    riGift: 'Deje una reseña y le enviaremos una tarjeta de regalo de Amazon de $10 como agradecimiento.',
     riBtn: 'Dejar una reseña en Google',
     riSkip: 'No, gracias',
     doneP: 'Gracias. Se le enviará una copia cuando todos hayan firmado.',
@@ -521,7 +511,6 @@ function applyLanguage(lang){
   $('done-h').textContent = L.doneH;
   $('ri-h').textContent = L.riH;
   $('ri-p').textContent = L.riP;
-  $('ri-gift-t').textContent = L.riGift;
   $('ri-btn').textContent = L.riBtn;
   $('ri-skip').textContent = L.riSkip;
   var dl = $('doc-link');
