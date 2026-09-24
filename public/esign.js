@@ -45,9 +45,9 @@ css.textContent = [
   '#f-esign .es-doc-meta{font-size:11px;color:var(--muted);flex:0 0 auto}',
   '#f-esign .es-doc button{font-family:inherit;font-size:12px;line-height:1;padding:4px 8px;border:1px solid var(--border2);border-radius:var(--radius);background:#fff;cursor:pointer;flex:0 0 auto}',
   '#f-esign .es-doc button:disabled{opacity:.35;cursor:default}',
-  '#f-esign .es-saved{display:flex;gap:10px;align-items:end;margin-bottom:16px;padding:14px;border:1px solid var(--border);border-radius:12px;background:#f8faf9}',
-  '#f-esign .es-saved label{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px}#f-esign .es-saved label>span{font-size:10.5px;font-weight:700;color:#59645f}#f-esign .es-saved select{width:100%;min-height:42px;padding:9px 10px;border:1px solid var(--border2);border-radius:9px;background:#fff;font:inherit}',
-  '@media(max-width:640px){#f-esign .es-saved{align-items:stretch;flex-direction:column}}',
+  '#f-esign .es-rcpt-num{font-size:12px;font-weight:700;color:var(--navy);text-align:center}',
+  '#f-esign .es-rcpt-nav{display:flex;gap:6px;align-items:center}',
+  '#f-esign .es-rcpt-nav button{padding:5px 8px;border:1px solid var(--border2);border-radius:7px;background:#fff;cursor:pointer}',
   '#f-esign button.es-link.es-on{background:var(--navy);color:#fff;border-color:var(--navy)}',
   '#f-esign .es-danger:hover{border-color:#a32219}',
   // The field placer is a full-viewport workspace: the page it is preparing is
@@ -66,9 +66,7 @@ css.textContent = [
   '#f-esign .es-chip{font-family:inherit;font-size:11px;padding:4px 9px;border-radius:20px;border:1px solid var(--border2);background:#fff;color:var(--text);cursor:pointer;white-space:nowrap}',
   '#f-esign .es-chip:hover{border-color:var(--navy)}',
   '#f-esign .es-chip.on{color:#fff}',
-  '#f-esign .es-place-preview{margin:12px 0;padding:11px;border:1px solid var(--border);border-radius:10px;background:#f8faf9}#f-esign .es-place-preview>span{display:block;margin-bottom:7px;font-size:9.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}',
-  '#f-esign .es-place-preview-box{display:flex;min-height:58px;align-items:center;justify-content:center;padding:8px;border:1px solid #c8d2cd;border-radius:7px;background:#fff;color:var(--text);text-align:center;overflow:hidden}#f-esign .es-place-preview-box strong,#f-esign .es-place-preview-box small{display:block}#f-esign .es-place-preview-box small{margin-top:3px;font-size:9px;color:var(--muted)}#f-esign .es-preview-signature{font:italic 24px/1.1 "Segoe Script","Brush Script MT",cursive}#f-esign .es-preview-check{font-size:28px;color:var(--navy)}',
-  '#f-esign .es-place-preview-note{margin-top:6px;font-size:9.5px;line-height:1.4;color:var(--muted)}',
+  '#f-esign .es-preview-signature{font:italic 16px/1.1 "Segoe Script","Brush Script MT",cursive}#f-esign .es-preview-check{font-size:18px;color:var(--navy)}',
   '#f-esign .es-stage{min-width:0;min-height:0;display:flex;flex-direction:column;background:#eceae4;padding:9px;border:none;border-radius:0}',
   '#f-esign .es-scroll{flex:1 1 auto;min-height:0;width:100%;overflow:auto;display:flex;flex-direction:column;gap:24px;align-items:center;justify-content:flex-start;padding:20px}',
   '#f-esign .es-zoom{display:flex;gap:4px;align-items:center}',
@@ -80,12 +78,16 @@ css.textContent = [
   '#f-esign .es-page{position:relative;background:#fff;box-shadow:0 1px 5px rgba(0,0,0,.16);width:fit-content}',
   '#f-esign .es-page-wrap{flex:0 0 auto;max-width:100%}',
   '#f-esign .es-page canvas{display:block}',
-  '#f-esign .es-layer{position:absolute;inset:0;cursor:crosshair}',
+  '#f-esign .es-layer{position:absolute;inset:0;cursor:default}',
   '#f-esign .es-fld{position:absolute;border:1.5px solid;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;overflow:visible;cursor:move;user-select:none}',
   '#f-esign .es-fld-label{display:block;max-width:100%;max-height:100%;overflow:hidden;pointer-events:none;padding:0 4px;text-align:center;line-height:1.2}',
+  '#f-esign .es-chip{border-radius:7px;min-width:105px;min-height:44px;touch-action:none;cursor:grab;white-space:normal;text-align:center}#f-esign .es-chip:active{cursor:grabbing}',
+  '#f-esign .es-layout-tools{display:grid;gap:7px;margin:14px 0;padding:11px;border:1px solid var(--border);border-radius:9px}#f-esign .es-layout-tools label{font-size:11px;font-weight:700}#f-esign .es-layout-tools select{width:100%;min-height:38px;border:1px solid var(--border2);border-radius:7px;background:#fff}',
+  '#f-esign .es-field-sample{display:block;font-size:11px;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#f-esign .es-chip small{display:block;font-size:9px;opacity:.7}',
+  '.es-drag-ghost{position:fixed;z-index:1000;pointer-events:none;display:flex;align-items:center;justify-content:center;width:150px;height:44px;border:2px solid;border-radius:5px;background:#fff;box-shadow:0 8px 22px #0003;font-size:11px}',
   '#f-esign .es-fld .es-del{position:absolute;z-index:3;top:-12px;right:-12px;width:24px;height:24px;border:2px solid #fff;border-radius:50%;background:#a32219;color:#fff;font-size:16px;line-height:20px;text-align:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.25)}',
   '#f-esign .es-fld .es-rz{position:absolute;right:-5px;bottom:-5px;width:12px;height:12px;border-radius:2px;background:#fff;border:1.5px solid currentColor;cursor:nwse-resize}',
-  '#f-esign .es-rcpt3{display:grid;grid-template-columns:1fr 1fr 150px 120px auto;gap:8px;margin-bottom:8px;align-items:center}',
+  '#f-esign .es-rcpt3{display:grid;grid-template-columns:32px minmax(160px,1fr) minmax(160px,1fr) 150px auto auto;gap:8px;margin-bottom:8px;align-items:center}',
   '@media(max-width:900px){#f-esign .es-rcpt3{grid-template-columns:1fr}}',
   '#f-esign .es-pgnum{text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px}'
 ].join('');
@@ -135,17 +137,10 @@ var html =
   '</div>' +
 
   '<div class="es-pane" data-es-pane="2">' +
-  '<div class="sec"><div class="es-section-head"><span class="es-section-icon">02</span><div><div class="sec-title">Add recipients</div><p>Each person receives a private signing link and completes only their assigned fields.</p></div></div>' +
-    '<div class="es-saved"><label><span>Saved recipients from all agents</span><select id="es-saved"><option value="">Choose a previously used signer…</option></select></label><button class="btn btn-sec" id="es-use-saved" type="button">Use recipient</button></div>' +
-    '<div id="es-rcpts"></div>' +
+  '<div class="sec"><div class="es-section-head"><span class="es-section-icon">02</span><div><div class="sec-title">Add recipients</div><p>The first signer gets a link now. Each next signer receives a link after the previous person signs.</p></div></div>' +
+    '<p style="font-size:12px;color:var(--muted)">Start typing a saved signer’s name or email to fill in their contact details. Move recipients up or down to set signing order.</p>' +
+    '<datalist id="es-name-suggestions"></datalist><datalist id="es-email-suggestions"></datalist><div id="es-rcpts"></div>' +
     '<button class="btn btn-sec" id="es-add" style="margin-top:8px">+ Add another recipient</button>' +
-    '<div class="es-delivery-checks">' +
-      '<div><strong>Delivery services</strong><span>Check that email and text messaging are ready before sending.</span></div>' +
-      '<button class="btn btn-sec" id="es-mailtest">Test email</button>' +
-      '<button class="btn btn-sec" id="es-smstest">Test texting</button>' +
-      '<span id="es-smsres" style="font-size:11.5px;color:var(--muted)"></span>' +
-      '<div id="es-smsdetail" style="flex-basis:100%;font-size:11.5px;color:var(--muted);line-height:1.6"></div>' +
-    '</div>' +
   '</div>' +
   '<div class="es-pane-actions"><button class="btn btn-sec" data-es-back="1" type="button">&larr; Back</button><button class="btn btn-pri" id="es-next-rcpt" type="button">Continue to field placement &rarr;</button></div>' +
   '</div>' +
@@ -162,8 +157,9 @@ var html =
     '<div class="es-review-grid">' +
       '<div class="sec"><div class="es-section-head"><span class="es-section-icon">04</span><div><div class="sec-title">Review and send</div><p>Confirm the request before it is delivered by both email and text.</p></div></div>' +
         '<div class="es-review-card"><div><span>Document</span><strong id="es-review-doc">No document selected</strong></div><div><span>Recipients</span><strong id="es-review-rcpts">1 recipient</strong></div><div><span>Fields</span><strong id="es-review-fields">Required</strong></div></div>' +
+        '<div id="es-order-summary" style="font-size:12px;line-height:1.7;color:var(--text)"></div>' +
       '</div>' +
-      '<aside class="es-send-summary"><div class="es-kicker">Ready to send?</div><h3>Review request</h3><p>Confirm the document, recipients, language, and delivery method before sending.</p><div class="es-send-note">Recipients must consent to electronic records before signing. Every action is recorded in the completion certificate.</div></aside>' +
+      '<aside class="es-send-summary"><div class="es-kicker">Ready to send?</div><h3>Review request</h3><p>The first signer receives email and text now. The rest receive their links in order after each signature.</p><div class="es-send-note">Recipients must consent to electronic records before signing. Daily reminders are automatic until signed, up to seven times. Every action is recorded in the completion certificate.</div></aside>' +
     '</div>' +
     '<div class="es-pane-actions"><button class="btn btn-sec" data-es-back="3" type="button">&larr; Back</button><div><button class="btn btn-sec" id="es-reset">Clear draft</button><button class="btn btn-pri" id="es-send">Send by email + text</button></div></div>' +
   '</div>' +
@@ -186,9 +182,9 @@ var html =
     '</div>' +
     '<div class="es-studio">' +
       '<div class="es-palette">' +
-        '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px">Click a field, then click the page</div>' +
+        '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px">Drag a field onto the PDF</div>' +
         '<div id="es-who-list"></div>' +
-        '<div class="es-place-preview"><span>Field appearance preview</span><div class="es-place-preview-box" id="es-place-preview-box"></div><div class="es-place-preview-note">A representative preview for the agent placing fields. The signer’s actual signature and entries replace these samples.</div></div>' +
+        '<div class="es-layout-tools"><label for="es-layout-select">Saved field layouts</label><select id="es-layout-select"><option value="">Choose a layout…</option></select><button class="btn btn-sec" id="es-load-layout" type="button">Load</button><button class="btn btn-sec" id="es-save-layout" type="button">Save layout</button></div>' +
         '<button class="btn btn-sec" id="es-clearfields" style="width:100%;font-size:12px;padding:6px 10px;margin-top:4px">Clear all fields</button>' +
         '<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5"><span id="es-count">0 fields</span><br>Drag a field to move it, or its corner to resize.</div>' +
         '<div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Required: every recipient must have at least one signature field before you can continue.</div>' +
@@ -218,7 +214,10 @@ function goEsStep(n){
     s.classList.toggle('active', at === esStep);
     s.classList.toggle('complete', at < esStep);
   });
-  if(esStep === 3 && docs.length){ openPlacer(); renderAllPages(); }
+  if(esStep === 3 && docs.length){
+    if(suppressFieldAutosave){ restoreLocalFields(); suppressFieldAutosave=false; }
+    openPlacer(); renderAllPages();
+  }
   if(esStep === 4) refreshReview();
   var panel = document.getElementById('f-esign');
   if(panel) panel.scrollIntoView({ behavior:'smooth', block:'start' });
@@ -241,6 +240,10 @@ function refreshReview(){
   if(doc) doc.textContent=title || (files[0] && files[0].name) || 'No document selected';
   var count=validRecipients().length;
   if(people) people.textContent=count + (count===1?' recipient':' recipients');
+  var order=document.getElementById('es-order-summary');
+  if(order) order.innerHTML='<strong>Signing order</strong><br>' + recipientNames().map(function(n,i){
+    return (i+1) + '. ' + esc(n) + (i<count-1?' → ':'');
+  }).join(' ');
   if(field) field.textContent=fields.length ? fields.length + (fields.length===1?' field placed':' fields placed') : 'Fields required';
   var placeDoc=document.getElementById('es-place-doc');
   var placePeople=document.getElementById('es-place-rcpts');
@@ -411,6 +414,7 @@ var TYPES = [
   { id: 'text',      label: 'Text' },
 ];
 var fields = [], pdfDoc = null, curPage = 1, pageCount = 1;
+var suppressFieldAutosave = false;
 /* One entry per chosen file: its rendered document and how many pages it has.
    Page numbers run continuously across them, matching the merged PDF the
    server builds, so a field placed on "page 7" lands on page 7 of the result. */
@@ -431,20 +435,11 @@ function recipientNames(){
 function previewInitials(name){
   return String(name || '').trim().split(/\s+/).filter(Boolean).map(function(part){ return part.charAt(0).toUpperCase(); }).join('').slice(0, 4) || 'AB';
 }
-function updatePlacementPreview(){
-  var box = document.getElementById('es-place-preview-box');
-  if(!box) return;
-  var name = recipientNames()[pick.recipientIndex] || 'Recipient name';
-  var samples = {
-    signature: '<div><strong class="es-preview-signature">' + esc(name) + '</strong><small>Signature</small></div>',
-    initials: '<div><strong>' + esc(previewInitials(name)) + '</strong><small>Initials</small></div>',
-    date: '<div><strong>' + new Date().toLocaleDateString('en-US') + '</strong><small>Date signed</small></div>',
-    checkbox: '<div><strong class="es-preview-check">☑</strong><small>Checkbox</small></div>',
-    text: '<div><strong>Entered text</strong><small>Text field</small></div>',
-  };
-  box.innerHTML = samples[pick.type] || samples.signature;
+function sampleFor(type, name){
+  return ({ signature: '<span class="es-preview-signature">' + esc(name || 'Full name') + '</span>',
+    initials: esc(previewInitials(name)), date: new Date().toLocaleDateString('en-US'),
+    checkbox: '<span class="es-preview-check">☑</span>', text: 'Enter text' })[type] || '';
 }
-
 function refreshWho(){
   whoListEl = document.getElementById('es-who-list');
   if(!whoListEl) return;
@@ -457,22 +452,58 @@ function refreshWho(){
     return '<div class="es-who" style="border-left-color:' + c + '">' +
       '<div class="es-who-name" style="color:' + c + '">' + esc(nm) + '</div>' +
       '<div class="es-chips">' + TYPES.map(function(t){
-        var on = (pick.recipientIndex === i && pick.type === t.id);
-        return '<button type="button" class="es-chip' + (on ? ' on' : '') + '"' +
-          (on ? ' style="background:' + c + ';border-color:' + c + '"' : '') +
-          ' data-r="' + i + '" data-t="' + t.id + '">' + t.label + '</button>';
+        return '<button type="button" class="es-chip" style="border-color:' + c + ';color:' + c + '"' +
+          ' data-r="' + i + '" data-t="' + t.id + '" aria-label="Drag ' + t.label + ' for ' + esc(nm) + '">' +
+          '<span class="es-field-sample">' + sampleFor(t.id, nm) + '</span><small>' + t.label + '</small></button>';
       }).join('') + '</div></div>';
   }).join('');
 
   whoListEl.querySelectorAll('.es-chip').forEach(function(btn){
-    btn.addEventListener('click', function(e){
-      e.preventDefault();
-      pick = { recipientIndex: parseInt(btn.dataset.r, 10), type: btn.dataset.t };
-      refreshWho();
-    });
+    btn.addEventListener('pointerdown', beginFieldDrag);
   });
-  updatePlacementPreview();
   drawFields();
+}
+
+function beginFieldDrag(e){
+  if(e.button !== 0 && e.pointerType === 'mouse') return;
+  e.preventDefault();
+  var source = e.currentTarget;
+  var index = Number(source.dataset.r), type = source.dataset.t;
+  var ghost = document.createElement('div');
+  ghost.className = 'es-drag-ghost';
+  ghost.style.borderColor = COLORS[index % COLORS.length];
+  ghost.innerHTML = source.innerHTML;
+  document.body.appendChild(ghost);
+  function move(ev){
+    ghost.style.left = (ev.clientX - 75) + 'px';
+    ghost.style.top = (ev.clientY - 22) + 'px';
+    var scroll = document.getElementById('es-stage-inner');
+    var rect = scroll.getBoundingClientRect();
+    if(ev.clientX >= rect.left && ev.clientX <= rect.right){
+      if(ev.clientY > rect.bottom - 35) scroll.scrollTop += 16;
+      if(ev.clientY < rect.top + 35) scroll.scrollTop -= 16;
+    }
+  }
+  function up(ev){
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', cancel);
+    var layer = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.es-layer');
+    ghost.remove();
+    if(!layer) return;
+    var rect = layer.getBoundingClientRect();
+    var w = Math.min(150, rect.width), h = Math.min(44, rect.height);
+    var x = Math.max(0, Math.min(rect.width - w, ev.clientX - rect.left - w/2));
+    var y = Math.max(0, Math.min(rect.height - h, ev.clientY - rect.top - h/2));
+    fields.push({ page:Number(layer.parentElement.dataset.page), type:type, recipientIndex:index,
+      x:x/rect.width, y:y/rect.height, w:w/rect.width, h:h/rect.height });
+    drawFields();
+  }
+  function cancel(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); ghost.remove(); }
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up, { once:true });
+  window.addEventListener('pointercancel', cancel, { once:true });
+  move(e);
 }
 
 function loadPdfJs(){
@@ -509,6 +540,7 @@ function closePlacer(){
    file list is no place to settle it. The sender opens it when ready. */
 async function loadDocs(){
   if(!files.length) return;
+  suppressFieldAutosave = true;
   stageEl = document.getElementById('es-stage-inner');
   fields = []; curPage = 1; zoom = DEFAULT_ZOOM;
   var openNow = !document.getElementById('es-place-sec').hidden;
@@ -527,13 +559,14 @@ async function loadDocs(){
     pdfDoc = docs.length ? docs[0].doc : null;
     renderFiles();                       // page counts are known now
     if(note) note.textContent = '';
-    if(openNow) await renderAllPages();
+    if(openNow){ restoreLocalFields(); suppressFieldAutosave=false; await renderAllPages(); }
   } catch(e){
     pdfDoc = null; docs = [];
     if(note) note.textContent = e.message + ' — choose a readable PDF before continuing.';
     if(openNow) stageEl.innerHTML = '<div style="padding:16px;font-size:12.5px;color:#a32219;max-width:420px">' +
       esc(e.message) + '. Choose a readable PDF before continuing.</div>';
   }
+  if(!pdfDoc) suppressFieldAutosave = false;
   var re = document.getElementById('es-openplace');
   if(re) re.hidden = !pdfDoc;
 }
@@ -582,7 +615,6 @@ async function renderAllPages(){
     layer.className = 'es-layer'; holder.appendChild(layer);
     wrap.appendChild(holder); stageEl.appendChild(wrap);
     await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
-    wireLayer(layer, n);
   }
   document.getElementById('es-pgnum').textContent = pageCount + (pageCount === 1 ? ' page' : ' pages') + ' · scroll to review all';
   document.getElementById('es-zlvl').textContent = Math.round(zoom * 100) + '%';
@@ -590,50 +622,11 @@ async function renderAllPages(){
   stageEl.scrollTop = previousScroll;
 }
 
-function wireLayer(layer, pageNum){
-  var start = null, ghost = null;
-  layer.addEventListener('mousedown', function(e){
-    if(e.target !== layer) return;
-    var r = layer.getBoundingClientRect();
-    start = { x: e.clientX - r.left, y: e.clientY - r.top };
-    ghost = document.createElement('div');
-    ghost.className = 'es-fld';
-    var c = COLORS[pick.recipientIndex % COLORS.length];
-    ghost.style.borderColor = c; ghost.style.background = c + '1a';
-    layer.appendChild(ghost);
-    e.preventDefault();
-  });
-  layer.addEventListener('mousemove', function(e){
-    if(!start || !ghost) return;
-    var r = layer.getBoundingClientRect();
-    var cx = e.clientX - r.left, cy = e.clientY - r.top;
-    ghost.style.left = Math.min(start.x, cx) + 'px';
-    ghost.style.top = Math.min(start.y, cy) + 'px';
-    ghost.style.width = Math.abs(cx - start.x) + 'px';
-    ghost.style.height = Math.abs(cy - start.y) + 'px';
-  });
-  window.addEventListener('mouseup', function(e){
-    if(!start || !ghost) return;
-    var r = layer.getBoundingClientRect();
-    var cx = e.clientX - r.left, cy = e.clientY - r.top;
-    var x = Math.min(start.x, cx), y = Math.min(start.y, cy);
-    var w = Math.abs(cx - start.x), h = Math.abs(cy - start.y);
-    ghost.remove(); ghost = null; start = null;
-    if(w < 12 || h < 8){ w = 150; h = 38; }          // a click, not a drag
-    if(x + w > r.width) x = Math.max(0, r.width - w);
-    if(y + h > r.height) y = Math.max(0, r.height - h);
-    fields.push({
-      page: pageNum, type: pick.type, recipientIndex: pick.recipientIndex,
-      x: x / r.width, y: y / r.height, w: w / r.width, h: h / r.height,
-    });
-    drawFields();
-  });
-}
-
 function drawFields(){
   var c = document.getElementById('es-count');
   if(c) c.textContent = fields.length + (fields.length === 1 ? ' field placed' : ' fields placed');
   refreshReview();
+  saveLocalFields();
   if(!stageEl) return;
   var names = recipientNames();
   var LABEL = {}; TYPES.forEach(function(t){ LABEL[t.id] = t.label; });
@@ -650,9 +643,9 @@ function drawFields(){
     el.style.cssText = 'left:' + (f.x * r.width) + 'px;top:' + (f.y * r.height) + 'px;' +
       'width:' + (f.w * r.width) + 'px;height:' + (f.h * r.height) + 'px;' +
       'border-color:' + color + ';background:' + color + '1a;color:' + color;
-    el.innerHTML = '<span class="es-fld-label">' +
-      esc(LABEL[f.type] || f.type) + '<br><span style="opacity:.75;font-size:9px">' +
-      esc(names[f.recipientIndex] || '') + '</span></span>' +
+    el.innerHTML = '<span class="es-fld-label"><span class="es-field-sample">' +
+      sampleFor(f.type, names[f.recipientIndex]) + '</span><span style="opacity:.75;font-size:9px">' +
+      esc(LABEL[f.type] || f.type) + ' · ' + esc(names[f.recipientIndex] || '') + '</span></span>' +
       '<span class="es-del" title="Delete this field" aria-label="Delete this field">&times;</span>' +
       '<span class="es-rz" title="Resize"></span>';
 
@@ -668,7 +661,7 @@ function drawFields(){
         el.style.width = (f.w * lr.width) + 'px';
         el.style.height = (f.h * lr.height) + 'px';
       }
-      function up(){ window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); }
+      function up(){ window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); saveLocalFields(); }
       window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
     });
     el.addEventListener('mousedown', function(e){
@@ -683,13 +676,66 @@ function drawFields(){
         el.style.left = (f.x * lr.width) + 'px';
         el.style.top  = (f.y * lr.height) + 'px';
       }
-      function up(){ window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); }
+      function up(){ window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); saveLocalFields(); }
       window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
     });
     layer.appendChild(el);
     });
   });
 }
+
+function localFieldKey(){ return 'esign-fields:' + files.map(function(f){return f.name + ':' + f.size;}).join('|'); }
+function saveLocalFields(){
+  if(!files.length || suppressFieldAutosave) return;
+  try { localStorage.setItem(localFieldKey(), JSON.stringify(fields)); } catch(_) {}
+}
+function restoreLocalFields(){
+  try {
+    var saved = JSON.parse(localStorage.getItem(localFieldKey()) || '[]');
+    if(Array.isArray(saved) && saved.every(function(f){return f.page>=1 && f.page<=pageCount;})) fields=saved;
+  } catch(_) {}
+  refreshWho();
+}
+var savedLayouts=[];
+async function loadLayouts(){
+  try {
+    var r=await fetch('/api/esign/field-layouts'), d=await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Could not load layouts');
+    savedLayouts=d.layouts || [];
+    var select=document.getElementById('es-layout-select');
+    select.innerHTML='<option value="">Choose a layout…</option>' + savedLayouts.map(function(layout){
+      return '<option value="' + layout.id + '">' + esc(layout.name) + '</option>';
+    }).join('');
+  } catch(e){ console.warn('field layouts:',e.message); }
+}
+document.getElementById('es-load-layout').addEventListener('click', function(){
+  var id=Number(document.getElementById('es-layout-select').value);
+  var layout=savedLayouts.find(function(x){return x.id===id;});
+  if(!layout) return;
+  if(layout.fields.some(function(f){return f.page>pageCount || f.recipientIndex>=rcpts.children.length;})){
+    showT('This layout needs more PDF pages or recipients than this request has', 'error'); return;
+  }
+  fields=layout.fields.map(function(f){return Object.assign({}, f);});
+  drawFields(); showT('Layout loaded. Drag fields to adjust them, then save your changes.', 'success');
+});
+async function saveLayout(askForName){
+  if(!fields.length) throw new Error('Place fields before saving a layout');
+  var select=document.getElementById('es-layout-select');
+  var existing=savedLayouts.find(function(x){return x.id===Number(select.value);});
+  var defaultName=document.getElementById('es-title').value.trim() || (files[0]&&files[0].name) || 'Document fields';
+  var name=askForName ? prompt('Name this field layout', existing?existing.name:defaultName) : (existing?existing.name:defaultName);
+  if(!name || !name.trim()) { if(!askForName) throw new Error('Give the document a title'); return; }
+    var r=await fetch('/api/esign/field-layouts' + (existing?'/'+existing.id:''),{
+      method:existing?'PUT':'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:name.trim(),fields:fields,recipientCount:rcpts.children.length})});
+    var d=await r.json(); if(!r.ok || !d.success) throw new Error(d.error || 'Could not save layout');
+    await loadLayouts(); select.value=String(d.layout.id);
+    if(askForName) showT('Field layout saved for future requests', 'success');
+}
+document.getElementById('es-save-layout').addEventListener('click', function(){
+  saveLayout(true).catch(function(e){showT(e.message,'error');});
+});
+loadLayouts();
 
 function setZoom(z){ zoom = Math.max(0.5, Math.min(3, z)); renderAllPages(); }
 document.getElementById('es-zin').addEventListener('click',  function(e){ e.preventDefault(); setZoom(zoom + 0.25); });
@@ -705,10 +751,11 @@ window.addEventListener('resize', function(){
 });
 
 document.getElementById('es-clearfields').addEventListener('click', function(e){ e.preventDefault(); fields = []; drawFields(); });
-document.getElementById('es-doneplace').addEventListener('click', function(e){
+document.getElementById('es-doneplace').addEventListener('click', async function(e){
   e.preventDefault();
   var missing = missingSignatureRecipients();
   if(missing.length){ showT('Add a signature field for ' + missing.join(', '), 'error'); return; }
+  try { await saveLayout(false); } catch(err){ showT('Could not save field placement: ' + err.message, 'error'); return; }
   closePlacer(); goEsStep(4);
 });
 document.getElementById('es-openplace').addEventListener('click', function(e){
@@ -724,23 +771,61 @@ document.addEventListener('keydown', function(e){
 /* ---- recipients -------------------------------------------------------- */
 var rcpts = document.getElementById('es-rcpts');
 var savedRecipients = [];
+function renumberRecipients(){
+  rcpts.querySelectorAll('.es-rcpt').forEach(function(row, i){
+    row.querySelector('.es-rcpt-num').textContent = String(i + 1);
+  });
+  refreshWho();
+}
+function applySavedPerson(row, person){
+  if(!person) return;
+  row.querySelector('.es-name').value = person.name || '';
+  row.querySelector('.es-email').value = person.email || '';
+  row.querySelector('.es-phone').value = person.phone || '';
+  refreshWho();
+}
 function addRecipient(name, email, phone){
   var row = document.createElement('div');
   row.className = 'es-rcpt es-rcpt3';
   row.innerHTML = '<div class="es-rcpt-num">' + (rcpts.children.length + 1) + '</div>' +
-                  '<label><span>Full legal name</span><input type="text" class="es-name" placeholder="e.g. Maria Hernandez"></label>' +
-                  '<label><span>Email address</span><input type="email" class="es-email" placeholder="maria@example.com"></label>' +
+                  '<label><span>Full legal name</span><input type="text" class="es-name" list="es-name-suggestions" autocomplete="off" placeholder="e.g. Maria Hernandez"></label>' +
+                  '<label><span>Email address</span><input type="email" class="es-email" list="es-email-suggestions" autocomplete="off" placeholder="maria@example.com"></label>' +
                   '<label><span>Mobile number (required)</span><input type="tel" class="es-phone" placeholder="(509) 555-0123" required></label>' +
-                  '<label><span>Deliver by</span><select class="es-deliv" disabled><option value="both">Email + text</option></select></label>' +
+                  '<span class="es-rcpt-nav"><button type="button" class="es-up" aria-label="Move signer earlier">↑</button><button type="button" class="es-down" aria-label="Move signer later">↓</button></span>' +
                   '<button class="es-x" type="button" title="Remove">&times;</button>';
   row.querySelector('.es-x').addEventListener('click', function(){
-    if(rcpts.children.length > 1){ rcpts.removeChild(row); refreshWho(); }
+    if(rcpts.children.length > 1){
+      var at=Array.from(rcpts.children).indexOf(row);
+      fields=fields.filter(function(f){return f.recipientIndex!==at;}).map(function(f){
+        return Object.assign({}, f, {recipientIndex:f.recipientIndex>at?f.recipientIndex-1:f.recipientIndex});
+      });
+      row.remove(); renumberRecipients();
+    }
   });
+  function move(by){
+    var at=Array.from(rcpts.children).indexOf(row), target=at+by;
+    if(target<0 || target>=rcpts.children.length) return;
+    var other=rcpts.children[target];
+    if(by<0) rcpts.insertBefore(row, other); else rcpts.insertBefore(other, row);
+    fields.forEach(function(f){ if(f.recipientIndex===at) f.recipientIndex=target;
+      else if(f.recipientIndex===target) f.recipientIndex=at; });
+    renumberRecipients();
+  }
+  row.querySelector('.es-up').addEventListener('click', function(){ move(-1); });
+  row.querySelector('.es-down').addEventListener('click', function(){ move(1); });
   row.querySelector('.es-name').addEventListener('input', refreshWho);
+  ['.es-name','.es-email'].forEach(function(selector){
+    row.querySelector(selector).addEventListener('change', function(){
+      var val=this.value.trim().toLowerCase();
+      var matches=savedRecipients.filter(function(p){return String(p[selector==='.es-name'?'name':'email']).toLowerCase()===val;});
+      if(matches.length===1) applySavedPerson(row, matches[0]);
+    });
+  });
   if(name)  row.querySelector('.es-name').value = name;
   if(email) row.querySelector('.es-email').value = email;
   if(phone) row.querySelector('.es-phone').value = phone;
   rcpts.appendChild(row);
+  renumberRecipients();
 }
 document.getElementById('es-add').addEventListener('click', function(e){ e.preventDefault(); addRecipient(); refreshWho(); });
 addRecipient();
@@ -751,38 +836,19 @@ async function loadSavedRecipients(){
     var d = await r.json();
     if(!r.ok || !d.success) throw new Error(d.error || 'Could not load saved recipients');
     savedRecipients = d.recipients || [];
-    var select = document.getElementById('es-saved');
-    while(select.options.length > 1) select.remove(1);
-    savedRecipients.forEach(function(person, index){
-      var option = document.createElement('option');
-      option.value = String(index);
-      option.textContent = person.name + ' — ' + person.email + (person.phone ? ' · ' + person.phone : '');
-      select.appendChild(option);
+    ['name','email'].forEach(function(key){
+      var list=document.getElementById('es-' + key + '-suggestions');
+      list.innerHTML='';
+      savedRecipients.forEach(function(person){
+        var option=document.createElement('option'); option.value=person[key];
+        option.label=key==='name'?person.email:person.name;
+        list.appendChild(option);
+      });
     });
-    select.disabled = !savedRecipients.length;
-    document.getElementById('es-use-saved').disabled = !savedRecipients.length;
   } catch(e) {
     console.warn('saved recipients:', e.message);
   }
 }
-document.getElementById('es-use-saved').addEventListener('click', function(){
-  var select = document.getElementById('es-saved');
-  if(select.value === '') return;
-  var person = savedRecipients[Number(select.value)];
-  if(!person) return;
-  var rows = Array.from(rcpts.querySelectorAll('.es-rcpt'));
-  var row = rows.find(function(item){
-    return !item.querySelector('.es-name').value.trim() && !item.querySelector('.es-email').value.trim() && !item.querySelector('.es-phone').value.trim();
-  });
-  if(!row){ addRecipient(person.name, person.email, person.phone); }
-  else {
-    row.querySelector('.es-name').value = person.name || '';
-    row.querySelector('.es-email').value = person.email || '';
-    row.querySelector('.es-phone').value = person.phone || '';
-  }
-  select.value = '';
-  refreshWho();
-});
 loadSavedRecipients();
 
 // Prefill from the client details already on the page, when they're there.
@@ -798,87 +864,6 @@ function prefill(){
 }
 if(gName) gName.addEventListener('input', prefill);
 if(gMail) gMail.addEventListener('input', prefill);
-
-/* The account as RingCentral reports it. Shown in full because a number
-   listed as SmsSender has still been refused at send time, so the raw list is
-   more use than any summary of it. */
-function smsDetail(d){
-  var rows = [];
-  if (d.extension) {
-    rows.push('<div style="margin-top:6px">Sending as extension <strong>' +
-      esc(d.extension.extensionNumber || d.extension.id || '?') + '</strong>' +
-      (d.extension.name ? ' — ' + esc(d.extension.name) : '') +
-      (d.extension.type ? ' (' + esc(d.extension.type) + ')' : '') + '</div>');
-  }
-  rows.push('<div>RINGCENTRAL_FROM is <strong>' + esc(d.from || '(not set)') + '</strong></div>');
-
-  if (d.numbers && d.numbers.length) {
-    rows.push('<div style="margin-top:4px">Numbers on this extension:</div>');
-    rows.push('<ul style="margin:3px 0 0 16px;padding:0">' + d.numbers.map(function(n){
-      return '<li>' + esc(n.number) +
-        (n.label ? ' — ' + esc(n.label) : '') +
-        (n.usageType ? ' · ' + esc(n.usageType) : '') +
-        (n.type ? ' · ' + esc(n.type) : '') +
-        ' · <span style="color:' + (n.sms ? '#1a6b45' : '#a32219') + '">' +
-        (n.features && n.features.length ? esc(n.features.join(', ')) : 'no features listed') +
-        '</span></li>';
-    }).join('') + '</ul>');
-  } else if (d.success || d.error) {
-    rows.push('<div style="margin-top:4px">No numbers were returned for this extension.</div>');
-  }
-  return rows.join('');
-}
-
-document.getElementById('es-mailtest').addEventListener('click', async function(e){
-  e.preventDefault();
-  var btn = this, out = document.getElementById('es-smsres'), detail = document.getElementById('es-smsdetail');
-  btn.disabled = true; out.style.color = 'var(--muted)'; out.textContent = 'Checking…'; detail.innerHTML = '';
-  try {
-    var r = await fetch('/api/esign/email-status');
-    var d = await r.json();
-    out.style.color = d.ok ? '#1a6b45' : '#a32219';
-    out.textContent = d.ok ? 'Email is ready.' : d.why;
-
-    var rows = ['<div style="margin-top:6px">Sending from <strong>' + esc(d.from || '(not set)') + '</strong></div>'];
-    if (d.domains && d.domains.length) {
-      rows.push('<div style="margin-top:4px">Domains on this Resend account:</div>');
-      rows.push('<ul style="margin:3px 0 0 16px;padding:0">' + d.domains.map(function(x){
-        var ok = String(x.status).toLowerCase() === 'verified';
-        return '<li>' + esc(x.name) + ' — <span style="color:' + (ok ? '#1a6b45' : '#a32219') + '">' +
-          esc(x.status) + '</span></li>';
-      }).join('') + '</ul>');
-    } else if (d.configured) {
-      rows.push('<div style="margin-top:4px">No domains have been added to the Resend account yet.</div>');
-    }
-    detail.innerHTML = rows.join('');
-  } catch (err) {
-    out.style.color = '#a32219'; out.textContent = err.message;
-  } finally { btn.disabled = false; }
-});
-
-document.getElementById('es-smstest').addEventListener('click', async function(e){
-  e.preventDefault();
-  var btn = this, out = document.getElementById('es-smsres');
-  btn.disabled = true; out.style.color = 'var(--muted)'; out.textContent = 'Checking…';
-  try {
-    var r = await fetch('/api/esign/sms-status');
-    var d = await r.json();
-    if (d.success) {
-      out.style.color = '#1a6b45';
-      // Signed in, and nothing in the account data looks wrong — which is not
-      // the same as RingCentral agreeing to send. Say only what is known.
-      out.textContent = 'Signed in to RingCentral.' + (d.note ? '  ' + d.note : '');
-    } else {
-      out.style.color = '#a32219';
-      out.textContent = d.missing && d.missing.length
-        ? 'Not configured — missing: ' + d.missing.join(', ')
-        : 'RingCentral rejected the credentials: ' + d.error;
-    }
-    document.getElementById('es-smsdetail').innerHTML = smsDetail(d);
-  } catch (err) {
-    out.style.color = '#a32219'; out.textContent = err.message;
-  } finally { btn.disabled = false; }
-});
 
 /* ---- send -------------------------------------------------------------- */
 document.getElementById('es-send').addEventListener('click', async function(){
@@ -930,6 +915,7 @@ document.getElementById('es-send').addEventListener('click', async function(){
 });
 
 function resetForm(){
+  if(files.length) try { localStorage.removeItem(localFieldKey()); } catch(_) {}
   files = []; docs = []; input.value = '';
   renderFiles();
   document.getElementById('es-title').value = '';
@@ -980,27 +966,6 @@ async function onResend(e){
   }
 }
 
-async function onRemind(e){
-  e.preventDefault();
-  var btn = this, id = btn.dataset.id, turningOn = !btn.dataset.on;
-  btn.disabled = true;
-  try {
-    var r = await fetch('/api/esign/envelopes/' + id + '/reminders', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: turningOn }),
-    });
-    var d = await r.json();
-    if (!r.ok || !d.success) throw new Error(d.error || 'Could not change reminders');
-    showT(turningOn ? 'Reminding daily until signed' : 'Daily reminders stopped', 'success');
-  } catch(err){
-    showT(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-    loadList();
-  }
-}
-
 async function onDelete(e){
   e.preventDefault();
   var btn = this, id = btn.dataset.id, title = btn.dataset.title;
@@ -1037,7 +1002,8 @@ async function loadList(){
     var rows = d.envelopes.map(function(e){
       var canResend = e.status === 'draft' || e.status === 'sent';
       var who = (e.recipients || []).map(function(p){
-        return esc(p.name) + ' <span style="color:var(--muted)">(' + esc(p.status) + ')</span>';
+        return '<strong>' + esc(p.order) + '.</strong> ' + esc(p.name) +
+          ' <span style="color:var(--muted)">(' + esc(p.status === 'pending' && p.order > 1 ? 'waiting in order' : p.status) + ')</span>';
       }).join('<br>');
       var dl = e.status === 'completed'
         ? '<a class="es-link" href="/api/esign/envelopes/' + e.id + '/document?signed=1" target="_blank" rel="noopener">Signed PDF</a>'
@@ -1047,13 +1013,8 @@ async function loadList(){
           esc(e.last_failure.channel || 'email') + ' to ' + esc(e.last_failure.to || '') + '): ' +
           esc(e.last_failure.error || '') + '</div>'
         : '';
-      var rem = e.status === 'sent'
-        ? '<button class="es-link es-act' + (e.reminders_enabled ? ' es-on' : '') + '" data-act="remind" ' +
-          'data-id="' + e.id + '" data-on="' + (e.reminders_enabled ? '1' : '') + '" type="button" title="' +
-          (e.reminders_enabled
-            ? 'Reminding daily — ' + (e.reminder_count || 0) + ' sent so far. Click to stop.'
-            : 'Send this signer a reminder once a day until they sign') + '">' +
-          (e.reminders_enabled ? 'Reminding daily' : 'Remind daily') + '</button>'
+      var rem = e.status === 'sent' && e.reminders_enabled
+        ? '<span class="es-link" title="Automatic reminders at 9 AM Pacific, up to seven times">Daily reminders on</span>'
         : '';
 
       var actions =
@@ -1078,8 +1039,7 @@ async function loadList(){
       '</tr></thead><tbody>' + rows + '</tbody></table>';
     el.querySelectorAll('.es-act').forEach(function(b){
       b.addEventListener('click',
-        b.dataset.act === 'resend' ? onResend :
-        b.dataset.act === 'remind' ? onRemind : onDelete);
+        b.dataset.act === 'resend' ? onResend : onDelete);
     });
   } catch(e){
     // A raw driver error ("connect ECONNREFUSED 127.0.0.1:5432") tells an agent
