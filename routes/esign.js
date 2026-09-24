@@ -58,6 +58,10 @@ function baseUrl(req) {
 
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '').trim());
 const FIELD_TYPES = new Set(['signature', 'initials', 'date', 'checkbox', 'text']);
+/* A text field holds a sentence or a paragraph as readily as a policy number,
+   so there is no practical cap on what can be typed into one. This ceiling only
+   bounds the request body; nothing that fits on a page comes near it. */
+const MAX_FIELD_TEXT = 20000;
 
 /* The recipient rules, in one place: creating a request and saving a draft
    have to agree about who counts as a recipient. Returns { recipients } or
@@ -353,7 +357,7 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
       // A value supplied here was typed by the agent while placing the field.
       // It is stored as already filled, so it prints with everything else and
       // is not demanded of the signer.
-      const preset = f.type === 'text' ? String(f.value || '').trim().slice(0, 300) : '';
+      const preset = f.type === 'text' ? String(f.value || '').trim().slice(0, MAX_FIELD_TEXT) : '';
       await db.query(
         `INSERT INTO envelope_fields (envelope_id, recipient_id, page, x, y, w, h, type, label, required, value, filled_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
@@ -430,7 +434,7 @@ router.put('/envelopes/:id/draft', requireAuth, async (req, res) => {
       const target = issued[Number(f.recipientIndex)];
       if (!target || !FIELD_TYPES.has(f.type)) continue;
       const num = (v) => Math.min(1, Math.max(0, Number(v) || 0));
-      const preset = f.type === 'text' ? String(f.value || '').trim().slice(0, 300) : '';
+      const preset = f.type === 'text' ? String(f.value || '').trim().slice(0, MAX_FIELD_TEXT) : '';
       await client.query(
         `INSERT INTO envelope_fields (envelope_id, recipient_id, page, x, y, w, h, type, label, required, value, filled_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
@@ -784,7 +788,7 @@ pub.post('/:token/sign', async (req, res) => {
         const v = supplied.get(f.id);
         if (!v) continue;
         const png = String(v.valuePng || '').startsWith('data:image/png;base64,') ? v.valuePng : null;
-        const val = png ? null : String(v.value || '').slice(0, 300);
+        const val = png ? null : String(v.value || '').slice(0, MAX_FIELD_TEXT);
         await db.query(
           `UPDATE envelope_fields SET value = $2, value_png = $3, filled_at = NOW()
             WHERE id = $1 AND recipient_id = $4`,

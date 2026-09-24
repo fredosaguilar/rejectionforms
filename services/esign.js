@@ -45,6 +45,65 @@ function fmt(ts) {
 }
 
 /* -------------------------------------------------------------------------
+   Laying a typed value out inside its box
+
+   A text field holds whatever was typed into it, which may be a sentence or a
+   paragraph rather than a word. Rather than let it run across the page or
+   shrink to nothing on one line, it is wrapped to the width of its own box and
+   sized down only as far as it takes to fit the height.
+   ------------------------------------------------------------------------- */
+
+/* Helvetica here is WinAnsi-encoded, and drawText throws on anything it cannot
+   encode. Free text now reaches this point, so characters outside that set are
+   dropped rather than allowed to fail the whole document. */
+function drawable(text) {
+  return String(text).replace(/\r\n?/g, '\n').replace(/\t/g, ' ')
+    .replace(/[^\n\x20-\x7E\xA0-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u20AC]/g, '');
+}
+
+/* Breaks the value into lines that fit `w`, honouring any line breaks that were
+   typed and splitting a word that is wider than the box on its own. Returns
+   null when not even one character fits, which tells the caller to try a
+   smaller size. */
+function wrapToWidth(font, text, w, size) {
+  const fits = (str) => font.widthOfTextAtSize(str, size) <= w;
+  const lines = [];
+  for (const para of String(text).split('\n')) {
+    let line = '';
+    for (let word of para.split(/\s+/).filter(Boolean)) {
+      while (!fits(word)) {
+        let cut = word.length - 1;
+        while (cut > 1 && !fits(word.slice(0, cut))) cut -= 1;
+        if (cut <= 1) return null;
+        if (line) { lines.push(line); line = ''; }
+        lines.push(word.slice(0, cut));
+        word = word.slice(cut);
+      }
+      const next = line ? `${line} ${word}` : word;
+      if (fits(next)) line = next;
+      else { if (line) lines.push(line); line = word; }
+    }
+    lines.push(line);
+  }
+  return lines.length ? lines : [''];
+}
+
+/* The largest size at which the whole value fits the box, wrapped. Falls back
+   to the smallest legible size and as many lines as the box holds. */
+function layoutValue(font, text, w, h) {
+  const clean = drawable(text);
+  const start = Math.min(12, Math.max(4, h * 0.7));
+  for (let size = start; size >= 4; size -= 0.5) {
+    const lines = wrapToWidth(font, clean, w, size);
+    if (lines && lines.length * (size * 1.18) <= h) return { size, lead: size * 1.18, lines };
+  }
+  const size = 4;
+  const lead = size * 1.18;
+  const lines = wrapToWidth(font, clean, w, size) || [clean];
+  return { size, lead, lines: lines.slice(0, Math.max(1, Math.floor(h / lead))) };
+}
+
+/* -------------------------------------------------------------------------
    Signed document assembly
 
    ESIGN §101(a) and RCW 19.360.030 require the signature to be "attached to or
@@ -85,12 +144,15 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
         page.drawText('[signature]', { x, y: y + 2, size: 8, font: helv, color: GREY });
       }
     } else if (f.value) {
-      // Shrink to fit rather than overflow into neighbouring content.
-      let size = Math.min(12, h * 0.7);
-      while (size > 5 && helv.widthOfTextAtSize(String(f.value), size) > w) size -= 0.5;
-      page.drawText(String(f.value), {
-        x, y: y + (h - size) / 2 + 1, size, font: helv, color: INK,
-      });
+      // Wrapped to the box and shrunk only as far as needed, so a long entry
+      // stays inside its own borders instead of overrunning the page.
+      const { size, lead, lines } = layoutValue(helv, f.value, w, h);
+      const block = lines.length * lead;
+      let ly = y + (h + block) / 2 - lead + (lead - size) / 2 + 1;
+      for (const line of lines) {
+        page.drawText(line, { x, y: ly, size, font: helv, color: INK });
+        ly -= lead;
+      }
     }
   }
 
