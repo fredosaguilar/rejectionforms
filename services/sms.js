@@ -295,16 +295,21 @@ function signingText({ recipientName, agentName, url, lang }) {
   const agent = String(agentName || '').trim();
   const hi = first ? (lang === 'es' ? `Hola ${first}, ` : `Hi ${first}, `) : '';
 
+  // The last line earns its place twice over: the link is the credential, so
+  // a forwarded one lets anyone sign in that person's name, and carriers'
+  // messaging rules expect opt-out wording on business texts.
   if (lang === 'es') {
     const who = agent ? `${agent} de ${AGENCY_NAME}` : AGENCY_NAME;
     return `${hi}${who} le envió un documento que requiere su firma.\n\n${url}\n\n` +
       'Por favor firme pronto para evitar retrasos o problemas con su póliza. ' +
-      '¿Preguntas? Comuníquese con nuestra oficina.';
+      '¿Preguntas? Comuníquese con nuestra oficina.\n\n' +
+      'No comparta este enlace. Responda STOP para no recibir mensajes.';
   }
   const who = agent ? `${agent} from ${AGENCY_NAME}` : AGENCY_NAME;
   return `${hi}${who} sent you a document requiring your signature.\n\n${url}\n\n` +
     'Please sign promptly to help avoid delays or issues with your policy. ' +
-    'Questions? Contact our office for assistance.';
+    'Questions? Contact our office for assistance.\n\n' +
+    'Do not share this link. Reply STOP to opt out.';
 }
 
 /* Exchanges the JWT for a token and throws with the provider's own message if
