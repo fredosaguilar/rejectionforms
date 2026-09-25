@@ -53,4 +53,36 @@ router.get('/:id', requireAuth, async (req, res) => {
   res.json(rows[0]);
 });
 
+/* Removes a saved submission.
+
+   A submission the client signed is the record of that acknowledgment, so the
+   first attempt on one comes back asking again rather than deleting it. Either
+   way the deletion is logged with who did it: the row is gone, the fact that
+   somebody removed it is not. */
+router.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT id, form_type, client_name, submitted_at, signature_client FROM submissions WHERE id=$1',
+      [req.params.id]);
+    const sub = rows[0];
+    if (!sub) return res.status(404).json({ error: 'Not found' });
+
+    if (sub.signature_client && String(req.query.confirm) !== 'signed') {
+      return res.status(409).json({
+        error: 'This form carries the client\'s signature. Deleting it destroys that record.',
+        needsConfirm: 'signed',
+      });
+    }
+
+    await db.query('DELETE FROM submissions WHERE id=$1', [req.params.id]);
+    console.log(`forms: submission ${sub.id} (${sub.form_type}, ${sub.client_name || 'no client'}, ` +
+                `saved ${new Date(sub.submitted_at).toISOString()}) deleted by ` +
+                `${req.session.agentName || req.session.email || 'agent ' + req.session.agentId}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete submission error:', err);
+    res.status(500).json({ error: 'Failed to delete: ' + err.message });
+  }
+});
+
 module.exports = router;
