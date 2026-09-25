@@ -122,6 +122,9 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
 .hist-table tr:hover td{background:var(--bg)}
 .dl-link{font-size:11px;color:var(--navy);text-decoration:none;padding:2px 8px;border:1px solid var(--border2);border-radius:20px}
 .dl-link:hover{background:var(--bg)}
+.dl-link.danger{color:#a32219;border-color:#f0c4c0;background:none;font-family:inherit;cursor:pointer}
+.dl-link.danger:hover{background:#fdf3f2}
+.dl-link.danger:disabled{opacity:.5;cursor:not-allowed}
 .toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;max-width:360px}
 .toast.show{opacity:1}
 .toast.success{background:#16a34a;color:#fff}
@@ -848,8 +851,8 @@ function downloadAuthPDF(mode){
   const sigC=document.getElementById('s-auth-c'), sigA=document.getElementById('s-auth-a');
 
   // Signature canvas images
-  if(sigC&&sigC.width>0){try{doc.addImage(sigC.toDataURL('image/png'),'PNG',lx,y,sw2,50);}catch(e){}}
-  if(sigA&&sigA.width>0){try{doc.addImage(sigA.toDataURL('image/png'),'PNG',rx,y,sw2,50);}catch(e){}}
+  if(hasInk(sigC)){try{doc.addImage(sigC.toDataURL('image/png'),'PNG',lx,y,sw2,50);}catch(e){}}
+  if(hasInk(sigA)){try{doc.addImage(sigA.toDataURL('image/png'),'PNG',rx,y,sw2,50);}catch(e){}}
   y+=54;
 
   // Signature line
@@ -1187,8 +1190,8 @@ async function submitForm(formType,prefix,mode){
     const sigC=document.getElementById('s-'+prefix+'-c');
     const sigA=document.getElementById('s-'+prefix+'-a');
     const leftX=46;const rightX=316;const sigW=210;const sigH=48;
-    if(sigC&&sigC.width>0){try{doc.addImage(sigC.toDataURL('image/png'),'PNG',leftX,y,sigW,sigH);}catch(e){}}
-    if(sigA&&sigA.width>0){try{doc.addImage(sigA.toDataURL('image/png'),'PNG',rightX,y,sigW,sigH);}catch(e){}}
+    if(hasInk(sigC)){try{doc.addImage(sigC.toDataURL('image/png'),'PNG',leftX,y,sigW,sigH);}catch(e){}}
+    if(hasInk(sigA)){try{doc.addImage(sigA.toDataURL('image/png'),'PNG',rightX,y,sigW,sigH);}catch(e){}}
     y+=sigH+8;
     doc.setDrawColor(...navy);
     doc.line(leftX,y,leftX+sigW,y);doc.line(rightX,y,rightX+sigW,y);
@@ -1226,8 +1229,8 @@ async function submitForm(formType,prefix,mode){
     } else {
       doc.save(fileName);
     }
-    savePayload.signatureClient=(sigC&&sigC.width>0)?sigC.toDataURL('image/png'):null;
-    savePayload.signatureAgent=(sigA&&sigA.width>0)?sigA.toDataURL('image/png'):null;
+    savePayload.signatureClient=hasInk(sigC)?sigC.toDataURL('image/png'):null;
+    savePayload.signatureAgent=hasInk(sigA)?sigA.toDataURL('image/png'):null;
     savePayload.formData={...savePayload.formData,agentName:gv('global-agent-name')};
     const got=toEsign?'Added to the signature request':'PDF downloaded';
     try{
@@ -1239,6 +1242,23 @@ async function submitForm(formType,prefix,mode){
   }catch(e){showT('PDF error: '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent=wasLabel;}
 }
+/* Whether anything was actually drawn on a signature pad. A canvas that has
+   never been touched still yields a data URL, so "has a signature" cannot be
+   read from the element existing — it has to be read from the pixels. */
+function hasInk(c){
+  if(!c || !c.width || !c.height) return false;
+  try{
+    const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;
+    for(let i=3;i<d.length;i+=4) if(d[i]!==0) return true;
+  }catch(e){ return false; }
+  return false;
+}
+
+/* Client names and policy numbers are typed by people and then put into the
+   history table as HTML, so they are escaped on the way in. */
+function esc(v){
+  return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 async function loadHistory(){
   try{
     const search=document.getElementById('hist-search').value;
@@ -1248,8 +1268,41 @@ async function loadHistory(){
     const tbody=document.getElementById('hist-body');
     const FL={third_party_auth:'Third Party Auth',fee_agreement:'Broker Fee Agreement',vehicle_removal:'Vehicle Removal E&O',auto_cov:'Auto Coverage',home_cov:'Home Coverage',trucking_cov:'Trucking Coverage',contractor_cov:'Contractor Coverage'};
     if(!rows.length){tbody.innerHTML='<tr><td colspan="7" style="color:var(--hint);padding:14px 10px">No submissions yet</td></tr>';return;}
-    tbody.innerHTML=rows.map(s=>'<tr><td style="color:var(--muted)">#'+s.id+'</td><td>'+(FL[s.form_type]||s.form_type)+'</td><td style="font-weight:500">'+(s.client_name||'--')+'</td><td>'+(s.policy_number||'--')+'</td><td>'+(s.agent_name||'--')+'</td><td>'+new Date(s.submitted_at).toLocaleDateString()+'</td><td><a class="dl-link" href="/api/forms/'+s.id+'/pdf">Download PDF</a></td></tr>').join('');
-  }catch(e){}
+    tbody.innerHTML=rows.map(s=>'<tr><td style="color:var(--muted)">#'+s.id+'</td><td>'+esc(FL[s.form_type]||s.form_type)+'</td><td style="font-weight:500">'+esc(s.client_name||'--')+'</td><td>'+esc(s.policy_number||'--')+'</td><td>'+esc(s.agent_name||'--')+'</td><td>'+new Date(s.submitted_at).toLocaleDateString()+'</td>'+
+      '<td><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+
+        '<a class="dl-link" href="/api/forms/'+s.id+'/pdf">Download PDF</a>'+
+        '<button type="button" class="dl-link danger" data-del="'+s.id+'" data-what="'+esc((FL[s.form_type]||s.form_type)+' for '+(s.client_name||'no client named'))+'">Delete</button>'+
+      '</div></td></tr>').join('');
+    tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',deleteSubmission));
+  }catch(e){
+    // Silence here used to mean a broken list looked like an empty one.
+    const tbody=document.getElementById('hist-body');
+    if(tbody)tbody.innerHTML='<tr><td colspan="7" style="color:#a32219;padding:14px 10px">Could not load submissions: '+esc(e.message)+'</td></tr>';
+  }
+}
+
+/* Removes a saved submission. A form the client signed is the record of that
+   acknowledgment, so the server asks a second time before destroying one. */
+async function deleteSubmission(e){
+  e.preventDefault();
+  const btn=this,id=btn.dataset.del,what=btn.dataset.what;
+  if(!confirm('Delete '+what+'?\n\nThe saved form and its PDF go with it. This cannot be undone.'))return;
+  btn.disabled=true;const was=btn.textContent;btn.textContent='Deleting…';
+  try{
+    let r=await fetch('/api/forms/'+id,{method:'DELETE'});
+    let d=await r.json();
+    if(!r.ok&&d.needsConfirm==='signed'){
+      if(!confirm(d.error+'\n\nDelete it anyway?')){btn.disabled=false;btn.textContent=was;return;}
+      r=await fetch('/api/forms/'+id+'?confirm=signed',{method:'DELETE'});
+      d=await r.json();
+    }
+    if(!r.ok||!d.success)throw new Error(d.error||'Could not delete');
+    showT('Deleted','success');
+    loadHistory();
+  }catch(err){
+    showT(err.message,'error');
+    btn.disabled=false;btn.textContent=was;
+  }
 }
 fetch('/api/me').then(r=>r.json()).then(d=>{
   document.getElementById('nav-agent').textContent=d.agentName||'';
