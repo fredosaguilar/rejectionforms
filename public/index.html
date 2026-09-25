@@ -933,50 +933,76 @@ async function submitForm(formType,prefix,mode){
     const date=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
     let y=50;
     function chk(){if(y>700){doc.addPage();y=50;}}
+    /* Letterhead: the mark on the left at a size you can read, the agency's
+       details beside it, and the form's own title in a band of its own. The
+       date and the agent sit in that band, right-aligned, rather than
+       floating underneath it. */
     function hdr(){
-      // Gold top bar
-      doc.setFillColor(...gold);doc.rect(40,36,W-80,4,'F');
-      // Logo on right
-      try{doc.addImage('/logo.jpg','JPEG',W-130,44,80,55);}catch(e){}
-      // Agency name
-      doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(...navy);
-      doc.text('Columbia Basin Insurance',40,68);
-      doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...muted);
-      doc.text('Quincy Alliance Insurance LLC DBA Columbia Basin Insurance',40,82);
-      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...gold);
-      doc.text('Auto  •  Home  •  Commercial  •  Farms',40,94);
-      // Form title
-      doc.setFillColor(...navy);doc.rect(40,104,W-80,22,'F');
-      doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(255,255,255);
-      doc.text(FORM_LABELS2[formType]||formType,46,119);
-      doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...muted);
-      doc.text('Date: '+date+'   |   Agent: '+(gv('global-agent-name')||''),40,138);
-      doc.setDrawColor(220,220,214);doc.line(40,144,W-40,144);
-      y=158;
+      const logoW=drawLogo(doc,40,40,86,54);
+      const tx=40+(logoW?logoW+16:0);
+      doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(...navy);
+      doc.text(AGENCY.name,tx,60);
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(...muted);
+      doc.text(AGENCY.legal,tx,72);
+      doc.text(AGENCY.address+'   ·   '+AGENCY.phone,tx,83);
+      doc.setTextColor(...gold);doc.setFontSize(7.5);
+      doc.text(AGENCY.lines,tx,94);
+
+      doc.setFillColor(...gold);doc.rect(40,106,W-80,2.5,'F');
+
+      doc.setFillColor(...navy);doc.rect(40,118,W-80,26,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(255,255,255);
+      doc.text(FORM_LABELS2[formType]||formType,50,135);
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(214,224,220);
+      doc.text(date+'   ·   '+(gv('global-agent-name')||'—'),W-50,135,{align:'right'});
+      y=164;
     }
+    /* A section is announced by a gold rule and a line of small caps, not by a
+       filled bar: the page then has one band of colour (the title) instead of
+       one every inch. */
     function secTitle(t){
-      chk();
-      doc.setFillColor(240,246,240);doc.rect(40,y,W-80,18,'F');
-      doc.setDrawColor(...gold);doc.rect(40,y,3,18,'F');
-      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...navy);
-      doc.text(t.toUpperCase(),50,y+12);y+=24;
+      chk(34);
+      y+=6;
+      doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(...navy);
+      doc.text(t.toUpperCase(),40,y+9,{charSpace:0.6});
+      doc.setFillColor(...gold);doc.rect(40,y+14,26,1.6,'F');
+      doc.setDrawColor(228,226,220);doc.setLineWidth(0.5);
+      doc.line(72,y+14.8,W-40,y+14.8);
+      y+=28;
     }
+    /* Label left, value in its own column. The label is wrapped rather than
+       allowed to run under the value, which a long bilingual one otherwise
+       does. */
     function row(label,val){
-      chk();
-      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...muted);
-      doc.text(label,46,y+10);
-      doc.setFont('helvetica','normal');doc.setTextColor(26,26,26);
-      doc.text(val||'—',220,y+10);
-      y+=18;
+      chk(30);
+      const labelW=196,valX=40+labelW+16;
+      doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(...muted);
+      const ls=doc.splitTextToSize(String(label),labelW);
+      doc.text(ls,40,y+10);
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(26,26,26);
+      const vs=doc.splitTextToSize(String(val||'—'),W-40-valX);
+      doc.text(vs,valX,y+10);
+      y+=Math.max(ls.length,vs.length)*11+8;
     }
+    /* Label above value, two to a row. Reads faster than a label-colon-value
+       line and stops long carrier names colliding with the next column. */
     function twoRow(pairs){
-      const half=Math.ceil(pairs.length/2);
-      const left=pairs.slice(0,half);const right=pairs.slice(half);
-      const sy=y;
-      left.forEach(([l,v])=>{chk();doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...muted);doc.text(l,46,y+10);doc.setFont('helvetica','normal');doc.setTextColor(26,26,26);doc.text(v||'—',200,y+10);y+=18;});
-      const ly=y;y=sy;
-      right.forEach(([l,v])=>{chk();doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...muted);doc.text(l,310,y+10);doc.setFont('helvetica','normal');doc.setTextColor(26,26,26);doc.text(v||'—',460,y+10);y+=18;});
-      y=Math.max(ly,y)+4;
+      const colX=[40,(W)/2+4];
+      const colW=(W-80)/2-8;
+      for(let i=0;i<pairs.length;i+=2){
+        chk(34);
+        for(let c=0;c<2 && i+c<pairs.length;c++){
+          const [l,v]=pairs[i+c];
+          doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...muted);
+          doc.text(String(l).toUpperCase(),colX[c],y+8,{charSpace:0.4});
+          doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(26,26,26);
+          doc.text(doc.splitTextToSize(v||'—',colW)[0],colX[c],y+21);
+        }
+        doc.setDrawColor(238,236,231);doc.setLineWidth(0.5);
+        doc.line(40,y+28,W-40,y+28);
+        y+=36;
+      }
+      y+=2;
     }
     let savePayload={formType,clientName:'',clientEmail:gv('global-client-email'),policyNumber:'',carrier:'',effectiveDate:'',coverages:[],formData:{}};
     hdr();
@@ -1064,59 +1090,54 @@ async function submitForm(formType,prefix,mode){
         secTitle('Coverage Selections / Selecciones de Cobertura');
         // Column layout: cov+def | status | rec | selected
         // Status gets its own full column with no overlap
-        const colCov=44,colStatus=252,colRec=338,colSel=462;
-        const wCov=202,wStatus=80,wRec=118,wSel=W-50-colSel;
-        // Header
-        doc.setFillColor(...navy);doc.rect(40,y,W-80,16,'F');
-        doc.setFillColor(...gold);doc.rect(40,y,3,16,'F');
-        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(255,255,255);
-        doc.text('Coverage / Cobertura',colCov+4,y+10);
-        doc.text('Status / Estado',colStatus,y+10);
-        doc.text('Recommended / Recomendado',colRec,y+10);
-        doc.text('Client Selected / Seleccionado',colSel,y+10);
-        y+=18;
+        /* Four columns, sized to what actually goes in them: the coverage and
+           its plain-language definition need the room, the status needs very
+           little. The status reads as a word in its own colour rather than a
+           bilingual stack, and the rows alternate in a tint you can see. */
+        const colCov=44,colStatus=268,colRec=342,colSel=468;
+        const wCov=214,wStatus=64,wRec=118,wSel=W-46-colSel;
+        const tableHead=()=>{
+          doc.setFillColor(...navy);doc.rect(40,y,W-80,18,'F');
+          doc.setFont('helvetica','bold');doc.setFontSize(6.8);doc.setTextColor(255,255,255);
+          doc.text('COVERAGE / COBERTURA',colCov,y+11.5,{charSpace:0.4});
+          doc.text('STATUS',colStatus,y+11.5,{charSpace:0.4});
+          doc.text('RECOMMENDED',colRec,y+11.5,{charSpace:0.4});
+          doc.text('CLIENT SELECTED',colSel,y+11.5,{charSpace:0.4});
+          y+=18;
+        };
+        tableHead();
         covs.forEach((cov,i)=>{
           const def=getCovDef(cov.name);
-          doc.setFontSize(7);
+          doc.setFontSize(7.5);
           const nameLines=doc.splitTextToSize((cov.name||'—'),wCov);
-          const defLines=def?doc.splitTextToSize(def,wCov):[];
-          const statusLines=doc.splitTextToSize(cov.status==='offered'?'Offered /\nOfrecido':cov.status==='declined'?'Declined /\nRechazado':'—',wStatus);
           const recLines=doc.splitTextToSize(cov.recommended||'—',wRec);
           const selLines=doc.splitTextToSize(cov.selected||'—',wSel);
-          const covTotalLines=nameLines.length+(defLines.length>0?defLines.length+0.3:0);
-          const maxLines=Math.max(covTotalLines,statusLines.length,recLines.length,selLines.length);
-          const rowH=Math.max(20,Math.ceil(maxLines)*9+8);
-          chk();
-          doc.setFillColor(i%2===0?255:248,i%2===0?255:250,i%2===0?255:248);
-          doc.rect(40,y,W-80,rowH,'F');
-          // Vertical dividers
-          doc.setDrawColor(220,220,214);
-          doc.line(colStatus-4,y,colStatus-4,y+rowH);
-          doc.line(colRec-4,y,colRec-4,y+rowH);
-          doc.line(colSel-4,y,colSel-4,y+rowH);
-          const sc=cov.status==='offered'?[22,163,74]:cov.status==='declined'?[220,38,38]:muted;
-          const textY=y+8;
-          // Coverage name bold
-          doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(26,26,26);
-          doc.text(nameLines,colCov+4,textY);
-          // Definition italic gray below name
-          if(def){
-            const defY=textY+nameLines.length*8;
-            doc.setFont('helvetica','italic');doc.setFontSize(6);doc.setTextColor(...muted);
-            doc.text(defLines,colCov+4,defY);
+          doc.setFontSize(6.5);
+          const defLines=def?doc.splitTextToSize(def,wCov):[];
+          const covH=nameLines.length*9+(defLines.length?defLines.length*7.6+2:0);
+          const rowH=Math.max(24,Math.max(covH,recLines.length*9.5,selLines.length*9.5)+13);
+          if(y+rowH>700){doc.addPage();hdr();tableHead();}
+          if(i%2){doc.setFillColor(247,248,246);doc.rect(40,y,W-80,rowH,'F');}
+          const textY=y+11;
+          doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(26,26,26);
+          doc.text(nameLines,colCov,textY);
+          if(defLines.length){
+            doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(...muted);
+            doc.text(defLines,colCov,textY+nameLines.length*9);
           }
-          // Status - bold colored, stacked EN/ES
+          const sc=cov.status==='offered'?[22,124,72]:cov.status==='declined'?[178,42,34]:muted;
           doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...sc);
-          const statusEN=cov.status==='offered'?'Offered':cov.status==='declined'?'Declined':'—';
-          const statusES=cov.status==='offered'?'Ofrecido':cov.status==='declined'?'Rechazado':'';
-          doc.text(statusEN,colStatus,textY);
-          if(statusES){doc.setFont('helvetica','italic');doc.setFontSize(6.5);doc.text(statusES,colStatus,textY+8);}
-          // Recommended
-          doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(26,26,26);
+          doc.text(cov.status==='offered'?'Offered':cov.status==='declined'?'Declined':'—',colStatus,textY);
+          if(cov.status==='offered'||cov.status==='declined'){
+            doc.setFont('helvetica','normal');doc.setFontSize(6.2);
+            doc.text(cov.status==='offered'?'Ofrecido':'Rechazado',colStatus,textY+8);
+          }
+          doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(60,58,54);
           doc.text(recLines,colRec,textY);
-          // Client selected
+          doc.setFont('helvetica','bold');doc.setTextColor(26,26,26);
           doc.text(selLines,colSel,textY);
-          doc.setDrawColor(220,220,214);doc.line(40,y+rowH,W-40,y+rowH);
+          doc.setDrawColor(232,230,225);doc.setLineWidth(0.5);
+          doc.line(40,y+rowH,W-40,y+rowH);
           y+=rowH;
         });
         y+=8;
@@ -1209,13 +1230,17 @@ async function submitForm(formType,prefix,mode){
     doc.text('Print Name / Nombre en Letra de Molde',leftX,y+10);
     doc.text('Print Name / Nombre en Letra de Molde',rightX,y+10);
     y+=20;
+    // Footer: who the document is from and how to reach them, on every page.
     const pages=doc.internal.getNumberOfPages();
     for(let i=1;i<=pages;i++){
       doc.setPage(i);
-      // Footer gold bar
-      doc.setFillColor(...gold);doc.rect(40,756,W-80,1,'F');
-      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...muted);
-      doc.text('Columbia Basin Insurance  |  Auto • Home • Commercial • Farms  |  '+date+'  |  Page '+i+' of '+pages,W/2,768,{align:'center'});
+      doc.setFillColor(...gold);doc.rect(40,752,W-80,1.5,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...navy);
+      doc.text(AGENCY.name,40,766);
+      doc.setFont('helvetica','normal');doc.setTextColor(...muted);
+      doc.text(AGENCY.address+'  ·  '+AGENCY.phone,40,776);
+      doc.text(date,W/2,766,{align:'center'});
+      doc.text('Page '+i+' of '+pages,W-40,766,{align:'right'});
     }
     const clientName=gv(prefix+'-client')||gv('veh-client')||'form';
     const fileName='EO-'+formType+'-'+clientName.replace(/\s+/g,'-')+'-'+date.replace(/,?\s+/g,'-')+'.pdf';
@@ -1242,6 +1267,50 @@ async function submitForm(formType,prefix,mode){
   }catch(e){showT('PDF error: '+e.message,'error');}
   finally{btn.disabled=false;btn.textContent=wasLabel;}
 }
+/* The logo file carries a wide margin of white, so drawing it straight into a
+   box leaves the mark floating in the middle of one. This trims to the ink and
+   caches the result, since several forms want it. */
+const AGENCY={
+  name:'Columbia Basin Insurance',
+  legal:'Quincy Alliance Insurance LLC DBA Columbia Basin Insurance',
+  address:'21 D St SW, Suite A, Quincy, WA 98848',
+  phone:'509-787-1750',
+  lines:'Auto  ·  Home  ·  Commercial  ·  Farms',
+};
+let _logo=null;
+function croppedLogo(){
+  if(_logo!==null) return _logo;
+  try{
+    const img=document.querySelector('.nav-logo');
+    if(!img||!img.naturalWidth) return (_logo=false);
+    const w=img.naturalWidth,h=img.naturalHeight;
+    const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+    const ctx=cv.getContext('2d');ctx.drawImage(img,0,0);
+    const d=ctx.getImageData(0,0,w,h).data;
+    let t=h,b=0,l=w,r=0;
+    for(let row=0;row<h;row++)for(let col=0;col<w;col++){
+      const i=(row*w+col)*4;
+      if(d[i+3]>30&&!(d[i]>240&&d[i+1]>240&&d[i+2]>240)){
+        if(row<t)t=row; if(row>b)b=row; if(col<l)l=col; if(col>r)r=col;
+      }
+    }
+    if(r<=l||b<=t) return (_logo=false);
+    const pad=6,cw=r-l+pad*2,ch=b-t+pad*2;
+    const out=document.createElement('canvas');out.width=cw;out.height=ch;
+    out.getContext('2d').drawImage(cv,l-pad,t-pad,cw,ch,0,0,cw,ch);
+    return (_logo={url:out.toDataURL('image/png'),w:cw,h:ch});
+  }catch(e){ return (_logo=false); }
+}
+/* Draws the logo inside a box, keeping its proportions and its left edge. */
+function drawLogo(doc,x,y,maxW,maxH){
+  const lg=croppedLogo();
+  if(!lg) return 0;
+  const sc=Math.min(maxW/lg.w,maxH/lg.h);
+  const w=lg.w*sc,h=lg.h*sc;
+  try{ doc.addImage(lg.url,'PNG',x,y+(maxH-h)/2,w,h); }catch(e){ return 0; }
+  return w;
+}
+
 /* Whether anything was actually drawn on a signature pad. A canvas that has
    never been touched still yields a data URL, so "has a signature" cannot be
    read from the element existing — it has to be read from the pixels. */
