@@ -1368,6 +1368,86 @@ async function onContinue(e){
   await continueDraft(this.dataset.id);
 }
 
+/* Everything the record holds about one request: where each signer has got
+   to, how often they opened it, and the events behind that. Shown in place
+   rather than on another screen, so it can be read and closed again without
+   losing the list. */
+var EVENT_WORDS = {
+  created: 'Created', sent: 'Sent', reminded: 'Reminder sent', viewed: 'Opened the document',
+  consented: 'Consented to electronic records', signed: 'Signed', declined: 'Declined',
+  completed: 'Completed', voided: 'Voided', recalled: 'Recalled', downloaded: 'Downloaded',
+  send_failed: 'Delivery failed',
+};
+function whenFull(ts){
+  return ts ? new Date(ts).toLocaleString('en-US', {
+    year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
+}
+
+async function onHistory(e){
+  e.preventDefault();
+  var btn = this, id = btn.dataset.id, title = btn.dataset.title;
+  var row = btn.closest('tr');
+  var open = row.nextElementSibling;
+  if(open && open.classList.contains('es-history')){ open.remove(); btn.textContent = 'History'; return; }
+
+  btn.disabled = true; btn.textContent = 'Loading…';
+  try {
+    var r = await fetch('/api/esign/envelopes/' + id);
+    var d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Could not load the history');
+
+    var events = d.events || [];
+    var opensFor = function(rid){
+      return events.filter(function(ev){ return ev.event === 'viewed' && ev.recipient_id === rid; });
+    };
+    var people = (d.recipients || []).map(function(p){
+      var o = opensFor(p.id);
+      var seen = o.length
+        ? '<span style="color:var(--ok)">Opened ' + o.length + (o.length === 1 ? ' time' : ' times') +
+          '</span> · first ' + esc(whenFull(o[0].at)) +
+          (o.length > 1 ? ' · last ' + esc(whenFull(o[o.length - 1].at)) : '')
+        : '<span style="color:#a35a19">Not opened yet</span>';
+      return '<div style="padding:7px 0;border-bottom:1px solid var(--border)">' +
+        '<div style="font-weight:600;font-size:12.5px">' + esc(p.name) +
+          ' <span style="font-weight:400;color:var(--muted)">' + esc(p.email) + '</span>' +
+          ' <span class="es-pill es-' + esc(p.status) + '">' + esc(p.status) + '</span></div>' +
+        '<div style="font-size:11.5px;color:var(--muted);margin-top:2px">' + seen + '</div>' +
+        '<div style="font-size:11.5px;color:var(--muted)">Signed ' + esc(whenFull(p.signed_at)) + '</div>' +
+      '</div>';
+    }).join('') || '<div style="font-size:12px;color:var(--muted)">No recipients on this request.</div>';
+
+    var trail = events.map(function(ev){
+      return '<tr>' +
+        '<td style="white-space:nowrap;color:var(--muted);font-size:11px;padding:3px 12px 3px 0">' + esc(whenFull(ev.at)) + '</td>' +
+        '<td style="font-size:11.5px;padding:3px 12px 3px 0">' + esc(EVENT_WORDS[ev.event] || ev.event) + '</td>' +
+        '<td style="font-size:11px;color:var(--muted);padding:3px 12px 3px 0">' + esc(ev.actor || '—') + '</td>' +
+        '<td style="font-size:11px;color:var(--muted);padding:3px 0">' + esc(ev.ip || '') + '</td>' +
+      '</tr>';
+    }).join('') || '<tr><td style="font-size:12px;color:var(--muted)">Nothing recorded yet.</td></tr>';
+
+    var tr = document.createElement('tr');
+    tr.className = 'es-history';
+    tr.innerHTML = '<td colspan="6" style="background:var(--bg);padding:14px 16px">' +
+      '<div style="font-weight:600;font-size:13px;margin-bottom:8px">' + esc(title) + '</div>' +
+      '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:20px">' +
+        '<div><div class="lbl" style="margin-bottom:4px">SIGNERS</div>' + people + '</div>' +
+        '<div><div class="lbl" style="margin-bottom:4px">EVERY EVENT</div>' +
+          '<div style="max-height:260px;overflow:auto"><table style="width:100%;border-collapse:collapse">' +
+            trail + '</table></div></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:10px">' +
+        'Every open is recorded here and printed on the certificate of completion.</div>' +
+    '</td>';
+    row.parentNode.insertBefore(tr, row.nextSibling);
+    btn.textContent = 'Hide history';
+  } catch(err){
+    showT(err.message, 'error');
+    btn.textContent = 'History';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 /* Pulls a sent request back. Destructive enough to say so plainly first. */
 async function onRecall(e){
   e.preventDefault();
@@ -1477,7 +1557,14 @@ async function loadList(){
           'title="Stop the links that were sent and edit this request">Recall</button>'
         : '';
 
-      var actions = cont +
+      // History applies to anything that has been out: a draft has nothing to
+      // show beyond its own creation.
+      var hist = e.status === 'draft' ? ''
+        : '<button class="es-link es-act" data-act="history" data-id="' + e.id +
+          '" data-title="' + esc(e.title) + '" type="button" ' +
+          'title="Who opened it, when, and everything else on the record">History</button>';
+
+      var actions = cont + hist +
         (canResend ? '<button class="es-link es-act" data-act="resend" data-id="' + e.id + '" type="button">' +
                      (e.status === 'draft' ? 'Send' : 'Resend') + '</button>' : '') + rem + recall +
         '<button class="es-link es-act es-danger" data-act="delete" data-id="' + e.id +
@@ -1501,6 +1588,7 @@ async function loadList(){
       b.addEventListener('click',
         b.dataset.act === 'resend'   ? onResend :
         b.dataset.act === 'continue' ? onContinue :
+        b.dataset.act === 'history'  ? onHistory :
         b.dataset.act === 'recall'   ? onRecall : onDelete);
     });
   } catch(e){
