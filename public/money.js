@@ -22,8 +22,11 @@
 
   /* `partial` is for mid-typing: the decimals are left exactly as far as they
      have got, so "12." and "12.5" stay typeable. Without it the value is
-     completed to two decimals, which is what prints. */
-  function format(value, partial){
+     completed to two decimals, which is what prints.
+
+     `optionalCents` is for coverage limits, where cents are shown only if
+     somebody typed them: a limit reads "$100,000", a premium "$1,875.50". */
+  function format(value, partial, optionalCents){
     var s = String(value == null ? '' : value).trim();
     if(!s) return '';
     if(!BARE.test(s)) return s;
@@ -32,7 +35,7 @@
     var dot = digits.indexOf('.');
     var whole = dot < 0 ? digits : digits.slice(0, dot);
     var cents = dot < 0 ? null : digits.slice(dot + 1).replace(/\./g, '');
-    if(partial){
+    if(partial || (optionalCents && cents === null)){
       whole = group(whole.replace(/^0+(?=\d)/, '') || '0');
       return '$' + whole + (cents === null ? '' : '.' + cents.slice(0, 2));
     }
@@ -83,7 +86,7 @@
     }
 
     var pos = significantBefore(el);
-    var next = format(raw, partial);
+    var next = format(raw, partial, el.dataset.moneyOptionalCents === '1');
     el.dataset.moneyAdded = (next && raw.charAt(0) !== '$') ? '1'
                           : (next ? el.dataset.moneyAdded : '');
     if(next === raw) return;
@@ -91,9 +94,10 @@
     if(document.activeElement === el) restoreCaret(el, pos);
   }
 
-  function attach(el){
+  function attach(el, opts){
     if(!el || el.dataset.money === '1') return;
     el.dataset.money = '1';
+    if(opts && opts.optionalCents) el.dataset.moneyOptionalCents = '1';
     el.setAttribute('inputmode', 'decimal');
     attached.push(el);
 

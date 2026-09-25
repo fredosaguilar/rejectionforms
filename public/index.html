@@ -635,7 +635,20 @@ setTimeout(()=>{
   const fields=document.getElementById('flood-fields');
   if(fields)fields.style.display='none';
 },100);
-function buildGrid(id,covs){document.getElementById(id).innerHTML=covs.map(buildCard).join('');}
+function buildGrid(id,covs){
+  document.getElementById(id).innerHTML=covs.map(buildCard).join('');
+  // Recommended and Client selected hold amounts. Typing 100000 into one gives
+  // back $100,000 without the agent reaching for the $ or the commas. Cents
+  // appear only when they are typed, because a limit reads "$100,000" where a
+  // premium reads "$1,875.50" — and anything that is not purely an amount
+  // ("100/300/100", "$25,000 each person / $50,000 each accident", "Declined")
+  // is left exactly as it was written or picked.
+  if(window.CBIMoney){
+    document.querySelectorAll('#'+id+' .combo-input').forEach(function(el){
+      window.CBIMoney.attach(el,{optionalCents:true});
+    });
+  }
+}
 buildGrid('auto-grid',AUTO_COVS);
 buildGrid('home-grid',HOME_COVS);
 buildGrid('truck-grid',TRUCK_COVS);
