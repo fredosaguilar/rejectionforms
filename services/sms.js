@@ -282,14 +282,29 @@ async function send({ to, text }) {
   }
 }
 
-/* Kept short: carriers split long messages, and a split signing link is a
-   broken signing link. */
-function signingText({ recipientName, agentName, title, url, lang }) {
-  const first = String(recipientName || '').split(/\s+/)[0];
+const AGENCY_NAME = 'Columbia Basin Insurance';
+
+/* The message a signer receives, for a new request and for every reminder.
+
+   The link sits on a line of its own: carriers split long messages, and a
+   split signing link is a broken signing link. Only the recipient's first
+   name is used — a text addressed to "MARIA HERNANDEZ-RUIZ" reads like a
+   mailing, not like their agent. */
+function signingText({ recipientName, agentName, url, lang }) {
+  const first = String(recipientName || '').trim().split(/\s+/)[0];
+  const agent = String(agentName || '').trim();
+  const hi = first ? (lang === 'es' ? `Hola ${first}, ` : `Hi ${first}, `) : '';
+
   if (lang === 'es') {
-    return `${first}: ${agentName || 'Columbia Basin Insurance'} le envió "${title}" para firmar electrónicamente. Firme aquí: ${url}\n\nNo comparta este enlace. Responda STOP para no recibir mensajes.`;
+    const who = agent ? `${agent} de ${AGENCY_NAME}` : AGENCY_NAME;
+    return `${hi}${who} le envió un documento que requiere su firma.\n\n${url}\n\n` +
+      'Por favor firme pronto para evitar retrasos o problemas con su póliza. ' +
+      '¿Preguntas? Comuníquese con nuestra oficina.';
   }
-  return `${first}: ${agentName || 'Columbia Basin Insurance'} sent you "${title}" to sign electronically. Sign here: ${url}\n\nDo not share this link. Reply STOP to opt out.`;
+  const who = agent ? `${agent} from ${AGENCY_NAME}` : AGENCY_NAME;
+  return `${hi}${who} sent you a document requiring your signature.\n\n${url}\n\n` +
+    'Please sign promptly to help avoid delays or issues with your policy. ' +
+    'Questions? Contact our office for assistance.';
 }
 
 /* Exchanges the JWT for a token and throws with the provider's own message if
