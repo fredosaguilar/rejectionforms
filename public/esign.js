@@ -1378,6 +1378,12 @@ var EVENT_WORDS = {
   completed: 'Completed', voided: 'Voided', recalled: 'Recalled', downloaded: 'Downloaded',
   send_failed: 'Delivery failed',
 };
+/* "email and text", the way someone would say it. Matches the certificate. */
+function channelWords(channels){
+  var names = (channels || []).map(function(c){ return c === 'sms' ? 'text' : c; });
+  if(names.length < 2) return names[0] || '';
+  return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+}
 function whenFull(ts){
   return ts ? new Date(ts).toLocaleString('en-US', {
     year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
@@ -1416,10 +1422,13 @@ async function onHistory(e){
       '</div>';
     }).join('') || '<div style="font-size:12px;color:var(--muted)">No recipients on this request.</div>';
 
+    // The server has already folded a request's email and text into one entry.
     var trail = events.map(function(ev){
+      var how = channelWords(ev.channels);
       return '<tr>' +
         '<td style="white-space:nowrap;color:var(--muted);font-size:11px;padding:3px 12px 3px 0">' + esc(whenFull(ev.at)) + '</td>' +
-        '<td style="font-size:11.5px;padding:3px 12px 3px 0">' + esc(EVENT_WORDS[ev.event] || ev.event) + '</td>' +
+        '<td style="font-size:11.5px;padding:3px 12px 3px 0">' + esc(EVENT_WORDS[ev.event] || ev.event) +
+          (how ? '<span style="color:var(--muted)"> · ' + esc(how) + '</span>' : '') + '</td>' +
         '<td style="font-size:11px;color:var(--muted);padding:3px 12px 3px 0">' + esc(ev.actor || '—') + '</td>' +
         '<td style="font-size:11px;color:var(--muted);padding:3px 0">' + esc(ev.ip || '') + '</td>' +
       '</tr>';

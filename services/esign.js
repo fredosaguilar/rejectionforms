@@ -103,6 +103,36 @@ function layoutValue(font, text, w, h) {
   return { size, lead, lines: lines.slice(0, Math.max(1, Math.floor(h / lead))) };
 }
 
+/* Email and text go out as two deliveries and either can fail on its own, so
+   the trail records one event per channel. Read back they are one act — a
+   request sent, a reminder sent — so consecutive entries for the same event,
+   the same recipient and the same moment are shown as one line naming both
+   channels. Nothing is dropped: the rows stay as they were written.  */
+function groupEvents(events) {
+  const out = [];
+  for (const e of (events || [])) {
+    const detail = typeof e.detail === 'string' ? safeJson(e.detail) : e.detail;
+    const channel = detail && detail.channel;
+    const prev = out[out.length - 1];
+    if (channel && prev && prev.event === e.event && prev.actor === e.actor &&
+        prev.recipient_id === e.recipient_id &&
+        Math.abs(new Date(e.at) - new Date(prev.at)) < 120000) {
+      if (!prev.channels.includes(channel)) prev.channels.push(channel);
+      continue;
+    }
+    out.push(Object.assign({}, e, { channels: channel ? [channel] : [] }));
+  }
+  return out;
+}
+function safeJson(v) { try { return JSON.parse(v); } catch (_) { return null; } }
+
+/* "email and text", the way someone would say it. */
+function channelWords(channels) {
+  const names = (channels || []).map((c) => (c === 'sms' ? 'text' : c));
+  if (names.length < 2) return names[0] || '';
+  return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+}
+
 /* -------------------------------------------------------------------------
    Signed document assembly
 
@@ -299,10 +329,11 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
   certRoom(30);
   cert.drawText('Audit trail', { x: 48, y: cy, size: 10.5, font: bold, color: NAVY });
   cy -= 16;
-  for (const e of events) {
+  for (const e of groupEvents(events)) {
     certRoom(e.ip ? 20 : 10);
     const who = e.actor ? ` — ${e.actor}` : '';
-    cert.drawText(drawable(`${fmt(e.at)}   ${e.event}${who}`), { x: 48, y: cy, size: 7.5, font: helv, color: INK });
+    const how = e.channels && e.channels.length ? ` (${channelWords(e.channels)})` : '';
+    cert.drawText(drawable(`${fmt(e.at)}   ${e.event}${how}${who}`), { x: 48, y: cy, size: 7.5, font: helv, color: INK });
     cy -= 10;
     if (e.ip) {
       cert.drawText(`      IP ${e.ip}`, { x: 48, y: cy, size: 7, font: helv, color: GREY });
@@ -325,6 +356,6 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
   return { bytes: out, hash: sha256(out) };
 }
 
-module.exports = {
+module.exports = { groupEvents, channelWords,
   newSigningToken, hashToken, sha256, publicId, tokenMatches, buildSignedPdf,
 };
