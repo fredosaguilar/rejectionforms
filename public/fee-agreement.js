@@ -78,22 +78,22 @@ var html =
   '<div class="sec"><div class="sec-title">Fee schedule (printed on PDF) / Tabla de tarifas</div>' +
     '<div class="fee-note">Quoting is free. A policy fee applies only if the client purchases or renews through us. The schedule below is fixed and prints on the agreement; the Transaction Disclosure controls if it differs. / Cotizar es gratis. La tarifa aplica solo si el cliente compra o renueva con nosotros.</div>' +
     '<table class="fee-table"><thead><tr><th>Personal policy type</th><th>New</th><th>Renewal</th></tr></thead><tbody>' +
-      '<tr><td>Personal auto – standard</td><td>$20</td><td>$20</td></tr>' +
-      '<tr><td>Personal auto – nonstandard</td><td>$50</td><td>$50</td></tr>' +
-      '<tr><td>Homeowners or condominium</td><td>$30</td><td>$30</td></tr>' +
-      '<tr><td>Landlord or rental dwelling</td><td>$15</td><td>$15</td></tr>' +
-      '<tr><td>Renters</td><td>$50</td><td>$50</td></tr>' +
-      '<tr><td>Recreational vehicle, motorcycle, boat, or similar</td><td>$20</td><td>$20</td></tr>' +
-      '<tr><td>Personal umbrella</td><td>$20</td><td>$20</td></tr>' +
+      '<tr><td>Personal auto – standard</td><td>$20.00</td><td>$20.00</td></tr>' +
+      '<tr><td>Personal auto – nonstandard</td><td>$50.00</td><td>$50.00</td></tr>' +
+      '<tr><td>Homeowners or condominium</td><td>$30.00</td><td>$30.00</td></tr>' +
+      '<tr><td>Landlord or rental dwelling</td><td>$15.00</td><td>$15.00</td></tr>' +
+      '<tr><td>Renters</td><td>$50.00</td><td>$50.00</td></tr>' +
+      '<tr><td>Recreational vehicle, motorcycle, boat, or similar</td><td>$20.00</td><td>$20.00</td></tr>' +
+      '<tr><td>Personal umbrella</td><td>$20.00</td><td>$20.00</td></tr>' +
     '</tbody></table>' +
     '<table class="fee-table"><thead><tr><th>Commercial policy or service</th><th>Agency fee</th><th>When charged</th></tr></thead><tbody>' +
-      '<tr><td>Commercial auto – standard or admitted</td><td>$100 per year</td><td>At placement and each annual renewal</td></tr>' +
-      '<tr><td>Commercial auto – surplus lines or nonstandard</td><td>$150 per year</td><td>At placement and each annual renewal</td></tr>' +
-      '<tr><td>Businessowners policy or commercial general liability</td><td>$50 per year</td><td>At placement and each annual renewal</td></tr>' +
-      '<tr><td>Workers\' compensation</td><td>$100 per year</td><td>At placement and each annual renewal</td></tr>' +
-      '<tr><td>Surety bond</td><td>$50 per year</td><td>At issuance and each annual renewal</td></tr>' +
-      '<tr><td>Add seasonal vehicle(s) or unit(s)</td><td>$150 per request</td><td>Before requested change</td></tr>' +
-      '<tr><td>Remove or suspend seasonal vehicle(s) or unit(s)</td><td>$100 per request</td><td>Before requested change</td></tr>' +
+      '<tr><td>Commercial auto – standard or admitted</td><td>$100.00 per year</td><td>At placement and each annual renewal</td></tr>' +
+      '<tr><td>Commercial auto – surplus lines or nonstandard</td><td>$150.00 per year</td><td>At placement and each annual renewal</td></tr>' +
+      '<tr><td>Businessowners policy or commercial general liability</td><td>$50.00 per year</td><td>At placement and each annual renewal</td></tr>' +
+      '<tr><td>Workers\' compensation</td><td>$100.00 per year</td><td>At placement and each annual renewal</td></tr>' +
+      '<tr><td>Surety bond</td><td>$50.00 per year</td><td>At issuance and each annual renewal</td></tr>' +
+      '<tr><td>Add seasonal vehicle(s) or unit(s)</td><td>$150.00 per request</td><td>Before requested change</td></tr>' +
+      '<tr><td>Remove or suspend seasonal vehicle(s) or unit(s)</td><td>$100.00 per request</td><td>Before requested change</td></tr>' +
     '</tbody></table>' +
   '</div>' +
 
@@ -106,22 +106,22 @@ var html =
     fld('Line of business / Línea de negocio', txt('fee-lob','e.g. Commercial auto')) +
     fld('Policy number or "New pending" / Número de póliza', txt('fee-policy','Policy # or New pending')) +
     fld('Policy term / Vigencia', txt('fee-term','e.g. 09/01/2026 – 09/01/2027')) +
-    fld('Annual or term premium / Prima', txt('fee-premium','$')) +
+    fld('Annual or term premium / Prima', txt('fee-premium','$0.00')) +
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
       '<div class="fld"><div class="lbl">Transaction / Transacción</div><div class="rr">' + radio('fee-tx','New policy','New policy') + radio('fee-tx','Renewal','Renewal') + radio('fee-tx','Other','Other') + '</div>' + txt('fee-tx-other','If other, describe',' style="margin-top:6px"') + '</div>' +
-      '<div class="fld"><div class="lbl">Payment basis / Base de pago</div><div class="rr">' + radio('fee-basis','One-time fee','One-time fee') + radio('fee-basis','Annual fee','Annual fee') + radio('fee-basis','Other','Other') + '</div>' + txt('fee-basis-other','If other, amount $',' style="margin-top:6px"') + '</div>' +
+      '<div class="fld"><div class="lbl">Payment basis / Base de pago</div><div class="rr">' + radio('fee-basis','One-time fee','One-time fee') + radio('fee-basis','Annual fee','Annual fee') + radio('fee-basis','Other','Other') + '</div>' + txt('fee-basis-other','If other, amount',' style="margin-top:6px"') + '</div>' +
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
-    fld('Full agency broker fee for this policy transaction / Tarifa total', txt('fee-total','$')) +
+    fld('Full agency broker fee for this policy transaction / Tarifa total', txt('fee-total','$0.00')) +
     fld('Transaction processing fee / Cargo de procesamiento', '<div class="fee-fixed" id="fee-processing-box">Enter the agency fee above to calculate</div><div class="fee-note" style="margin:6px 0 0">$3.50 per $100 of the agency fee, $3.50 minimum. Calculated automatically. / $3.50 por cada $100 de la tarifa de agencia, mínimo $3.50.</div>') +
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
-    fld('Full commission paid by insurer / Comisión de la aseguradora', txt('fee-commission','e.g. 10% of premium / $')) +
+    fld('Full commission paid by insurer / Comisión de la aseguradora', txt('fee-commission','$0.00, or 10% of premium')) +
     '<div class="fld"><div class="lbl">Fee and commission relationship / Relación</div><div class="rr">' + radio('fee-offset','No offset or reimbursement','No offset or reimbursement', true) + radio('fee-offset','Offset','Offset or reimbursement') + '</div>' + txt('fee-offset-desc','Describe offset or reimbursement',' style="margin-top:6px"') + '</div>' +
     '</div>' +
     '<div class="fld" style="margin-top:10px"><div class="lbl">Other separately stated charges not retained by the agency / Otros cargos</div><div class="g4">' +
-      fld('Carrier or vendor charge', txt('fee-ch-carrier','$')) + fld('Surplus-lines tax', txt('fee-ch-sltax','$')) + fld('Stamping fee', txt('fee-ch-stamp','$')) + fld('Other', txt('fee-ch-other','$')) +
+      fld('Carrier or vendor charge', txt('fee-ch-carrier','$0.00')) + fld('Surplus-lines tax', txt('fee-ch-sltax','$0.00')) + fld('Stamping fee', txt('fee-ch-stamp','$0.00')) + fld('Other', txt('fee-ch-other','$0.00')) +
     '</div></div>' +
     '<div class="g2" style="margin-top:10px">' +
       '<div class="fld"><div class="lbl">Surplus-lines placement / Colocación surplus lines</div><div class="rr">' + radio('fee-sl','No','No', true) + radio('fee-sl','Yes','Yes — notices, taxes and stamping fees shown separately') + '</div></div>' +
@@ -227,16 +227,25 @@ function processingFee(){
 }
 function processingFeeText(){
   var f = processingFee();
-  return f ? '$' + f.toFixed(2) : '';
+  return f ? money(f.toFixed(2)) : '';
 }
 function renderProcessingFee(){
   var box = document.getElementById('fee-processing-box'), f = brokerFeeValue();
   if(!box) return;
   box.textContent = f
-    ? processingFeeText() + '  (on $' + f.toFixed(2) + ' broker fee)'
+    ? processingFeeText() + '  (on ' + money(f.toFixed(2)) + ' broker fee)'
     : 'Enter the agency fee above to calculate';
 }
 document.getElementById('fee-total').addEventListener('input', renderProcessingFee);
+
+/* Every amount on this agreement formats as it is typed. The commission and
+   the "if other" amount are often written as a percentage, which is left
+   alone. */
+['fee-premium','fee-total','fee-basis-other','fee-commission',
+ 'fee-ch-carrier','fee-ch-sltax','fee-ch-stamp','fee-ch-other'].forEach(function(id){
+  var el = document.getElementById(id);
+  if(el && window.CBIMoney) window.CBIMoney.attach(el);
+});
 renderProcessingFee();
 
 /* --------------------------------------------------------------------------
@@ -325,12 +334,11 @@ function gv(id){ var el=document.getElementById(id); return el ? (el.value||'').
 // Amounts print as currency. Only a bare number is reformatted; anything
 // carrying words or a percent sign ("10% of premium") prints as entered, so a
 // rate is never rewritten into a dollar figure.
+/* Accounting format, shared with the coverage forms so an amount reads the
+   same wherever it appears. Anything that is not purely an amount — "10% of
+   premium" — is left as it was written. */
 function money(v){
-  v = (v || '').trim();
-  if(!v) return '';
-  if(!/^\$?\s*[\d,]+(\.\d+)?$/.test(v)) return v;
-  var n = parseFloat(v.replace(/[^0-9.]/g, ''));
-  return isFinite(n) ? '$' + n.toFixed(2) : v;
+  return window.CBIMoney ? window.CBIMoney.format(v) : (v || '').trim();
 }
 function rv(name){ var el=document.querySelector('#f-fee input[name="'+name+'"]:checked'); return el ? el.value : ''; }
 function sigData(id){ var c=document.getElementById(id); return (c && c.dataset.signed) ? c.toDataURL('image/png') : null; }
@@ -409,13 +417,13 @@ window.buildFeeAgreementPDF = function(){
 
   heading('2','Personal policy fees');
   table(['Policy type','New policy','Renewal'],[
-    ['Personal auto - standard','$20','$20'],
-    ['Personal auto - nonstandard','$50','$50'],
-    ['Homeowners or condominium','$30','$30'],
-    ['Landlord or rental dwelling','$15','$15'],
-    ['Renters','$50','$50'],
-    ['Recreational vehicle, motorcycle, boat, or similar','$20','$20'],
-    ['Personal umbrella','$20','$20']
+    ['Personal auto - standard','$20.00','$20.00'],
+    ['Personal auto - nonstandard','$50.00','$50.00'],
+    ['Homeowners or condominium','$30.00','$30.00'],
+    ['Landlord or rental dwelling','$15.00','$15.00'],
+    ['Renters','$50.00','$50.00'],
+    ['Recreational vehicle, motorcycle, boat, or similar','$20.00','$20.00'],
+    ['Personal umbrella','$20.00','$20.00']
   ],[CW-200,100,100]);
   para('Each fee is per policy transaction. For a six-month policy, the renewal fee applies at each six-month renewal.');
 
@@ -431,15 +439,15 @@ window.buildFeeAgreementPDF = function(){
 
   heading('4','Commercial policy fees');
   table(['Policy or service','Agency fee','When charged'],[
-    ['Commercial auto - standard or admitted','$100 per year','At placement and each annual renewal'],
-    ['Commercial auto - surplus lines or nonstandard','$150 per year','At placement and each annual renewal'],
-    ['Businessowners policy or commercial general liability','$50 per year','At placement and each annual renewal'],
-    ['Workers\' compensation','$100 per year','At placement and each annual renewal'],
-    ['Surety bond','$50 per year','At issuance and each annual renewal'],
-    ['Add seasonal vehicle(s) or unit(s)','$150 per request','Before requested change'],
-    ['Remove or suspend seasonal vehicle(s) or unit(s)','$100 per request','Before requested change']
+    ['Commercial auto - standard or admitted','$100.00 per year','At placement and each annual renewal'],
+    ['Commercial auto - surplus lines or nonstandard','$150.00 per year','At placement and each annual renewal'],
+    ['Businessowners policy or commercial general liability','$50.00 per year','At placement and each annual renewal'],
+    ['Workers\' compensation','$100.00 per year','At placement and each annual renewal'],
+    ['Surety bond','$50.00 per year','At issuance and each annual renewal'],
+    ['Add seasonal vehicle(s) or unit(s)','$150.00 per request','Before requested change'],
+    ['Remove or suspend seasonal vehicle(s) or unit(s)','$100.00 per request','Before requested change']
   ],[CW-320,150,170]);
-  paraB('Annual-fee disclosure:', 'Commercial agency fees are annual and are charged in full at placement and again at each annual renewal. No agency fee is billed monthly and no installment balance accrues. The surety bond fee is $50 at issuance and $50 at each annual renewal.');
+  paraB('Annual-fee disclosure:', 'Commercial agency fees are annual and are charged in full at placement and again at each annual renewal. No agency fee is billed monthly and no installment balance accrues. The surety bond fee is $50.00 at issuance and $50.00 at each annual renewal.');
   font('bold',9.5,navy); doc.text('Processing fees', M, y); y+=12;
   para('A transaction processing fee of $3.50 for each $100 of the agency fee, with a minimum of $3.50, applies to every policy transaction. It is calculated from the agency fee charged, not from the premium, and is stated in the transaction disclosure before the policy is purchased. Carrier, surplus-lines, stamping, tax, premium-finance, card, or vendor charges must be separately identified and are not agency fees.');
 
@@ -468,7 +476,7 @@ window.buildFeeAgreementPDF = function(){
   field('Policy term', gv('fee-term'));
   field('Annual or term premium', money(gv('fee-premium')));
   checks('Transaction:', ['New policy','Renewal','Other:'], rv('fee-tx')==='Other'?'Other:':rv('fee-tx'), gv('fee-tx-other'));
-  checks('Payment basis:', ['One-time fee','Annual fee','Other: $'], rv('fee-basis')==='Other'?'Other: $':rv('fee-basis'), gv('fee-basis-other'));
+  checks('Payment basis:', ['One-time fee','Annual fee','Other:'], rv('fee-basis')==='Other'?'Other:':rv('fee-basis'), money(gv('fee-basis-other')));
   field('Full agency broker fee for this policy transaction', money(gv('fee-total')), 255);
   field('Transaction processing fee ($3.50 per $100 of agency fee, $3.50 min)', processingFeeText(), 285);
   field('Full commission paid by insurer', money(gv('fee-commission')), 215);
@@ -476,7 +484,7 @@ window.buildFeeAgreementPDF = function(){
   checks('Fee and commission relationship:', ['No offset or reimbursement','Offset or reimbursement described here:'], off==='Offset'?'Offset or reimbursement described here:':off);
   field('', gv('fee-offset-desc'), 0);
   font('normal',8.5,muted); doc.text('Other separately stated charges not retained by the agency:', M, y); y+=13;
-  fieldRow([['Carrier or vendor charge $', gv('fee-ch-carrier'), 0.3],['Surplus-lines tax $', gv('fee-ch-sltax'), 0.24],['Stamping fee $', gv('fee-ch-stamp'), 0.23],['Other $', gv('fee-ch-other'), 0.23]]);
+  fieldRow([['Carrier or vendor charge', money(gv('fee-ch-carrier')), 0.3],['Surplus-lines tax', money(gv('fee-ch-sltax')), 0.24],['Stamping fee', money(gv('fee-ch-stamp')), 0.23],['Other', money(gv('fee-ch-other')), 0.23]]);
   var sl=rv('fee-sl');
   font('normal',8.5,muted); doc.text('Surplus-lines placement:', M, y); var sx=M+doc.getTextWidth('Surplus-lines placement:')+8;
   box(sx, sl==='No'); font('normal',8.5); doc.text('No', sx+11, y); sx+=11+doc.getTextWidth('No')+10; box(sx, sl==='Yes'); doc.text('Yes. If yes, required surplus-lines notices, taxes, and stamping fees will be shown', sx+11, y); y+=11; doc.text('separately on the quote or invoice.', M, y); y+=15;
