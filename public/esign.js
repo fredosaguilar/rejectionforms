@@ -67,7 +67,7 @@ css.textContent = [
   '#f-esign .es-chip:hover{border-color:var(--navy)}',
   '#f-esign .es-chip.on{color:#fff}',
   // Relative sizes, so a preview shrinks with the field it sits in.
-  '#f-esign .es-preview-signature{font:italic 1.45em/1.1 "Segoe Script","Brush Script MT",cursive}#f-esign .es-preview-check{font-size:1.6em;color:var(--navy)}',
+  '#f-esign .es-preview-signature{font:italic 1.45em/1.1 "Segoe Script","Brush Script MT",cursive}',
   '#f-esign .es-stage{min-width:0;min-height:0;display:flex;flex-direction:column;background:#eceae4;padding:9px;border:none;border-radius:0}',
   '#f-esign .es-scroll{flex:1 1 auto;min-height:0;width:100%;overflow:auto;display:flex;flex-direction:column;gap:24px;align-items:center;justify-content:flex-start;padding:20px}',
   '#f-esign .es-zoom{display:flex;gap:4px;align-items:center}',
@@ -519,11 +519,17 @@ function recipientNames(){
 function previewInitials(name){
   return String(name || '').trim().split(/\s+/).filter(Boolean).map(function(part){ return part.charAt(0).toUpperCase(); }).join('').slice(0, 4) || 'AB';
 }
+/* The same zero-padded date the signing page stamps, so the preview is the
+   string that will print rather than a near-enough version of it. */
+function signerDateStr(){
+  var d = new Date();
+  return ('0' + (d.getMonth() + 1)).slice(-2) + '/' + ('0' + d.getDate()).slice(-2) + '/' + d.getFullYear();
+}
 function sampleFor(type, name){
   return ({ signature: '<span class="es-preview-signature">' + esc(name || 'Full name') + '</span>',
     printed_name: esc(name || 'Full name'),
-    initials: esc(previewInitials(name)), date: new Date().toLocaleDateString('en-US'),
-    checkbox: '<span class="es-preview-check">☑</span>', text: 'Enter text' })[type] || '';
+    initials: esc(previewInitials(name)), date: signerDateStr(),
+    checkbox: 'X', text: 'Enter text' })[type] || '';
 }
 function refreshWho(){
   whoListEl = document.getElementById('es-who-list');
@@ -807,17 +813,96 @@ async function renderAllPages(){
   stageEl.scrollTop = previousScroll;
 }
 
-/* Scales a field's preview to the box it was given, so a field sized to fine
-   print reads as fine print instead of spilling over its own borders. */
-function fitSample(el, heightPx){
+/* Draws a field's preview at the size it will actually print.
+
+   Typed values — a date, a printed name, text — are laid out the way the
+   server lays them out: up to 12pt, shrunk half a point at a time until the
+   wrapped value fits the box. A drawn signature is fitted to the box the way
+   pdf-lib fits it, keeping its shape and centred, so it fills the height and
+   sits narrower than the box when the box is the wider shape.
+
+   Everything is worked in points and then multiplied by however many screen
+   pixels the page is currently being shown at per point, so the preview is
+   true size at any zoom — and it is redrawn as the field is dragged out, so a
+   box made bigger shows bigger type rather than the same type in a bigger box.
+   ------------------------------------------------------------------------- */
+
+/* The same shrink-to-fit the server runs, in points. Mirrors layoutValue and
+   wrapToWidth in services/esign.js; the two have to agree or the preview
+   stops telling the truth. */
+function pdfWrap(text, wPt, sizePt){
+  var font = sizePt + 'px Helvetica, Arial, sans-serif';
+  var fits = function(str){ return textWidth(str, font) <= wPt; };
+  var lines = [], line = '';
+  var words = String(text).split(/\s+/).filter(Boolean);
+  for(var i = 0; i < words.length; i++){
+    var word = words[i];
+    while(!fits(word)){
+      var cut = word.length - 1;
+      while(cut > 1 && !fits(word.slice(0, cut))) cut -= 1;
+      if(cut <= 1) return null;
+      if(line){ lines.push(line); line = ''; }
+      lines.push(word.slice(0, cut));
+      word = word.slice(cut);
+    }
+    var next = line ? line + ' ' + word : word;
+    if(fits(next)) line = next;
+    else { if(line) lines.push(line); line = word; }
+  }
+  if(line) lines.push(line);
+  return lines.length ? lines : [''];
+}
+function pdfTextSize(text, wPt, hPt){
+  var start = Math.min(12, Math.max(4, hPt * 0.7));
+  for(var size = start; size >= 4; size -= 0.5){
+    var lines = pdfWrap(text, wPt, size);
+    if(lines && lines.length * (size * 1.18) <= hPt) return size;
+  }
+  return 4;
+}
+
+function fitPreview(el, f, wPx, hPx, pxPerPt){
   var sample = el.querySelector('.es-field-sample');
-  if(!sample) return;
-  sample.style.fontSize = Math.max(5, Math.min(14, heightPx * 0.46)) + 'px';
-  var meta = sample.nextElementSibling;
-  if(!meta) return;
-  var ms = heightPx * 0.26;
-  meta.style.display = ms < 6 ? 'none' : '';
-  meta.style.fontSize = Math.min(9, ms) + 'px';
+  if(!sample || !pxPerPt) return;
+  var wPt = wPx / pxPerPt, hPt = hPx / pxPerPt;
+  var label = sample.parentElement;
+  if(label && !label.classList.contains('es-fld-label')) label = null;
+
+  if(f.type === 'signature' || f.type === 'initials'){
+    // A drawn mark is scaled to the box without distorting it, so it fills the
+    // height unless its own width runs out first. The 1.2 puts the ink of a
+    // script face against the edges of the box rather than its em box, which
+    // would leave the preview a fifth short of what prints.
+    var mark = sample.querySelector('.es-preview-signature') || sample;
+    var target = hPx * 1.2;
+    mark.style.display = 'inline-block';
+    mark.style.lineHeight = '1';
+    mark.style.fontSize = target + 'px';
+    if(label) label.style.padding = '0';
+    // Measured off-document: the box clips the mark, so its own scrollWidth
+    // understates how wide it wants to be.
+    var cs = getComputedStyle(mark);
+    var natural = textWidth(mark.textContent,
+      cs.fontStyle + ' ' + cs.fontWeight + ' ' + target + 'px ' + cs.fontFamily);
+    if(natural > wPx && natural > 0) mark.style.fontSize = (target * wPx / natural) + 'px';
+    return;
+  }
+
+  // A typed value is drawn from the box's left edge, vertically centred — not
+  // centred across it — so the preview sits where the value will sit.
+  var text = sample.textContent || '';
+  var size = pdfTextSize(text, wPt, hPt);
+  el.style.justifyContent = 'flex-start';
+  if(label){
+    label.style.padding = '0';
+    label.style.textAlign = 'left';
+    label.style.width = '100%';
+  }
+  sample.style.fontFamily = 'Helvetica, Arial, sans-serif';
+  sample.style.fontWeight = '400';
+  sample.style.lineHeight = '1.18';
+  sample.style.whiteSpace = 'normal';
+  sample.style.fontSize = (size * pxPerPt) + 'px';
 }
 
 function drawFields(){
@@ -834,6 +919,8 @@ function drawFields(){
     var layer = holder.querySelector('.es-layer');
     layer.innerHTML = '';
     var r = layer.getBoundingClientRect();
+    // How many screen pixels the page is currently drawn at, per PDF point.
+    var pxPerPt = r.width / (Number(holder.dataset.pw) || 612);
     fields.forEach(function(f, idx){
     if(f.page !== pageNum) return;
     var color = COLORS[f.recipientIndex % COLORS.length];
@@ -851,16 +938,20 @@ function drawFields(){
           'placeholder="Type here, or leave for the signer" ' +
           'aria-label="Text for this field">' + esc(f.value || '') + '</textarea>' +
         '<span class="es-fld-tag">' + (typed ? 'You fill this' : 'Signer fills this') + '</span>'
+      // The box holds nothing but the preview, at the size it will print. The
+      // label that says whose field this is sits below the box, where it
+      // cannot be mistaken for part of the document.
       : '<span class="es-fld-label"><span class="es-field-sample">' +
-          sampleFor(f.type, names[f.recipientIndex]) + '</span><span style="opacity:.75;font-size:9px">' +
-          esc(LABEL[f.type] || f.type) + ' · ' + esc(names[f.recipientIndex] || '') + '</span></span>' +
-        (AUTO_TYPES[f.type] ? '<span class="es-fld-tag">Fills itself when they sign</span>' : '');
+          sampleFor(f.type, names[f.recipientIndex]) + '</span></span>' +
+        '<span class="es-fld-tag">' + esc(LABEL[f.type] || f.type) + ' · ' +
+          esc(names[f.recipientIndex] || '') +
+          (AUTO_TYPES[f.type] ? ' · fills itself' : '') + '</span>';
 
     el.innerHTML = inner +
       '<span class="es-del" title="Delete this field" aria-label="Delete this field">&times;</span>' +
       '<span class="es-rz" title="Resize"></span>';
 
-    fitSample(el, f.h * r.height);
+    fitPreview(el, f, f.w * r.width, f.h * r.height, pxPerPt);
 
     var box = el.querySelector('.es-fld-text');
     if(box){
@@ -900,7 +991,8 @@ function drawFields(){
         f.h = Math.max(0.012, Math.min(1 - f.y, (ev.clientY - lr.top)  / lr.height - f.y));
         el.style.width = (f.w * lr.width) + 'px';
         el.style.height = (f.h * lr.height) + 'px';
-        fitSample(el, f.h * lr.height);
+        fitPreview(el, f, f.w * lr.width, f.h * lr.height,
+                   lr.width / (Number(layer.parentElement.dataset.pw) || 612));
       }
       function up(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); saveLocalFields(); }
       window.addEventListener('pointermove', move); window.addEventListener('pointerup', up, { once:true });
