@@ -409,6 +409,7 @@ var T = {
     declinePrompt: 'Optionally, tell the sender why you are declining:',
     rendering: 'Rendering document…',
     lblSign: 'Sign here', lblInit: 'Initials', lblDate: 'Date', lblCheckbox: 'Check', lblText: 'Type here',
+    lblPrinted: 'Your printed name', printedAuto: 'Filled in from the name you type when you sign',
     disc: [
       ['What you are agreeing to', 'You are being asked to review and sign this document electronically. If you agree, your electronic signature will have the same legal effect as a handwritten one under the federal ESIGN Act (15 U.S.C. ch. 96), the Washington Uniform Electronic Transactions Act (RCW 19.360) and the Oregon Uniform Electronic Transactions Act (ORS 84.001 to 84.061).'],
       ['What this consent covers', 'This consent applies to this document only. If we later need your signature on something else, you will be asked to consent again for that document.'],
@@ -477,6 +478,7 @@ var T = {
     declinePrompt: 'Opcionalmente, indique al remitente por qué se niega a firmar:',
     rendering: 'Procesando documento…',
     lblSign: 'Firme aquí', lblInit: 'Iniciales', lblDate: 'Fecha', lblCheckbox: 'Marcar', lblText: 'Escriba aquí',
+    lblPrinted: 'Su nombre en letra de molde', printedAuto: 'Se completa con el nombre que escriba al firmar',
     disc: [
       ['A qué está dando su consentimiento', 'Se le pide revisar y firmar este documento electrónicamente. Si acepta, su firma electrónica tendrá el mismo efecto legal que una firma manuscrita conforme a la Ley federal ESIGN (15 U.S.C. cap. 96), la Ley Uniforme de Transacciones Electrónicas de Washington (RCW 19.360) y la Ley Uniforme de Transacciones Electrónicas de Oregón (ORS 84.001 a 84.061).'],
       ['Qué cubre este consentimiento', 'Este consentimiento se aplica únicamente a este documento. Si más adelante necesitamos su firma en otro documento, se le pedirá su consentimiento nuevamente para ese documento.'],
@@ -587,7 +589,15 @@ function todayStr(){
   var d = new Date();
   return ('0'+(d.getMonth()+1)).slice(-2) + '/' + ('0'+d.getDate()).slice(-2) + '/' + d.getFullYear();
 }
+/* The name typed as intent to sign, which is what a printed-name field shows
+   and what the server writes into it. */
+function printedName(){
+  var el = $('typed');
+  return (el && el.value.trim()) || '';
+}
 function fieldIsComplete(f){
+  // Filled from the signature itself, so it is never the signer's to complete.
+  if(f.type === 'printed_name') return true;
   var v = values[f.id];
   if(v && (v.valuePng || (v.value && String(v.value).trim()))) return true;
   // Text the sender typed while preparing the document. It is theirs, not the
@@ -663,7 +673,8 @@ function fitPrefilled(el){
 function renderFields(){
   if(!docRendered) return;
   document.querySelectorAll('.fl').forEach(function(l){ l.innerHTML = ''; });
-  var LABEL = { signature:L.lblSign, initials:L.lblInit, date:L.lblDate, checkbox:L.lblCheckbox, text:L.lblText };
+  var LABEL = { signature:L.lblSign, initials:L.lblInit, date:L.lblDate, checkbox:L.lblCheckbox, text:L.lblText,
+                printed_name:L.lblPrinted };
   var GUIDE = { signature:L.guideSign, initials:L.guideInitial, date:L.guideDate, checkbox:L.guideCheckbox, text:L.guideText };
   var nextField = nextRequiredField();
   FIELDS.forEach(function(f){
@@ -687,6 +698,13 @@ function renderFields(){
     } else if(v && v.value){
       el.className = 'fb done';
       el.textContent = f.type === 'checkbox' ? '✓' : v.value;
+    } else if(f.type === 'printed_name'){
+      // Nothing to do here: it takes the name typed on the signing step, which
+      // is also the name the certificate records.
+      el.className = 'fb done prefilled';
+      el.textContent = printedName();
+      el.title = L.printedAuto;
+      fitPrefilled(el);
     } else if(f.type === 'text' && String(f.value || '').trim()){
       // Filled in by the sender when the document was prepared: shown as it
       // will print, not offered for editing.
