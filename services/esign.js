@@ -228,8 +228,21 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
   // ---- Certificate of completion -----------------------------------------
   // Always appended, whether or not fields were placed. This page is the
   // evidentiary record of the transaction, so it is never conditional.
-  const cert = pdf.addPage([612, 792]);
+  let cert = pdf.addPage([612, 792]);
   let cy = 742;
+  /* The trail used to stop wherever the first page ran out, which on a busy
+     envelope quietly dropped the end of the record it exists to preserve. It
+     now continues onto as many pages as it takes. */
+  const certRoom = (need) => {
+    if (cy - need >= 96) return;
+    cert = pdf.addPage([612, 792]);
+    cy = 742;
+    cert.drawText('CERTIFICATE OF COMPLETION (continued)', {
+      x: 48, y: cy, size: 10, font: bold, color: NAVY });
+    cy -= 8;
+    cert.drawRectangle({ x: 48, y: cy - 4, width: 516, height: 1, color: GOLD });
+    cy -= 22;
+  };
 
   cert.drawText('CERTIFICATE OF COMPLETION', { x: 48, cy, y: cy, size: 14, font: bold, color: NAVY });
   cy -= 6;
@@ -258,11 +271,22 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
   cert.drawText('Signers', { x: 48, y: cy, size: 10.5, font: bold, color: NAVY });
   cy -= 16;
   for (const r of recipients) {
+    certRoom(62);
     cert.drawText(`${r.name} <${r.email}>`, { x: 48, y: cy, size: 9, font: bold, color: INK });
     cy -= 12;
     cert.drawText(`status ${r.status}  ·  consented ${fmt(r.consent_at)}  ·  signed ${fmt(r.signed_at)}`, {
       x: 48, y: cy, size: 8, font: helv, color: GREY,
     });
+    cy -= 11;
+    // How often this person opened the document, and when they first and last
+    // did. Read from the trail, so it says what was recorded rather than what
+    // a status column happens to hold.
+    const opens = events.filter((e) => e.event === 'viewed' && e.recipient_id === r.id);
+    const opened = opens.length
+      ? `opened ${opens.length} ${opens.length === 1 ? 'time' : 'times'}  ·  first ${fmt(opens[0].at)}` +
+        (opens.length > 1 ? `  ·  last ${fmt(opens[opens.length - 1].at)}` : '')
+      : 'never opened the signing link';
+    cert.drawText(opened, { x: 48, y: cy, size: 8, font: helv, color: GREY });
     cy -= 11;
     cert.drawText(`IP ${r.signed_ip || r.consent_ip || '—'}`, { x: 48, y: cy, size: 8, font: helv, color: GREY });
     cy -= 11;
@@ -272,12 +296,13 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
   }
 
   cy -= 6;
+  certRoom(30);
   cert.drawText('Audit trail', { x: 48, y: cy, size: 10.5, font: bold, color: NAVY });
   cy -= 16;
   for (const e of events) {
-    if (cy < 70) break;
+    certRoom(e.ip ? 20 : 10);
     const who = e.actor ? ` — ${e.actor}` : '';
-    cert.drawText(`${fmt(e.at)}   ${e.event}${who}`, { x: 48, y: cy, size: 7.5, font: helv, color: INK });
+    cert.drawText(drawable(`${fmt(e.at)}   ${e.event}${who}`), { x: 48, y: cy, size: 7.5, font: helv, color: INK });
     cy -= 10;
     if (e.ip) {
       cert.drawText(`      IP ${e.ip}`, { x: 48, y: cy, size: 7, font: helv, color: GREY });
@@ -285,6 +310,7 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
     }
   }
 
+  // The statute note closes the certificate, on whichever page the trail ended.
   cert.drawText(
     'This certificate records an electronic signature transaction under the federal ESIGN Act',
     { x: 48, y: 65, size: 7, font: helv, color: GREY });

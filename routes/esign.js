@@ -242,7 +242,7 @@ router.get('/envelopes/:id', requireAuth, async (req, res) => {
                        signed_at, signed_ip, decline_reason
                   FROM envelope_recipients WHERE envelope_id = $1
                  ORDER BY routing_order, id`, [req.params.id]),
-      db.query(`SELECT event, actor, ip, at FROM envelope_events
+      db.query(`SELECT event, actor, ip, recipient_id, at FROM envelope_events
                  WHERE envelope_id = $1 ORDER BY at`, [req.params.id]),
       db.query(`SELECT id, recipient_id, page, x, y, w, h, type, label, required, value
                   FROM envelope_fields WHERE envelope_id = $1 ORDER BY page, y, x`, [req.params.id]),
@@ -680,10 +680,14 @@ pub.get('/:token', async (req, res) => {
       return res.status(403).json({ error: 'This document is waiting for the previous recipient to sign.' });
     }
 
+    // Every open is recorded, not only the first. "Opened once and never came
+    // back" and "opened nine times over three days" are different facts about
+    // a signer, and the certificate is where that belongs. The recipient's own
+    // status still turns over on the first open only.
     if (r.status === 'pending') {
       await db.query(`UPDATE envelope_recipients SET status='viewed', viewed_at=NOW() WHERE id=$1 AND status='pending'`, [r.id]);
-      await logEvent(r.env_id, 'viewed', req, { recipientId: r.id, actor: r.email });
     }
+    await logEvent(r.env_id, 'viewed', req, { recipientId: r.id, actor: r.email });
     const { rows: fields } = await db.query(
       `SELECT id, page, x, y, w, h, type, label, required, value
          FROM envelope_fields
@@ -827,7 +831,7 @@ pub.post('/:token/sign', async (req, res) => {
       const [{ rows: envRows }, { rows: recips }, { rows: events }, { rows: allFields }] = await Promise.all([
         db.query(`SELECT * FROM envelopes WHERE id=$1`, [r.env_id]),
         db.query(`SELECT * FROM envelope_recipients WHERE envelope_id=$1 ORDER BY routing_order, id`, [r.env_id]),
-        db.query(`SELECT event, actor, ip, at FROM envelope_events WHERE envelope_id=$1 ORDER BY at`, [r.env_id]),
+        db.query(`SELECT event, actor, ip, recipient_id, at FROM envelope_events WHERE envelope_id=$1 ORDER BY at`, [r.env_id]),
         db.query(`SELECT * FROM envelope_fields WHERE envelope_id=$1 ORDER BY page, y, x`, [r.env_id]),
       ]);
       const { bytes, hash } = await buildSignedPdf({
