@@ -57,7 +57,11 @@ function baseUrl(req) {
 }
 
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '').trim());
-const FIELD_TYPES = new Set(['signature', 'initials', 'date', 'checkbox', 'text']);
+/* 'printed_name' is filled by the server from the name the signer types as
+   their intent to sign. It is never asked of them and never editable, so a
+   document can carry their name in plain type beside the drawn signature. */
+const FIELD_TYPES = new Set(['signature', 'initials', 'date', 'checkbox', 'text', 'printed_name']);
+const AUTO_TYPES = new Set(['printed_name']);
 /* A text field holds a sentence or a paragraph as readily as a policy number,
    so there is no practical cap on what can be typed into one. This ceiling only
    bounds the request body; nothing that fits on a page comes near it. */
@@ -363,7 +367,7 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
         [envelope.id, target.id, page, num(f.x), num(f.y), num(f.w), num(f.h),
          f.type, (f.label || '').slice(0, 80) || null,
-         preset ? false : f.required !== false,
+         (preset || AUTO_TYPES.has(f.type)) ? false : f.required !== false,
          preset || null, preset ? new Date() : null]
       );
       placedCount++;
@@ -441,7 +445,7 @@ router.put('/envelopes/:id/draft', requireAuth, async (req, res) => {
         [req.params.id, target.id, Math.max(1, parseInt(f.page, 10) || 1),
          num(f.x), num(f.y), num(f.w), num(f.h), f.type,
          (f.label || '').slice(0, 80) || null,
-         preset ? false : f.required !== false,
+         (preset || AUTO_TYPES.has(f.type)) ? false : f.required !== false,
          preset || null, preset ? new Date() : null]);
       placed++;
     }
@@ -775,7 +779,7 @@ pub.post('/:token/sign', async (req, res) => {
         supplied.set(Number(f.id), f);
       }
       const missing = myFields.filter((f) => {
-        if (!f.required) return false;
+        if (!f.required || AUTO_TYPES.has(f.type)) return false;
         const v = supplied.get(f.id);
         if (!v) return true;
         return !(String(v.valuePng || '').startsWith('data:image/png;base64,') || String(v.value || '').trim());
@@ -785,6 +789,7 @@ pub.post('/:token/sign', async (req, res) => {
       }
 
       for (const f of myFields) {
+        if (AUTO_TYPES.has(f.type)) continue;   // filled below, from the signature itself
         const v = supplied.get(f.id);
         if (!v) continue;
         const png = String(v.valuePng || '').startsWith('data:image/png;base64,') ? v.valuePng : null;
@@ -802,6 +807,13 @@ pub.post('/:token/sign', async (req, res) => {
               signature_png=$4, typed_name=$5
         WHERE id=$1`,
       [r.id, clientIp(req), (req.get('user-agent') || '').slice(0, 400), sig, typed]);
+    // The printed name comes from the signature transaction rather than from the
+    // browser, so what prints is the same name the certificate records.
+    await db.query(
+      `UPDATE envelope_fields SET value = $3, filled_at = NOW()
+        WHERE envelope_id = $1 AND recipient_id = $2 AND type = 'printed_name'`,
+      [r.env_id, r.id, typed]);
+
     await logEvent(r.env_id, 'signed', req, { recipientId: r.id, actor: r.email, detail: { typedName: typed } });
 
     // Everyone signed? Build the signed document and notify.

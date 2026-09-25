@@ -488,12 +488,15 @@ function renderFiles(){
    ---------------------------------------------------------------------- */
 var COLORS = ['#1a4a4a','#a35a19','#3b5aa3','#6b2f6b','#1a6b45'];
 var TYPES = [
-  { id: 'signature', label: 'Signature' },
-  { id: 'initials',  label: 'Initials'  },
-  { id: 'date',      label: 'Date signed' },
-  { id: 'checkbox',  label: 'Checkbox' },
-  { id: 'text',      label: 'Text' },
+  { id: 'signature',    label: 'Signature' },
+  { id: 'printed_name', label: 'Printed name' },
+  { id: 'initials',     label: 'Initials'  },
+  { id: 'date',         label: 'Date signed' },
+  { id: 'checkbox',     label: 'Checkbox' },
+  { id: 'text',         label: 'Text' },
 ];
+/* Types nobody is asked to fill: they are taken from the signature itself. */
+var AUTO_TYPES = { printed_name: 1 };
 var fields = [], pdfDoc = null, curPage = 1, pageCount = 1;
 var suppressFieldAutosave = false;
 /* One entry per chosen file: its rendered document and how many pages it has.
@@ -518,6 +521,7 @@ function previewInitials(name){
 }
 function sampleFor(type, name){
   return ({ signature: '<span class="es-preview-signature">' + esc(name || 'Full name') + '</span>',
+    printed_name: esc(name || 'Full name'),
     initials: esc(previewInitials(name)), date: new Date().toLocaleDateString('en-US'),
     checkbox: '<span class="es-preview-check">☑</span>', text: 'Enter text' })[type] || '';
 }
@@ -604,6 +608,12 @@ function dropSize(type, name, docSize){
   if(type === 'initials'){
     var iw = textWidth(previewInitials(name), '600 ' + u + 'px system-ui');
     return { w: Math.max(u * 2.4, iw + u), h: u * 1.8 };
+  }
+  if(type === 'printed_name'){
+    // It prints as type, not as handwriting, so it is sized like the type
+    // around it rather than like a signature.
+    var pw = textWidth(name || 'Full name', u + 'px system-ui');
+    return { w: Math.max(u * 6, Math.min(u * 26, pw + u)), h: u * 1.6 };
   }
   if(type === 'signature'){
     // Twice the height of the text it sits among: a signature reads as a
@@ -843,7 +853,8 @@ function drawFields(){
         '<span class="es-fld-tag">' + (typed ? 'You fill this' : 'Signer fills this') + '</span>'
       : '<span class="es-fld-label"><span class="es-field-sample">' +
           sampleFor(f.type, names[f.recipientIndex]) + '</span><span style="opacity:.75;font-size:9px">' +
-          esc(LABEL[f.type] || f.type) + ' · ' + esc(names[f.recipientIndex] || '') + '</span></span>';
+          esc(LABEL[f.type] || f.type) + ' · ' + esc(names[f.recipientIndex] || '') + '</span></span>' +
+        (AUTO_TYPES[f.type] ? '<span class="es-fld-tag">Fills itself when they sign</span>' : '');
 
     el.innerHTML = inner +
       '<span class="es-del" title="Delete this field" aria-label="Delete this field">&times;</span>' +
