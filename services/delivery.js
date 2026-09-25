@@ -78,7 +78,7 @@ async function deliverSigningLinks({ env, recipients, baseUrl, req = null, actor
           to: r.phone,
           text: sms.signingText({
             recipientName: r.name, agentName: env.agent_name,
-            title: env.title, url, lang: env.language,
+            url, lang: env.language,
           }),
         });
         sent.push(r.phone);
