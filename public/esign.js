@@ -207,6 +207,9 @@ var html =
         '<button id="es-zin" type="button" title="Larger">+</button>' +
         '<span id="es-zlvl" style="min-width:40px;text-align:right;font-size:11.5px;color:var(--muted)">100%</span>' +
       '</span>' +
+      // The overlay covers the stepper, so without this there is no way back to
+      // the recipients once field placement has opened.
+      '<button class="btn btn-sec" id="es-placeback" type="button" style="font-size:12px;padding:6px 14px">&larr; Recipients</button>' +
       '<button class="btn btn-sec" id="es-savedraft" type="button" style="font-size:12px;padding:6px 14px">Save &amp; exit</button>' +
       '<button class="btn btn-pri" id="es-doneplace" type="button" style="font-size:12px;padding:6px 18px">Done</button>' +
     '</div>' +
@@ -254,6 +257,31 @@ function refreshReady(){
   setReady(document.getElementById('es-doneplace'),
     !document.getElementById('es-place-sec').hidden && missingSignatureRecipients().length === 0);
   setReady(document.getElementById('es-send'), esStep === 4);
+}
+
+/* Whether a step can be opened yet, and why not if it cannot.
+
+   The Continue buttons and the numbered steps along the top both ask this, so
+   the wizard cannot be walked into a state one of them would have refused —
+   and going back costs nothing, because a step behind the one you are on has
+   already met its own conditions. */
+function stepBlocker(n){
+  if(n <= esStep) return null;
+  if(n >= 2){
+    if(!files.length) return 'Choose at least one PDF to continue';
+    if(!document.getElementById('es-title').value.trim()) return 'Add a document title to continue';
+  }
+  if(n >= 3){
+    var rows = rcpts ? rcpts.querySelectorAll('.es-rcpt').length : 0;
+    if(!rows || validRecipients().length !== rows){
+      return 'Add a name, email, and mobile number for every recipient';
+    }
+  }
+  if(n >= 4){
+    var missing = missingSignatureRecipients();
+    if(missing.length) return 'Add a signature field for ' + missing.join(', ');
+  }
+  return null;
 }
 
 function goEsStep(n){
@@ -313,16 +341,28 @@ function missingSignatureRecipients(){
   });
 }
 document.querySelectorAll('#f-esign [data-es-go]').forEach(function(b){ b.addEventListener('click',function(){
-  var target=Number(b.dataset.esGo); if(target<esStep) goEsStep(target);
+  var target = Number(b.dataset.esGo);
+  if(target === esStep) return;
+  var why = stepBlocker(target);
+  if(why){ showT(why, 'error'); return; }
+  closePlacer();            // it covers this very row of steps
+  goEsStep(target);
 }); });
-document.querySelectorAll('#f-esign [data-es-back]').forEach(function(b){ b.addEventListener('click',function(){ goEsStep(Number(b.dataset.esBack)); }); });
+document.querySelectorAll('#f-esign [data-es-back]').forEach(function(b){ b.addEventListener('click',function(){
+  closePlacer(); goEsStep(Number(b.dataset.esBack));
+}); });
 document.getElementById('es-next-doc').addEventListener('click',function(){
-  if(!files.length){ showT('Choose at least one PDF to continue','error'); return; }
-  if(!document.getElementById('es-title').value.trim()){ showT('Add a document title to continue','error'); document.getElementById('es-title').focus(); return; }
+  var why = stepBlocker(2);
+  if(why){
+    showT(why, 'error');
+    if(files.length) document.getElementById('es-title').focus();
+    return;
+  }
   goEsStep(2);
 });
 document.getElementById('es-next-rcpt').addEventListener('click',function(){
-  if(validRecipients().length !== document.querySelectorAll('#es-rcpts .es-rcpt').length){ showT('Add a name, email, and mobile number for every recipient','error'); return; }
+  var why = stepBlocker(3);
+  if(why){ showT(why, 'error'); return; }
   goEsStep(3);
 });
 
@@ -1134,6 +1174,14 @@ document.getElementById('es-doneplace').addEventListener('click', async function
   if(missing.length){ showT('Add a signature field for ' + missing.join(', '), 'error'); return; }
   closePlacer(); goEsStep(4);
 });
+/* Leaves field placement for the recipients, keeping whatever has been placed.
+   Correcting a name or adding a signer is a normal thing to need half way
+   through, and it should not cost the fields already positioned. */
+document.getElementById('es-placeback').addEventListener('click', function(e){
+  e.preventDefault();
+  closePlacer();
+  goEsStep(2);
+});
 document.getElementById('es-openplace').addEventListener('click', function(e){
   e.preventDefault();
   if(!docs.length) return;
@@ -1141,7 +1189,13 @@ document.getElementById('es-openplace').addEventListener('click', function(e){
   renderAllPages();
 });
 document.addEventListener('keydown', function(e){
-  if(e.key === 'Escape' && !document.getElementById('es-place-sec').hidden) showT('Complete required field placement before continuing', 'error');
+  // Escape closes the editor rather than refusing to. The fields placed so far
+  // are kept, and step three still shows the way back into it.
+  if(e.key === 'Escape' && !document.getElementById('es-place-sec').hidden){
+    closePlacer();
+    var re = document.getElementById('es-openplace');
+    if(re) re.focus();
+  }
 });
 
 /* ---- recipients -------------------------------------------------------- */
@@ -1154,12 +1208,29 @@ function renumberRecipients(){
   });
   refreshWho();
 }
+/* Fills the rest of a row in from a saved contact.
+
+   Two rules keep it from doing damage. It never replaces something typed by
+   hand — only an empty box, or one still holding what this autofill last put
+   there, so correcting the name to a different saved person does update the
+   rest. And when it fills the box the caret is already in, it leaves the text
+   selected: the match arrives on the blur of the field before it, so without
+   that the next keystroke landed after the saved number and the two ran
+   together in the same box. */
 function applySavedPerson(row, person){
   if(!person) return;
-  row.querySelector('.es-name').value = person.name || '';
-  row.querySelector('.es-email').value = person.email || '';
-  row.querySelector('.es-phone').value = person.phone || '';
-  refreshWho();
+  // A tick late on purpose: the match is found as a field is left, and until
+  // focus has landed on the next box there is no telling where the caret is.
+  setTimeout(function(){
+    [['.es-name','name'], ['.es-email','email'], ['.es-phone','phone']].forEach(function(pair){
+      var el = row.querySelector(pair[0]), val = person[pair[1]] || '';
+      if(el.value && el.value !== el.dataset.autofilled) return;
+      el.value = val;
+      el.dataset.autofilled = val;
+      if(el === document.activeElement && val) el.select();
+    });
+    refreshWho();
+  }, 0);
 }
 function addRecipient(name, email, phone){
   var row = document.createElement('div');
@@ -1173,9 +1244,14 @@ function addRecipient(name, email, phone){
   row.querySelector('.es-x').addEventListener('click', function(){
     if(rcpts.children.length > 1){
       var at=Array.from(rcpts.children).indexOf(row);
+      var before=fields.length;
       fields=fields.filter(function(f){return f.recipientIndex!==at;}).map(function(f){
         return Object.assign({}, f, {recipientIndex:f.recipientIndex>at?f.recipientIndex-1:f.recipientIndex});
       });
+      // Their fields go with them. Said out loud, because it happens on a step
+      // where the document is not on screen to show it.
+      var gone=before-fields.length;
+      if(gone) showT(gone + (gone===1?' field':' fields') + ' removed with them', 'info');
       row.remove(); renumberRecipients();
     }
   });

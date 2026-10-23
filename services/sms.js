@@ -136,10 +136,15 @@ async function accessToken() {
   return cached.token;
 }
 
-/* E.164 for US/Canada numbers typed the way people actually type them. */
+/* E.164 for US/Canada numbers typed the way people actually type them.
+   A number that could not reach a handset comes back null rather than being
+   passed along: E.164 allows at most 15 digits, and anything shorter than 7 is
+   not a number at all. Letting a longer string through because it happened to
+   start with a plus only turned a typo into a failed send. */
+const E164 = /^\+\d{7,15}$/;
 function normalisePhone(raw) {
   const digits = String(raw || '').replace(/[^\d+]/g, '');
-  if (digits.startsWith('+')) return digits;
+  if (digits.startsWith('+')) return E164.test(digits) ? digits : null;
   const d = digits.replace(/\D/g, '');
   if (d.length === 10) return '+1' + d;
   if (d.length === 11 && d.startsWith('1')) return '+' + d;
