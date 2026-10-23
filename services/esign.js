@@ -187,10 +187,14 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
   }
 
   // ---- Signature page -----------------------------------------------------
-  // Skipped when the sender placed fields: the signatures are already on the
-  // pages where they belong, and a second copy would be misleading.
-  const placed = fields.some((f) => f.filled_at);
-  const sigPage = placed ? null : pdf.addPage([612, 792]);
+  // A signer whose signature is already stamped on a page of the document does
+  // not need repeating here, and a second copy would be misleading. One with no
+  // field of their own does need it — a recipient added after the request went
+  // out has nowhere else to appear, and a signature that lands nowhere is not a
+  // signature.
+  const stamped = new Set(fields.filter((f) => f.filled_at).map((f) => f.recipient_id));
+  const unplaced = recipients.filter((r) => r.status === 'signed' && !stamped.has(r.id));
+  let sigPage = unplaced.length ? pdf.addPage([612, 792]) : null;
   let y = 742;
 
   if (sigPage) {
@@ -206,10 +210,10 @@ async function buildSignedPdf({ envelope, recipients, events, fields = [] }) {
   sigPage.drawText(`Original file: ${envelope.file_name}`, { x: 48, y, size: 9, font: helv, color: GREY });
   y -= 26;
 
-  for (const r of recipients) {
-    if (r.status !== 'signed') continue;
-
-    if (y < 200) { y = 742; pdf.addPage([612, 792]); }
+  for (const r of unplaced) {
+    // A new page has to become the page being drawn on, or everything past the
+    // fold is written on top of what is already there.
+    if (y < 200) { sigPage = pdf.addPage([612, 792]); y = 742; }
 
     sigPage.drawText(r.name, { x: 48, y, size: 11, font: bold, color: INK });
     y -= 14;
