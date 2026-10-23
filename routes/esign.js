@@ -478,6 +478,161 @@ router.put('/envelopes/:id/draft', requireAuth, async (req, res) => {
  * completed envelope is the evidentiary record, and Delete is the deliberate
  * way to be rid of one.
  */
+/* Corrects or extends the recipients of a request that has already gone out.
+
+   A signature already given is part of the record, so a signer's row is taken
+   from the database and whatever the payload says about them is ignored: they
+   cannot be renamed, re-addressed or removed. Everyone else can be corrected,
+   dropped, or joined by someone new.
+
+   Changing an email or a mobile number kills the old link there and then,
+   before anything is sent, because the link is the credential and it went to
+   the address that has just turned out to be wrong. */
+router.put('/envelopes/:id/recipients', requireAuth, async (req, res) => {
+  const client = await db.pool.connect();
+  try {
+    const { rows } = await client.query(
+      `SELECT id, title, status FROM envelopes WHERE id = $1`, [req.params.id]);
+    const env = rows[0];
+    if (!env) return res.status(404).json({ error: 'Envelope not found' });
+    if (env.status === 'draft') {
+      return res.status(409).json({ error: 'This request has not been sent yet — open it with Continue to change anything.' });
+    }
+    if (env.status !== 'sent') {
+      return res.status(409).json({
+        error: `A request that is ${env.status} can no longer have its recipients changed.`,
+      });
+    }
+
+    const { rows: current } = await client.query(
+      `SELECT * FROM envelope_recipients WHERE envelope_id = $1 ORDER BY routing_order, id`,
+      [req.params.id]);
+    const byId = new Map(current.map((r) => [r.id, r]));
+
+    const parsed = parseRecipients(req.body.recipients);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    // parseRecipients drops the ids, so they are read back alongside it.
+    let raw;
+    try {
+      raw = typeof req.body.recipients === 'string'
+        ? JSON.parse(req.body.recipients) : (req.body.recipients || []);
+    } catch { return res.status(400).json({ error: 'Recipients could not be read' }); }
+    const wanted = parsed.recipients.map((r, i) => {
+      const id = Number((raw[i] || {}).id);
+      return Object.assign({}, r, { id: byId.has(id) ? id : null });
+    });
+
+    for (const r of current) {
+      if (r.status !== 'signed') continue;
+      const keep = wanted.find((w) => w.id === r.id);
+      if (!keep) {
+        return res.status(409).json({
+          error: `${r.name} has already signed. A signature on the record cannot be removed — recall the request if it has to go.`,
+        });
+      }
+      if (keep.email !== r.email || keep.phone !== r.phone || keep.name !== r.name) {
+        return res.status(409).json({
+          error: `${r.name} has already signed, so their details are part of the record and cannot be changed.`,
+        });
+      }
+    }
+
+    const stillToSign = wanted.filter((w) => !w.id || byId.get(w.id).status !== 'signed');
+    if (!stillToSign.length) {
+      return res.status(409).json({
+        error: 'That would leave nobody to sign. Keep at least one recipient who has not signed, or delete the request.',
+      });
+    }
+
+    const removed = [], added = [], corrected = [], relinked = [];
+    await client.query('BEGIN');
+
+    for (const r of current) {
+      if (!wanted.some((w) => w.id === r.id)) {
+        await client.query(`DELETE FROM envelope_recipients WHERE id = $1`, [r.id]);
+        removed.push(r.email);
+      }
+    }
+
+    let order = 0;
+    for (const w of wanted) {
+      order += 1;
+      const was = w.id ? byId.get(w.id) : null;
+      if (!was) {
+        const { rows: ins } = await client.query(
+          `INSERT INTO envelope_recipients (envelope_id, name, email, phone, delivery, routing_order, token_hash)
+           VALUES ($1,$2,$3,$4,'both',$5,$6) RETURNING id`,
+          [req.params.id, w.name, w.email, w.phone, order, hashToken(newSigningToken())]);
+        added.push({ id: ins[0].id, email: w.email });
+        continue;
+      }
+      if (was.status === 'signed') {
+        await client.query(`UPDATE envelope_recipients SET routing_order = $2 WHERE id = $1`, [was.id, order]);
+        continue;
+      }
+      const reachChanged = was.email !== w.email || was.phone !== w.phone;
+      if (reachChanged) {
+        // The old link dies here, not when the new one is delivered: delivery
+        // can fail, and the wrong address should lose access either way.
+        await client.query(
+          `UPDATE envelope_recipients
+              SET name=$2, email=$3, phone=$4, routing_order=$5, token_hash=$6,
+                  status='pending', viewed_at=NULL,
+                  consent_at=NULL, consent_ip=NULL, consent_ua=NULL
+            WHERE id=$1`,
+          [was.id, w.name, w.email, w.phone, order, hashToken(newSigningToken())]);
+        corrected.push(was.email === w.email ? w.email : `${was.email} → ${w.email}`);
+        relinked.push(was.id);
+      } else if (was.name !== w.name) {
+        await client.query(
+          `UPDATE envelope_recipients SET name=$2, routing_order=$3 WHERE id=$1`, [was.id, w.name, order]);
+        corrected.push(w.email);
+      } else {
+        await client.query(`UPDATE envelope_recipients SET routing_order=$2 WHERE id=$1`, [was.id, order]);
+      }
+    }
+    await client.query('COMMIT');
+
+    await logEvent(req.params.id, 'recipients_changed', req, {
+      actor: req.session.agentName,
+      detail: {
+        added: added.map((a) => a.email),
+        removed,
+        corrected,
+      },
+    });
+
+    // Whoever's turn it now is gets a link. Someone added behind a signer who
+    // has not finished waits for their turn, as they would have from the start.
+    const turn = await pendingRecipients(req.params.id);
+    const { sent, failed } = turn.length
+      ? await deliverSigningLinks({
+        env, recipients: turn, baseUrl: baseUrl(req), req, actor: req.session.agentName,
+      })
+      : { sent: [], failed: [] };
+
+    const waiting = wanted
+      .filter((w) => !turn.some((t) => t.email === w.email))
+      .filter((w) => !w.id || byId.get(w.id).status !== 'signed')
+      .map((w) => w.email);
+
+    console.log(`esign: envelope ${env.id} ("${env.title}") recipients changed by ` +
+                `${req.session.agentName || req.session.email} — ` +
+                `added ${added.length}, removed ${removed.length}, corrected ${corrected.length}`);
+    res.json({
+      success: true,
+      added: added.map((a) => a.email),
+      removed, corrected, relinked: relinked.length, sent, failed, waiting,
+    });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error('edit recipients:', e);
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+});
+
 router.post('/envelopes/:id/recall', requireAuth, async (req, res) => {
   const client = await db.pool.connect();
   try {

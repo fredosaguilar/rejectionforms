@@ -327,7 +327,43 @@ function makePad(canvas, onDraw){
     size: size,
     onDraw: function(fn){ draws.push(fn); },
     has: function(){ return has; },
-    data: function(){ return canvas.toDataURL('image/png'); },
+    /* The image is trimmed to the ink before it leaves here.
+
+       A pad is much wider than a signature, and almost nobody fills one edge
+       to edge. Handing over the whole canvas meant handing over mostly empty
+       space, and the server scales that canvas to fit the box the sender
+       placed — so a signature that used a third of the pad came out a third
+       of the size of its box, a small mark adrift in a large empty field. */
+    data: function(){
+      if(!has) return canvas.toDataURL('image/png');
+      try {
+        var w = canvas.width, h = canvas.height;
+        var px = ctx.getImageData(0, 0, w, h).data;
+        var top = h, bot = -1, left = w, right = -1;
+        for(var y = 0; y < h; y++){
+          for(var x = 0; x < w; x++){
+            if(px[(y * w + x) * 4 + 3] > 10){
+              if(y < top) top = y;
+              if(y > bot) bot = y;
+              if(x < left) left = x;
+              if(x > right) right = x;
+            }
+          }
+        }
+        if(bot < top || right < left) return canvas.toDataURL('image/png');
+        // A little air around the stroke, so nothing sits hard against an edge.
+        var pad = Math.max(2, Math.round(Math.min(w, h) * 0.02));
+        left = Math.max(0, left - pad); top = Math.max(0, top - pad);
+        right = Math.min(w - 1, right + pad); bot = Math.min(h - 1, bot + pad);
+        var cw = right - left + 1, ch = bot - top + 1;
+        var out = document.createElement('canvas');
+        out.width = cw; out.height = ch;
+        out.getContext('2d').drawImage(canvas, left, top, cw, ch, 0, 0, cw, ch);
+        return out.toDataURL('image/png');
+      } catch(e){
+        return canvas.toDataURL('image/png');
+      }
+    },
     clear: function(){
       // Clearing works on the raw canvas, so it must step outside the density
       // transform or it would wipe only the top-left corner.

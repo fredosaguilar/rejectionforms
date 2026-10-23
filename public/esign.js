@@ -85,6 +85,12 @@ css.textContent = [
   // Inset, so the border it leaves is still something to drag the field by.
   // Not scoped to #f-esign: this one sits on the form panels, which is where
   // the agent is standing when a form is saved for signature.
+  '#f-esign .es-ed-head,#f-esign .es-ed-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,.9fr) 74px;gap:8px;align-items:center}',
+  '#f-esign .es-ed-head{font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:5px}',
+  '#f-esign .es-ed-row{margin-bottom:6px}',
+  '#f-esign .es-ed-row input{width:100%;padding:6px 9px;font-size:12.5px;font-family:inherit;border:1px solid var(--border2);border-radius:var(--radius);background:#fff}',
+  '#f-esign .es-ed-row input[readonly]{background:#f3f2ee;color:var(--muted);cursor:default}',
+  '#f-esign .es-ed-locked{font-size:11px;font-weight:700;color:var(--ok);text-align:center}',
   '.es-ready-pill{margin-right:auto;display:inline-flex;align-items:center;padding:8px 14px;border:1px solid #16a34a;border-radius:9px;background:#f0fdf4;color:#15803d;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;line-height:1.25}',
   '.es-ready-pill:hover{background:#dcfce7}',
   '#f-esign .es-fld-text{position:absolute;inset:5px;pointer-events:auto;display:block;border:none;background:transparent;font-family:inherit;font-size:12px;line-height:1.2;color:inherit;text-align:center;padding:0;outline:none;cursor:text;resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:break-word}',
@@ -1376,6 +1382,8 @@ var EVENT_WORDS = {
   created: 'Created', sent: 'Sent', reminded: 'Reminder sent', viewed: 'Opened the document',
   consented: 'Consented to electronic records', signed: 'Signed', declined: 'Declined',
   completed: 'Completed', voided: 'Voided', recalled: 'Recalled', downloaded: 'Downloaded',
+  recipients_changed: 'Recipients changed', draft_saved: 'Saved as a draft',
+  agency_copy_sent: 'Copy sent to the agency',
   send_failed: 'Delivery failed',
 };
 /* "email and text", the way someone would say it. Matches the certificate. */
@@ -1452,6 +1460,129 @@ async function onHistory(e){
   } catch(err){
     showT(err.message, 'error');
     btn.textContent = 'History';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* Correcting or extending the recipients of a request already out for
+   signature. A typo in an email should not cost the signatures already given,
+   which is what recalling it would do.
+
+   Anyone who has signed is shown but not editable: their details are part of
+   the record. Everyone else can be corrected, removed, or joined by somebody
+   new. */
+function recipientRow(p){
+  var signed = p && p.status === 'signed';
+  var v = function(x){ return esc(x || ''); };
+  return '<div class="es-ed-row" data-id="' + (p && p.id ? p.id : '') + '"' +
+      (signed ? ' data-signed="1"' : '') + '>' +
+    '<input type="text"  class="es-ed-name"  placeholder="Full legal name" value="' + v(p && p.name) + '"' + (signed ? ' readonly' : '') + '>' +
+    '<input type="email" class="es-ed-email" placeholder="name@example.com" value="' + v(p && p.email) + '"' + (signed ? ' readonly' : '') + '>' +
+    '<input type="tel"   class="es-ed-phone" placeholder="(509) 555-0123" value="' + v(p && p.phone) + '"' + (signed ? ' readonly' : '') + '>' +
+    (signed
+      ? '<span class="es-ed-locked" title="This signature is on the record">Signed</span>'
+      : '<button type="button" class="es-link es-danger es-ed-del" title="Remove this recipient">Remove</button>') +
+  '</div>';
+}
+
+async function onRecipients(e){
+  e.preventDefault();
+  var btn = this, id = btn.dataset.id, title = btn.dataset.title;
+  var row = btn.closest('tr');
+  var open = row.nextElementSibling;
+  if(open && open.classList.contains('es-edit-people')){ open.remove(); btn.textContent = 'Recipients'; return; }
+
+  btn.disabled = true; btn.textContent = 'Loading…';
+  try {
+    var r = await fetch('/api/esign/envelopes/' + id);
+    var d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Could not load the recipients');
+
+    var tr = document.createElement('tr');
+    tr.className = 'es-edit-people';
+    tr.innerHTML = '<td colspan="6" style="background:var(--bg);padding:14px 16px">' +
+      '<div style="font-weight:600;font-size:13px;margin-bottom:2px">Recipients — ' + esc(title) + '</div>' +
+      '<div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">' +
+        'Correcting an email or mobile number stops the link already sent to the old one and issues a new link.' +
+      '</div>' +
+      '<div class="es-ed-head"><span>Full legal name</span><span>Email address</span><span>Mobile number</span><span></span></div>' +
+      '<div class="es-ed-list">' + (d.recipients || []).map(recipientRow).join('') + '</div>' +
+      '<div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">' +
+        '<button type="button" class="es-link es-ed-add">+ Add a recipient</button>' +
+        '<span style="flex:1"></span>' +
+        '<button type="button" class="btn btn-sec es-ed-cancel">Cancel</button>' +
+        '<button type="button" class="btn btn-pri es-ed-save">Save recipients</button>' +
+      '</div>' +
+      '<div class="es-ed-note" style="font-size:11.5px;color:var(--muted);margin-top:8px"></div>' +
+    '</td>';
+    row.parentNode.insertBefore(tr, row.nextSibling);
+    btn.textContent = 'Close';
+
+    var list = tr.querySelector('.es-ed-list');
+    var note = tr.querySelector('.es-ed-note');
+    var wire = function(){
+      list.querySelectorAll('.es-ed-del').forEach(function(b){
+        b.onclick = function(){
+          if(list.querySelectorAll('.es-ed-row').length <= 1){
+            note.textContent = 'A request needs at least one recipient.'; return;
+          }
+          b.closest('.es-ed-row').remove();
+        };
+      });
+    };
+    wire();
+    tr.querySelector('.es-ed-add').onclick = function(){
+      list.insertAdjacentHTML('beforeend', recipientRow(null));
+      wire();
+      var last = list.lastElementChild.querySelector('.es-ed-name');
+      if(last) last.focus();
+      note.textContent = 'A signer added now has no field on the document, so their signature will appear on ' +
+        'the signature page at the end. To put it on the page itself, recall the request and place a field for them.';
+    };
+    tr.querySelector('.es-ed-cancel').onclick = function(){ tr.remove(); btn.textContent = 'Recipients'; };
+
+    tr.querySelector('.es-ed-save').onclick = async function(){
+      var save = this;
+      var people = [].map.call(list.querySelectorAll('.es-ed-row'), function(el){
+        return {
+          id: el.dataset.id || undefined,
+          name: el.querySelector('.es-ed-name').value.trim(),
+          email: el.querySelector('.es-ed-email').value.trim(),
+          phone: el.querySelector('.es-ed-phone').value.trim(),
+        };
+      });
+      if(people.some(function(p){ return !p.name || !p.email || !p.phone; })){
+        note.textContent = 'Every recipient needs a name, an email address and a mobile number.'; return;
+      }
+      save.disabled = true; save.textContent = 'Saving…';
+      try {
+        var res = await fetch('/api/esign/envelopes/' + id + '/recipients', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recipients: people }),
+        });
+        var out = await res.json();
+        if(!res.ok || !out.success) throw new Error(out.error || 'Could not save');
+        var said = [];
+        if(out.added.length)     said.push(out.added.length + ' added');
+        if(out.removed.length)   said.push(out.removed.length + ' removed');
+        if(out.corrected.length) said.push(out.corrected.length + ' corrected');
+        if(out.sent.length)      said.push('link sent to ' + out.sent.join(', '));
+        if(out.waiting.length)   said.push(out.waiting.join(', ') + ' waiting their turn');
+        showT(said.length ? said.join(' · ') : 'No changes', 'success');
+        if(out.failed && out.failed.length){
+          showT('Could not reach ' + out.failed[0].email + ' — ' + out.failed[0].error, 'error');
+        }
+        tr.remove(); btn.textContent = 'Recipients';
+        loadList();
+      } catch(err){
+        note.textContent = err.message;
+        save.disabled = false; save.textContent = 'Save recipients';
+      }
+    };
+  } catch(err){
+    showT(err.message, 'error');
+    btn.textContent = 'Recipients';
   } finally {
     btn.disabled = false;
   }
@@ -1560,6 +1691,13 @@ async function loadList(){
         : '';
       // Recall applies to something out for signature; a finished document is
       // a record, and Delete is the deliberate way to be rid of one.
+      // Correcting a typo or adding a signer should not need the whole request
+      // pulled back, so this sits in front of Recall.
+      var people = e.status === 'sent'
+        ? '<button class="es-link es-act" data-act="people" data-id="' + e.id +
+          '" data-title="' + esc(e.title) + '" type="button" ' +
+          'title="Fix a name, email or mobile number, or add another signer">Recipients</button>'
+        : '';
       var recall = e.status === 'sent'
         ? '<button class="es-link es-act" data-act="recall" data-id="' + e.id +
           '" data-title="' + esc(e.title) + '" data-signed="' + signedCount + '" type="button" ' +
@@ -1573,7 +1711,7 @@ async function loadList(){
           '" data-title="' + esc(e.title) + '" type="button" ' +
           'title="Who opened it, when, and everything else on the record">History</button>';
 
-      var actions = cont + hist +
+      var actions = cont + hist + people +
         (canResend ? '<button class="es-link es-act" data-act="resend" data-id="' + e.id + '" type="button">' +
                      (e.status === 'draft' ? 'Send' : 'Resend') + '</button>' : '') + rem + recall +
         '<button class="es-link es-act es-danger" data-act="delete" data-id="' + e.id +
@@ -1598,6 +1736,7 @@ async function loadList(){
         b.dataset.act === 'resend'   ? onResend :
         b.dataset.act === 'continue' ? onContinue :
         b.dataset.act === 'history'  ? onHistory :
+        b.dataset.act === 'people'   ? onRecipients :
         b.dataset.act === 'recall'   ? onRecall : onDelete);
     });
   } catch(e){
