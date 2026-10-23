@@ -82,6 +82,9 @@ function parseRecipients(raw) {
       name: String(r.name || '').trim(),
       email: String(r.email || '').trim().toLowerCase(),
       phone: sms.normalisePhone(r.phone) || null,
+      // Kept only long enough to name the number back to whoever typed it, and
+      // stripped below so the recipient shape stays what the inserts expect.
+      typedPhone: String(r.phone || '').trim(),
       delivery: 'both',
       order: i + 1,
     }))
@@ -95,7 +98,14 @@ function parseRecipients(raw) {
     return { error: 'Each recipient must have a different email address' };
   }
   const noPhone = recipients.find((r) => !r.phone);
-  if (noPhone) return { error: `A mobile number is required for ${noPhone.name}` };
+  if (noPhone) {
+    return {
+      error: noPhone.typedPhone
+        ? `"${noPhone.typedPhone}" is not a usable mobile number for ${noPhone.name}`
+        : `A mobile number is required for ${noPhone.name}`,
+    };
+  }
+  recipients.forEach((r) => { delete r.typedPhone; });
   return { recipients };
 }
 
