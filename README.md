@@ -74,6 +74,13 @@ leaves the page. A card payment is confirmed when they return either way.
 To take bank transfers at all, turn on **ACH Direct Debit** in Stripe →
 Settings → Payment methods.
 
+On the same page, turn **Link** off. Link is Stripe's own wallet; while it is
+on, the card page offers to save the card against a phone number and texts a
+code, which nobody can complete while standing at the counter. It cannot be
+switched off from this application — Stripe shows it whenever the account
+allows it — so the Payments tab reports whether it is on and links to the
+setting.
+
 `DATABASE_URL` is injected automatically by Railway — do **not** set it manually.
 
 ### 5 — Run database schema

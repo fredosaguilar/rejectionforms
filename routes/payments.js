@@ -488,7 +488,12 @@ router.post('/:id/take', requireAuth, async (req, res) => {
       feeCents: r.fee_cents,
       surchargeCents: surcharge,
       description: r.description,
-      clientEmail: r.client_email || undefined,
+      /* An address is always supplied so the processor's page never stops to
+         ask for one. At the desk the agent has a card in front of them and no
+         reason to be typing an email, and for a walk-in with none on file the
+         agent's own address stands in — the processor's receipt then reaches
+         the office, which is where it is useful. */
+      clientEmail: r.client_email || req.session.email || undefined,
       // Back to the agent's own workspace, not the client's payment page.
       successUrl: `${base}/payments?paid={CHECKOUT_SESSION_ID}&req=${r.id}`,
       cancelUrl: `${base}/payments?cancelled=${r.id}`,

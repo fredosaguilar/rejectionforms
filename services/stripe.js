@@ -267,6 +267,26 @@ async function status() {
        rather than claiming a yes or a no we cannot see. */
     const ach = acct.capabilities && acct.capabilities.us_bank_account_ach_payments;
     out.ach = ach === 'active' ? 'on' : (ach ? ach : 'unknown');
+
+    /* Whether Link — the processor's own wallet — is switched on.
+     *
+     * It cannot be turned off from here: Checkout surfaces it alongside the
+     * card whenever the account allows it, whatever this application asks for.
+     * It matters because an agent keying a client's card in at the desk is
+     * then offered to save it against a phone number and sent a code, which is
+     * not a thing anyone at a counter can complete. So it is reported, with a
+     * way to go and turn it off. */
+    try {
+      const cfgs = await request('GET', '/v1/payment_method_configurations');
+      const list = (cfgs && cfgs.data) || [];
+      const on = list.some((c) => c.link && c.link.display_preference &&
+        (c.link.display_preference.value === 'on' || c.link.display_preference.value === 'default'));
+      out.link = list.length ? (on ? 'on' : 'off') : 'unknown';
+    } catch (e) {
+      // A restricted key without this permission, or an account that predates
+      // payment method configurations. Not worth failing the whole check over.
+      out.link = 'unknown';
+    }
     if (!out.chargesEnabled) {
       out.ok = false;
       out.why = 'Stripe has this account set up but has not enabled charges on it yet — finish the ' +
