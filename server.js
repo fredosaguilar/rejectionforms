@@ -68,6 +68,10 @@ app.use('/api/esign', esign.router);
 // The signing ceremony is reached by token, not by login, so it sits outside requireAuth.
 app.use('/api/sign', esign.pub);
 app.use('/api/payments', payments.router);
+// AgencyZoom lookups, used by the payment portal to find a client by name or
+// policy number. It answers with an empty result when no credentials are set,
+// so the portal degrades to its own records rather than breaking.
+app.use('/api/az', require('./routes/agencyzoom'));
 // Paying a fee works the same way: the link in the client's hand is the credential.
 app.use('/api/pay', payments.pub);
 

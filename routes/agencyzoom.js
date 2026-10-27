@@ -1,49 +1,41 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const az = require('../services/agencyzoom');
+
 const router = express.Router();
 
-// GET /api/az/search?q=John+Smith  — search AZ contacts
-router.get('/search', requireAuth, async (req, res) => {
-  const q = req.query.q?.trim();
-  if (!q || q.length < 2) return res.json([]);
-  const contacts = await az.searchContacts(q);
-  // Normalize to a consistent shape regardless of AZ API version
-  const normalized = contacts.map(c => ({
-    id:    c.id || c.contact_id,
-    name:  c.full_name || c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim(),
-    email: c.email || c.primary_email || '',
-    phone: c.phone || c.primary_phone || '',
-  }));
-  res.json(normalized);
+/* Whether AgencyZoom is reachable, and if not, which of the separate things is
+   wrong. Reports derived facts only — which variables are set, what the
+   service answered — never a credential. */
+router.get('/status', requireAuth, async (req, res) => {
+  try {
+    res.json({ success: true, agencyZoom: await az.status() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-// GET /api/az/contact/:id  — get contact + policies
-router.get('/contact/:id', requireAuth, async (req, res) => {
-  const [contact, policies] = await Promise.all([
-    az.getContact(req.params.id),
-    az.getContactPolicies(req.params.id),
-  ]);
-  if (!contact) return res.status(404).json({ error: 'Contact not found' });
+/* Clients by name or policy number. The payment portal calls its own
+   /api/payments/clients, which merges this with the portal's records; this
+   route is the AgencyZoom side on its own, for anything else that wants it. */
+router.get('/search', requireAuth, async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 2) return res.json({ success: true, clients: [] });
+  try {
+    const { clients, errors } = await az.searchClients(q);
+    res.json({ success: true, clients, errors });
+  } catch (e) {
+    console.error('AgencyZoom search:', e.message);
+    res.status(502).json({ error: e.message });
+  }
+});
 
-  const normPolicies = (Array.isArray(policies) ? policies : []).map(p => ({
-    id:           p.id || p.policy_id,
-    policyNumber: p.policy_number || p.number || '',
-    carrier:      p.carrier || p.insurance_company || '',
-    lineOfBusiness: p.line_of_business || p.type || p.lob || '',
-    effectiveDate:  p.effective_date || p.eff_date || '',
-    expirationDate: p.expiration_date || p.exp_date || '',
-    premium:        p.premium || '',
-  }));
-
-  res.json({
-    id:       contact.id || contact.contact_id,
-    name:     contact.full_name || contact.name || `${contact.first_name||''} ${contact.last_name||''}`.trim(),
-    email:    contact.email || contact.primary_email || '',
-    phone:    contact.phone || contact.primary_phone || '',
-    address:  contact.address || contact.mailing_address || '',
-    policies: normPolicies,
-  });
+router.get('/customer/:id/policies', requireAuth, async (req, res) => {
+  try {
+    res.json({ success: true, policies: await az.getPolicies(req.params.id) });
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
 });
 
 module.exports = router;

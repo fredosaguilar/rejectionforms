@@ -67,9 +67,12 @@ css.textContent = [
   '#f-pay .pay-quote{border:1px solid var(--border);border-radius:8px;background:var(--bg);padding:10px 13px;font-size:12.5px;line-height:1.8;margin-top:10px}',
   '#f-pay .pay-quote b{color:var(--navy)}',
   '#f-pay .pay-hist td{background:var(--bg)}',
-  '#f-pay .pay-agree{border:1px solid var(--border2);border-radius:8px;max-height:190px;overflow:auto;margin-top:8px}',
-  '#f-pay .pay-agree button{display:block;width:100%;text-align:left;padding:8px 11px;border:none;border-bottom:1px solid var(--border);background:#fff;font:inherit;font-size:12.5px;cursor:pointer}',
-  '#f-pay .pay-agree button:hover{background:var(--bg)}',
+  '#f-pay .pay-find{position:relative;max-width:560px}',
+  '#f-pay .pay-results{position:absolute;z-index:40;left:0;right:0;top:100%;margin-top:4px;border:1px solid var(--border2);border-radius:8px;background:#fff;box-shadow:0 10px 28px rgba(24,54,48,.14);max-height:320px;overflow:auto}',
+  '#f-pay .pay-results button{display:block;width:100%;text-align:left;padding:9px 12px;border:none;border-bottom:1px solid var(--border);background:#fff;font:inherit;font-size:12.5px;cursor:pointer}',
+  '#f-pay .pay-results button:last-child{border-bottom:none}',
+  '#f-pay .pay-results button:hover{background:var(--bg)}',
+  '#f-pay .pay-empty{padding:10px 12px;font-size:12px;color:var(--muted)}',
   '#f-pay .btn.ready{box-shadow:0 0 0 0 rgba(26,74,74,.45);animation:payPulse 1.1s ease-out 2}',
   '@keyframes payPulse{to{box-shadow:0 0 0 16px rgba(26,74,74,0)}}',
   '@media (prefers-reduced-motion: reduce){#f-pay .btn.ready{animation:none}}',
@@ -94,7 +97,16 @@ var html =
       'Enter the agency fee only. The processing fee is added on top at the rate disclosed on the fee ' +
       'agreement \u2014 what the processor charges, no more \u2014 and the client sees both before they pay.</p>' +
 
-    '<div class="pay-grid3">' +
+    '<div class="fld pay-find">' +
+      '<div class="lbl">Find the client</div>' +
+      '<input type="search" id="pay-search" autocomplete="off" ' +
+        'placeholder="Search by client name or policy number\u2026">' +
+      '<div id="pay-results" class="pay-results" hidden></div>' +
+      '<div class="pay-note" style="margin-top:4px">Searches signed fee agreements, earlier fee ' +
+        'requests and AgencyZoom. Picking one fills in everything below that is known. Or just type it in.</div>' +
+    '</div>' +
+
+    '<div class="pay-grid3" style="margin-top:12px">' +
       '<div class="fld"><div class="lbl">Client name</div><input type="text" id="pay-name" placeholder="Full legal name"></div>' +
       '<div class="fld"><div class="lbl">Client email</div><input type="email" id="pay-email" placeholder="client@email.com"></div>' +
       '<div class="fld"><div class="lbl">Mobile number</div><input type="tel" id="pay-phone" placeholder="(509) 555-0123"></div>' +
@@ -113,10 +125,7 @@ var html =
 
     '<div id="pay-quote" class="pay-quote" hidden></div>' +
 
-    '<div style="margin-top:8px">' +
-      '<button class="btn btn-sec" id="pay-pull" type="button" style="font-size:12px;padding:6px 14px">Pull the fee from a signed fee agreement</button>' +
-      '<div id="pay-agreements" class="pay-agree" hidden></div>' +
-    '</div>' +
+
 
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">' +
       '<button class="btn btn-pri" id="pay-send" type="button">Create and send by email + text</button>' +
@@ -230,16 +239,22 @@ async function loadStatus(){
   try {
     var d = await api('/api/payments/status');
     renderSetup(d);
-    renderNotices(d.stripe || {});
+    renderNotices(d.stripe || {}, d.agencyZoom || {});
   } catch(e){
     $('pay-setup').innerHTML = '';
     $('pay-status').innerHTML = '';
   }
 }
 
-function renderNotices(s){
+function renderNotices(s, az){
   var box = $('pay-status'), out = '';
-  if(!s.configured){ box.innerHTML = ''; return; }
+  if(!s.configured){
+    // Still worth saying if the other integration is broken.
+    box.innerHTML = (az && az.configured && !az.ok)
+      ? '<div class="pay-warn"><strong>AgencyZoom is not answering.</strong> ' + esc(az.why || '') + '</div>'
+      : '';
+    return;
+  }
 
   if(s.mode === 'live'){
     // Said loudly and in its own box. The reassuring version of this message
@@ -254,6 +269,12 @@ function renderNotices(s){
   }
 
   var bits = [];
+  // AgencyZoom is reported here for the same reason Stripe is: a third party
+  // this page leans on, and whether it is answering. Silence when it is.
+  if(az && az.configured && !az.ok){
+    bits.push('<strong>AgencyZoom is not answering.</strong> ' + esc(az.why || '') +
+      ' Client search still covers this portal\u2019s own fee agreements and earlier requests.');
+  }
   if(s.restricted && s.ok){
     bits.push('<strong>This is a restricted key.</strong> It works, but it only does what it was given ' +
       'permission to do. This portal needs write on Checkout Sessions and Refunds, and read on ' +
@@ -377,49 +398,104 @@ function wireSetup(){
   });
 }
 
-/* ---- pulling a fee off an agreement already on file -------------------- */
-$('pay-pull').addEventListener('click', async function(){
-  var box = $('pay-agreements');
-  if(!box.hidden){ box.hidden = true; return; }
+/* ---- finding the client ------------------------------------------------
+
+   One box, three places: fee agreements on file (the only source that knows
+   the agreed fee), fee requests already raised, and AgencyZoom. Typing a name
+   or a policy number searches all three and merges what comes back, so the
+   agent does not have to know which of them a given client is in. */
+var searchTimer = null, lastQuery = '';
+
+function sourceChip(src){
+  var label = { agreement:'Fee agreement', request:'Earlier request', agencyzoom:'AgencyZoom' }[src] || src;
+  var tone  = { agreement:'#1a6b45', request:'#96601a', agencyzoom:'#1a4a7a' }[src] || 'var(--muted)';
+  return '<span style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:' + tone + '">' +
+    esc(label) + '</span>';
+}
+
+function applyClient(c){
+  if(c.name)  $('pay-name').value  = c.name;
+  if(c.email) $('pay-email').value = c.email;
+  if(c.phone) $('pay-phone').value = c.phone;
+  if(c.policyNumber) $('pay-policy').value = c.policyNumber;
+  if(c.feeCents){
+    $('pay-fee').value = money(c.feeCents);
+    if(window.CBIMoney) window.CBIMoney.refresh();
+  }
+  if(!$('pay-desc').value.trim()){
+    $('pay-desc').value = 'Agency broker fee' +
+      (c.policyNumber ? ' — policy ' + c.policyNumber : '') +
+      (c.carrier ? ' (' + c.carrier + ')' : '');
+  }
+  // Only a fee agreement ties this request back to a signed document.
+  pulledFrom = c.source === 'agreement' ? (c.submissionId || null) : null;
+  renderQuote();
+  $('pay-results').hidden = true;
+  $('pay-search').value = '';
+  toast(c.feeCents
+    ? 'Filled in from the ' + (c.source === 'agreement' ? 'signed fee agreement' : 'earlier request')
+    : 'Client details filled in — enter the agency fee', 'success');
+}
+
+async function runSearch(){
+  var q = $('pay-search').value.trim(), box = $('pay-results');
+  if(q.length < 2){ box.hidden = true; return; }
+  lastQuery = q;
   box.hidden = false;
-  box.innerHTML = '<div style="padding:9px 11px;font-size:12px;color:var(--muted)">Loading…</div>';
+  box.innerHTML = '<div class="pay-empty">Searching…</div>';
   try {
-    var d = await api('/api/payments/fee-agreements?q=' + encodeURIComponent($('pay-name').value.trim()));
-    if(!d.agreements.length){
-      box.innerHTML = '<div style="padding:9px 11px;font-size:12px;color:var(--muted)">No fee agreements on file yet.</div>';
-      return;
-    }
+    var d = await api('/api/payments/clients?q=' + encodeURIComponent(q));
+    if(q !== lastQuery) return;            // a later keystroke already won
     box.innerHTML = '';
-    d.agreements.forEach(function(a){
+    if(!d.clients.length){
+      box.innerHTML = '<div class="pay-empty">Nothing found for “' + esc(q) + '”' +
+        (d.agencyZoom ? '' : ' — AgencyZoom is not connected, so only this portal’s own records were searched') +
+        '.</div>';
+    }
+    d.clients.forEach(function(c){
       var b = document.createElement('button');
       b.type = 'button';
-      b.innerHTML = '<strong>' + esc(a.clientName || 'No name') + '</strong>' +
-        (a.feeCents ? ' — <span style="color:var(--navy);font-weight:600">' + esc(money(a.feeCents)) + '</span>' : ' <span style="color:#a32219">(no fee recorded)</span>') +
-        '<br><span style="color:var(--muted);font-size:11.5px">' +
-        esc(a.policyNumber || 'No policy number') + ' · ' + esc(when(a.submittedAt)) + '</span>';
-      b.addEventListener('click', function(){
-        if(a.clientName) $('pay-name').value = a.clientName;
-        if(a.clientEmail) $('pay-email').value = a.clientEmail;
-        if(a.policyNumber) $('pay-policy').value = a.policyNumber;
-        if(a.feeCents){
-          $('pay-fee').value = money(a.feeCents);
-          if(window.CBIMoney) window.CBIMoney.refresh();
-        }
-        if(!$('pay-desc').value.trim()){
-          $('pay-desc').value = 'Agency broker fee' +
-            (a.policyNumber ? ' — policy ' + a.policyNumber : '') +
-            (a.carrier ? ' (' + a.carrier + ')' : '');
-        }
-        pulledFrom = a.id;
-        renderQuote();
-        box.hidden = true;
-        toast('Fee pulled from the agreement on file', 'success');
-      });
+      var bits = [];
+      if(c.policyNumber) bits.push('Policy ' + c.policyNumber);
+      if(c.carrier) bits.push(c.carrier);
+      if(c.lineOfBusiness) bits.push(c.lineOfBusiness);
+      if(c.email) bits.push(c.email);
+      b.innerHTML =
+        '<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">' +
+          '<strong>' + esc(c.name || 'No name') + '</strong>' +
+          (c.fee ? '<span style="color:var(--navy);font-weight:600;white-space:nowrap">' + esc(c.fee) + '</span>' : '') +
+        '</div>' +
+        '<div style="color:var(--muted);font-size:11.5px;margin-top:2px">' +
+          (bits.length ? esc(bits.join(' · ')) : 'No policy number') + '</div>' +
+        '<div style="margin-top:3px">' + sourceChip(c.source) +
+          (c.fee ? '' : ' <span style="font-size:10.5px;color:var(--muted)">no fee on file</span>') + '</div>';
+      b.addEventListener('click', function(){ applyClient(c); });
       box.appendChild(b);
     });
+    (d.notes || []).forEach(function(n){
+      var note = document.createElement('div');
+      note.className = 'pay-empty';
+      note.style.color = '#a35a19';
+      note.textContent = n;
+      box.appendChild(note);
+    });
   } catch(e){
-    box.innerHTML = '<div style="padding:9px 11px;font-size:12px;color:#a32219">' + esc(e.message) + '</div>';
+    box.innerHTML = '<div class="pay-empty" style="color:#a32219">' + esc(e.message) + '</div>';
   }
+}
+
+$('pay-search').addEventListener('input', function(){
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(runSearch, 250);
+});
+$('pay-search').addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){ $('pay-results').hidden = true; this.blur(); }
+  if(e.key === 'Enter'){ e.preventDefault(); clearTimeout(searchTimer); runSearch(); }
+});
+// A click anywhere else puts the list away.
+document.addEventListener('click', function(e){
+  var box = $('pay-results');
+  if(box && !box.hidden && !box.contains(e.target) && e.target !== $('pay-search')) box.hidden = true;
 });
 var pulledFrom = null;
 
@@ -437,10 +513,11 @@ function gather(){
   };
 }
 function clearForm(){
-  ['pay-name','pay-email','pay-phone','pay-desc','pay-policy','pay-fee'].forEach(function(id){ $(id).value = ''; });
+  ['pay-name','pay-email','pay-phone','pay-desc','pay-policy','pay-fee','pay-search']
+    .forEach(function(id){ $(id).value = ''; });
   pulledFrom = null;
   $('pay-quote').hidden = true;
-  $('pay-agreements').hidden = true;
+  $('pay-results').hidden = true;
 }
 $('pay-clear').addEventListener('click', clearForm);
 
