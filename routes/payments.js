@@ -56,7 +56,21 @@ function shape(r) {
    never a key. */
 router.get('/status', requireAuth, async (req, res) => {
   try {
-    res.json({ success: true, stripe: await stripe.status() });
+    res.json({
+      success: true,
+      stripe: await stripe.status(),
+      // The one value nobody can look up for the agency: where this very
+      // application is answering from. Stripe has to be told it exactly, and
+      // reading it off the running server is the only way to be sure it is
+      // right.
+      webhookUrl: `${baseUrl(req)}/api/pay/webhook`,
+      webhookEvents: [
+        'checkout.session.completed',
+        'payment_intent.succeeded',
+        'payment_intent.payment_failed',
+        'charge.refunded',
+      ],
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
