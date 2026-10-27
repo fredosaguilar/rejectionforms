@@ -54,37 +54,38 @@ function money(cents) {
 
 /* What each way of paying costs to accept, charged on to the client.
  *
- * Card is the rate already written into the agency's fee agreement: $3.50 per
- * $100 of the agency fee, $3.50 minimum. Bank transfer is cheaper to accept
- * and is priced at what it actually costs, so a client paying a large fee is
- * not charged card rates for an ACH debit.
+ * These are the processor's own published rates, not a round number on top of
+ * them. A surcharge may not exceed the cost of accepting the card — card
+ * network rules cap it at 4% besides — and the flat part matters as much as
+ * the percentage: the processor charges 30 cents per card transaction whether
+ * the fee is fifty dollars or five hundred.
  *
- * A surcharge may not exceed the cost of accepting the card, and card network
- * rules cap it at 4% besides, so the rate is held here in one place rather
- * than computed at each call site.
+ * Both rates are held here, in one place, rather than computed at each call
+ * site. They are also written into the fee agreement the client signs, so a
+ * change here is a change there; the two must say the same thing.
  */
 const METHODS = {
   card: {
     key: 'card',
     label: 'Credit or debit card',
-    rate: 0.035, min: 350, max: null,
-    note: '$3.50 per $100 of the agency fee, $3.50 minimum',
+    rate: 0.029, flat: 30, max: null,
+    note: '2.9% of the agency fee plus $0.30',
     settles: 'immediately',
   },
   bank: {
     key: 'bank',
     label: 'Bank transfer (ACH)',
-    rate: 0.008, min: 350, max: 500,
-    note: '0.8% of the agency fee, $3.50 minimum and $5.00 maximum',
+    rate: 0.008, flat: 0, max: 500,
+    note: '0.8% of the agency fee, $5.00 maximum',
     settles: 'in 3–5 business days',
   },
   // A fee taken in the office — cash, a check, a card run on the counter
   // terminal — is recorded here so the client has one receipt and the agency
-  // one ledger. Nothing is charged, so nothing is added.
+  // one ledger. Nothing is processed, so nothing is added.
   manual: {
     key: 'manual',
     label: 'Recorded by the agency',
-    rate: 0, min: 0, max: 0,
+    rate: 0, flat: 0, max: 0,
     note: 'no processing fee',
     settles: 'immediately',
   },
@@ -92,8 +93,8 @@ const METHODS = {
 
 function surchargeCents(feeCents, method) {
   const m = METHODS[method];
-  if (!m || !m.rate) return 0;
-  let s = Math.max(m.min, Math.round(Number(feeCents || 0) * m.rate));
+  if (!m || (!m.rate && !m.flat)) return 0;
+  let s = Math.round(Number(feeCents || 0) * m.rate) + (m.flat || 0);
   if (m.max) s = Math.min(s, m.max);
   return s;
 }

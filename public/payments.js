@@ -92,7 +92,7 @@ var html =
     '<div class="sec-title">New payment request</div>' +
     '<p style="font-size:12px;color:var(--muted);margin:4px 0 12px">' +
       'Enter the agency fee only. The processing fee is added on top at the rate disclosed on the fee ' +
-      'agreement, and the client sees both before they pay.</p>' +
+      'agreement \u2014 what the processor charges, no more \u2014 and the client sees both before they pay.</p>' +
 
     '<div class="pay-grid3">' +
       '<div class="fld"><div class="lbl">Client name</div><input type="text" id="pay-name" placeholder="Full legal name"></div>' +
@@ -185,7 +185,7 @@ if(window.CBIMoney) window.CBIMoney.attach($('pay-fee'), { optionalCents: false 
    agent can answer "how much will it be on the card?" without sending
    anything first; the amount actually charged is always recomputed on the
    server from the fee on the record. */
-var RATES = { card: { rate:0.035, min:350, max:null }, bank: { rate:0.008, min:350, max:500 } };
+var RATES = { card: { rate:0.029, flat:30, max:null }, bank: { rate:0.008, flat:0, max:500 } };
 function feeCents(){
   var raw = String($('pay-fee').value || '').replace(/[^0-9.]/g,'');
   var n = parseFloat(raw);
@@ -193,7 +193,7 @@ function feeCents(){
 }
 function surcharge(cents, method){
   var m = RATES[method];
-  var s = Math.max(m.min, Math.round(cents * m.rate));
+  var s = Math.round(cents * m.rate) + m.flat;
   return m.max ? Math.min(s, m.max) : s;
 }
 function money(cents){
@@ -208,7 +208,9 @@ function renderQuote(){
     '<b>' + esc(money(c + surcharge(c,'card'))) + '</b> by card ' +
       '<span style="color:var(--muted)">(+' + esc(money(surcharge(c,'card'))) + ' processing)</span><br>' +
     '<b>' + esc(money(c + surcharge(c,'bank'))) + '</b> by bank transfer ' +
-      '<span style="color:var(--muted)">(+' + esc(money(surcharge(c,'bank'))) + ', clears in 3–5 business days)</span>';
+      '<span style="color:var(--muted)">(+' + esc(money(surcharge(c,'bank'))) + ', clears in 3–5 business days)</span>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:4px">Processing is charged at cost: ' +
+      '2.9% + $0.30 by card, 0.8% capped at $5.00 by bank transfer — the rates on the fee agreement.</div>';
 }
 $('pay-fee').addEventListener('input', renderQuote);
 
