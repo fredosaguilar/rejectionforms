@@ -317,6 +317,31 @@ function signingText({ recipientName, agentName, url, lang }) {
     'Do not share this link. Reply STOP to opt out.';
 }
 
+/* The same shape as a signing request, because it arrives from the same office
+   on the same number: who it is from, what it is for, the link on its own line,
+   why it matters, and the two guard lines. */
+function paymentText({ clientName, agentName, amount, url, lang }) {
+  const first = String(clientName || '').trim().split(/\s+/)[0];
+  const agent = String(agentName || '').trim();
+  const hi = first ? (lang === 'es' ? `Hola ${first}, ` : `Hi ${first}, `) : '';
+  const amt = String(amount || '').trim();
+
+  if (lang === 'es') {
+    const who = agent ? `${agent} de ${AGENCY_NAME}` : AGENCY_NAME;
+    return `${hi}${who} le envió una solicitud para pagar la tarifa de agencia` +
+      (amt ? ` de ${amt}` : '') + `.\n\n${url}\n\n` +
+      'Pague pronto para evitar retrasos o problemas con su póliza. ' +
+      '¿Preguntas? Comuníquese con nuestra oficina.\n\n' +
+      'No comparta este enlace. Responda STOP para no recibir mensajes.';
+  }
+  const who = agent ? `${agent} from ${AGENCY_NAME}` : AGENCY_NAME;
+  return `${hi}${who} sent you a request to pay the agency broker fee` +
+    (amt ? ` of ${amt}` : '') + `.\n\n${url}\n\n` +
+    'Please pay promptly to help avoid delays or issues with your policy. ' +
+    'Questions? Contact our office for assistance.\n\n' +
+    'Do not share this link. Reply STOP to opt out.';
+}
+
 /* Exchanges the JWT for a token and throws with the provider's own message if
    the credentials are wrong. Sends nothing, so it is safe to call on demand. */
 async function authCheck() {
@@ -329,4 +354,4 @@ async function authCheck() {
   return true;
 }
 
-module.exports = { send, signingText, normalisePhone, configured, authCheck, jwtShape, senderNumbers, extensionInfo, fromCheck };
+module.exports = { send, signingText, paymentText, normalisePhone, configured, authCheck, jwtShape, senderNumbers, extensionInfo, fromCheck };

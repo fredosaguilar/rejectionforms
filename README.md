@@ -52,6 +52,22 @@ In Railway → your service → **Variables**, add:
 | `AGENCYZOOM_BASE_URL` | `https://app.agencyzoom.com/api/v1` |
 | `NODE_ENV` | `production` |
 
+For the broker fee payment portal, add these as well. Without them the Payments
+tab still creates and sends fee requests and records a fee paid in the office;
+it simply cannot take a card.
+
+| Variable | Value |
+|---|---|
+| `STRIPE_SECRET_KEY` | From Stripe → Developers → API keys. Start with the **test** key (`sk_test_…`) and pay a request with card `4242 4242 4242 4242` before switching to `sk_live_…`. |
+| `STRIPE_WEBHOOK_SECRET` | From Stripe → Developers → Webhooks. Add an endpoint at `https://<your-app>/api/pay/webhook` subscribed to `checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed` and `charge.refunded`, then copy its signing secret (`whsec_…`). |
+| `AGENCY_TZ` | Optional. The time zone receipts are dated in; defaults to `America/Los_Angeles`. |
+
+The webhook matters most for bank transfers, which settle days after the client
+leaves the page. A card payment is confirmed when they return either way.
+
+To take bank transfers at all, turn on **ACH Direct Debit** in Stripe →
+Settings → Payment methods.
+
 `DATABASE_URL` is injected automatically by Railway — do **not** set it manually.
 
 ### 5 — Run database schema
@@ -62,6 +78,9 @@ Once deployed, open the Railway **shell** for your Postgres service and run:
 # In Railway Postgres shell or via psql:
 psql $DATABASE_URL -f /app/db/schema.sql
 ```
+
+The e-signature and payment tables are created automatically on every boot, so
+`db/esign.sql` and `db/payments.sql` need no manual step.
 
 Or connect locally:
 ```bash

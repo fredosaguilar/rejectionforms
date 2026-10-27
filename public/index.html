@@ -174,6 +174,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
       <a href="/" id="nav-eo" style="padding:5px 14px;border-radius:4px;font-size:12px;background:rgba(255,255,255,.15);color:#fff;text-decoration:none">E&O Forms</a>
       <a href="/fee-agreement" id="nav-fee" style="padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none">Fee Agreement</a>
       <a href="/esign" id="nav-esign" style="padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none">E-Signature</a>
+      <a href="/payments" id="nav-pay" style="padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none">Payments</a>
       <a href="/transcripts" id="nav-transcripts" style="padding:5px 14px;border-radius:4px;font-size:12px;color:rgba(255,255,255,.7);text-decoration:none">Call Transcripts</a>
     </div>
     <span class="nav-agent" id="nav-agent"></span>
@@ -664,11 +665,19 @@ const tabs=document.querySelector('.tabs');if(tabs)tabs.style.display=(id in m)?
 // to whichever it matched. On the e-signature page that means being thrown to
 // the Auto form mid-task, so the panel is not offered there. The client panel
 // stays: it prefills the first recipient.
-const up=document.getElementById('upload-panel');if(up)up.style.display=(id==='esign')?'none':'';
+// Reading a policy fills a coverage form, so on the pages that are not forms
+// it would throw the agent somewhere else mid-task.
+const up=document.getElementById('upload-panel');if(up)up.style.display=(id==='esign'||id==='pay')?'none':'';
+// The client panel stays on Payments: it prefills the fee request, the same
+// way it prefills the first signer.
 const client=document.querySelector('.top-panel');if(client)client.style.display=(id==='esign')?'none':'';
+// Saved E&O submissions belong to the forms. Under the fee requests they are
+// a second table of client names and dates that means something else.
+const hist=document.querySelector('.hist-panel');if(hist)hist.style.display=(id==='pay')?'none':'';
 const title=document.getElementById('workspace-title'),sub=document.getElementById('workspace-subtitle');
 if(title&&sub){
   if(id==='esign'){title.textContent='Electronic signatures';sub.textContent='Prepare, send, and track signature requests in a guided workflow.';}
+  else if(id==='pay'){title.textContent='Broker fee payments';sub.textContent='Send a secure payment link, take the fee, and issue the receipt.';}
   else if(id==='fee'){title.textContent='Broker fee agreements';sub.textContent='Create clear, compliant fee agreements for your clients.';}
   else{title.textContent='Documents & coverage forms';sub.textContent='Create, send, and track client documents from one place.';}
 }}
@@ -1397,5 +1406,6 @@ function showT(msg,type){const t=document.getElementById('toast');t.textContent=
 </script>
 <script src="/fee-agreement.js"></script>
 <script src="/esign.js"></script>
+<script src="/payments.js"></script>
 </body>
 </html>

@@ -150,16 +150,18 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function shell(inner) {
+const SIGN_FOOT = 'This link is unique to you. Please do not forward it \u2014 anyone holding it can sign in your name.';
+
+function shell(inner, opts = {}) {
+  const eyebrow = opts.eyebrow || 'Document Signing';
+  const foot = opts.foot === undefined ? SIGN_FOOT : opts.foot;
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a">
   <div style="background:#1a4a4a;padding:18px 22px">
     <div style="color:#fff;font-size:15px;font-weight:500">Columbia Basin Insurance</div>
-    <div style="color:#c8922a;font-size:10px;letter-spacing:.08em;text-transform:uppercase">Document Signing</div>
+    <div style="color:#c8922a;font-size:10px;letter-spacing:.08em;text-transform:uppercase">${esc(eyebrow)}</div>
   </div>
   <div style="padding:24px 22px;background:#fff;border:1px solid #e0dcd4;border-top:none">${inner}</div>
-  <div style="padding:14px 22px;color:#6b6560;font-size:11px;line-height:1.6">
-    This link is unique to you. Please do not forward it — anyone holding it can sign in your name.
-  </div>
+  ${foot ? `<div style="padding:14px 22px;color:#6b6560;font-size:11px;line-height:1.6">${esc(foot)}</div>` : ''}
 </div>`;
 }
 
@@ -190,9 +192,7 @@ const COPY = {
 const copy = (lang) => COPY[lang] || COPY.en;
 
 function shellL(inner, lang) {
-  return shell(inner).replace(
-    'This link is unique to you. Please do not forward it — anyone holding it can sign in your name.',
-    esc(copy(lang).noForward));
+  return shell(inner, { foot: copy(lang).noForward });
 }
 
 function signingRequest({ recipientName, agentName, title, message, url, lang }) {
@@ -243,4 +243,98 @@ function completedNotice({ recipientName, title, url, lang }) {
     <p style="margin:0;font-size:12px;color:#6b6560">${esc(c.doneFoot)}</p>`, lang);
 }
 
-module.exports = { send, signingRequest, completedNotice, agencyCopy, esc, copy, status, fromAddress };
+/* -------------------------------------------------------------------------
+   Broker fee payments
+   A payment link is not a signing link: it charges a card rather than binding
+   a signature, so it carries its own heading and its own warning.
+   ------------------------------------------------------------------------- */
+const PAY_COPY = {
+  en: {
+    eyebrow: 'Broker Fee Payment',
+    subj: (d) => `Payment request: ${d}`,
+    lead: (a) => `${a} has sent you a request to pay the agency broker fee on your policy.`,
+    cta: 'View and pay securely',
+    due: 'Amount due',
+    foot: 'Payment is taken on a secure page hosted by our card processor. Your card details are ' +
+          'never seen or stored by our office. A processing fee is added at the rate disclosed on ' +
+          'your fee agreement, and is shown before you pay.',
+    noForward: 'This link is unique to you. Please do not forward it.',
+    rsubj: (n) => `Receipt ${n} — Columbia Basin Insurance`,
+    rlead: 'Thank you — your payment has been received. Your receipt is attached.',
+    rfoot: 'This is a receipt for our agency broker fee, not for insurance premium. ' +
+           'Please keep it with your records.',
+  },
+  es: {
+    eyebrow: 'Pago de Tarifa de Corretaje',
+    subj: (d) => `Solicitud de pago: ${d}`,
+    lead: (a) => `${a} le ha enviado una solicitud para pagar la tarifa de agencia de su póliza.`,
+    cta: 'Ver y pagar de forma segura',
+    due: 'Monto a pagar',
+    foot: 'El pago se realiza en una página segura de nuestro procesador de tarjetas. Nuestra oficina ' +
+          'nunca ve ni guarda los datos de su tarjeta. Se agrega un cargo de procesamiento según la ' +
+          'tarifa divulgada en su acuerdo, y se muestra antes de pagar.',
+    noForward: 'Este enlace es exclusivo para usted. No lo reenvíe.',
+    rsubj: (n) => `Recibo ${n} — Columbia Basin Insurance`,
+    rlead: 'Gracias — hemos recibido su pago. Su recibo está adjunto.',
+    rfoot: 'Este es un recibo de la tarifa de agencia, no de la prima del seguro. ' +
+           'Consérvelo para sus registros.',
+  },
+};
+const payCopy = (lang) => PAY_COPY[lang] || PAY_COPY.en;
+
+function paymentRequest({ clientName, agentName, description, amount, url, lang }) {
+  const c = payCopy(lang);
+  return shell(`
+    <p style="margin:0 0 14px;font-size:14px">${esc(clientName)},</p>
+    <p style="margin:0 0 18px;font-size:14px;line-height:1.6">
+      ${esc(c.lead(agentName || 'Columbia Basin Insurance'))}
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin:0 0 20px;background:#f7f5f0">
+      <tr><td style="padding:12px 14px;font-size:13px;line-height:1.5">${esc(description)}</td></tr>
+      <tr><td style="padding:0 14px 12px">
+        <span style="font-size:11px;color:#6b6560;text-transform:uppercase;letter-spacing:.06em">${esc(c.due)}</span><br>
+        <span style="font-size:24px;font-weight:600;color:#1a4a4a">${esc(amount)}</span>
+      </td></tr>
+    </table>
+    <p style="margin:0 0 22px">
+      <a href="${esc(url)}" style="display:inline-block;background:#1a4a4a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px">${esc(c.cta)}</a>
+    </p>
+    <p style="margin:0;font-size:12px;color:#6b6560;line-height:1.6">${esc(c.foot)}</p>`,
+  { eyebrow: c.eyebrow, foot: c.noForward });
+}
+
+function paymentReceipt({ clientName, receiptNo, amount, description, lang }) {
+  const c = payCopy(lang);
+  return shell(`
+    <p style="margin:0 0 14px;font-size:14px">${esc(clientName)},</p>
+    <p style="margin:0 0 18px;font-size:14px;line-height:1.6">${esc(c.rlead)}</p>
+    <table style="width:100%;border-collapse:collapse;margin:0 0 20px;background:#f0f6f2;border:1px solid #cfe3d8">
+      <tr><td style="padding:12px 14px;font-size:13px;line-height:1.6">
+        ${esc(description)}<br>
+        <strong style="font-size:20px;color:#1a6b45">${esc(amount)}</strong><br>
+        <span style="font-size:11px;color:#6b6560">${esc(receiptNo)}</span>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:12px;color:#6b6560;line-height:1.6">${esc(c.rfoot)}</p>`,
+  { eyebrow: c.eyebrow, foot: '' });
+}
+
+/* The agency's own copy of a fee that has been paid. Internal, so it names the
+   agent who took it and carries the receipt itself. */
+function paymentAgencyCopy({ clientName, receiptNo, amount, description, method, agentName, paidAt }) {
+  return shell(`
+    <p style="margin:0 0 14px;font-size:14px"><strong>${esc(amount)}</strong> received from ${esc(clientName)}.</p>
+    <p style="margin:0 0 6px;font-size:12px;color:#6b6560">The receipt is attached.</p>
+    <p style="margin:14px 0 0;font-size:11.5px;color:#6b6560;line-height:1.7">
+      ${esc(description)}<br>
+      Receipt: ${esc(receiptNo)}<br>
+      Method: ${esc(method)}<br>
+      Taken by: ${esc(agentName || '—')}<br>
+      Paid: ${esc(paidAt || '')}
+    </p>`, { eyebrow: 'Broker Fee Payment', foot: '' });
+}
+
+module.exports = {
+  send, signingRequest, completedNotice, agencyCopy, esc, copy, status, fromAddress,
+  paymentRequest, paymentReceipt, paymentAgencyCopy, payCopy,
+};
