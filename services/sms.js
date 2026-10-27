@@ -342,6 +342,33 @@ function paymentText({ clientName, agentName, amount, url, lang }) {
     'Do not share this link. Reply STOP to opt out.';
 }
 
+/* The receipt, texted.
+ *
+ * It goes to anyone who gave a mobile number, not only to those with no email
+ * on file: a client who paid at the counter and walked out has their proof in
+ * their hand before they reach the car. The link opens the same page their own
+ * payment link did, which now shows the payment and offers the receipt. */
+function receiptText({ clientName, amount, url, alsoEmailed, lang }) {
+  const first = String(clientName || '').trim().split(/\s+/)[0];
+  const hi = first ? (lang === 'es' ? `Hola ${first}, ` : `Hi ${first}, `) : '';
+  const amt = String(amount || '').trim();
+
+  if (lang === 'es') {
+    return `${hi}recibimos su pago` + (amt ? ` de ${amt}` : '') + ` a ${AGENCY_NAME}. Gracias.` +
+      (url ? `\n\n${url}\n\nSu recibo está en el enlace anterior` : '\n\nSu recibo está listo') +
+      (alsoEmailed ? ' y también se lo enviamos por correo.' : '.') +
+      '\n\nEste es un recibo de la tarifa de agencia, no de la prima.' +
+      (url ? '\n\nNo comparta este enlace.' : '') +
+      ' Responda STOP para no recibir mensajes.';
+  }
+  return `${hi}we have received your payment` + (amt ? ` of ${amt}` : '') + ` to ${AGENCY_NAME}. Thank you.` +
+    (url ? `\n\n${url}\n\nYour receipt is at the link above` : '\n\nYour receipt is ready') +
+    (alsoEmailed ? ', and a copy is on its way by email.' : '.') +
+    '\n\nThis is a receipt for the agency fee, not for insurance premium.' +
+    (url ? '\n\nDo not share this link.' : '') +
+    ' Reply STOP to opt out.';
+}
+
 /* Exchanges the JWT for a token and throws with the provider's own message if
    the credentials are wrong. Sends nothing, so it is safe to call on demand. */
 async function authCheck() {
@@ -354,4 +381,4 @@ async function authCheck() {
   return true;
 }
 
-module.exports = { send, signingText, paymentText, normalisePhone, configured, authCheck, jwtShape, senderNumbers, extensionInfo, fromCheck };
+module.exports = { send, signingText, paymentText, receiptText, normalisePhone, configured, authCheck, jwtShape, senderNumbers, extensionInfo, fromCheck };

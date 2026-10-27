@@ -729,6 +729,27 @@ async function sendReceipts(r, req) {
   const filename = `receipt-${(r.receipt_no || r.public_id).replace(/[^\w.-]/g, '')}.pdf`;
   const amount = pay.money(r.paid_cents != null ? r.paid_cents : pay.totalCents(r));
 
+  /* A link for the text to carry, since a text cannot hold the PDF the way the
+     email does. Only the hash of a token is stored, so the one in the client's
+     old link cannot be read back — a fresh one is issued, which is harmless
+     now: the fee is paid, and all that link opens is their own receipt.
+     Without a base URL there is nowhere to point, so the text goes without
+     one rather than with a broken address. */
+  let receiptUrl = null;
+  const base = process.env.APP_BASE_URL
+    ? String(process.env.APP_BASE_URL).replace(/\/$/, '')
+    : (req && req.get ? baseUrl(req) : null);
+  if (r.client_phone && base) {
+    try {
+      const token = pay.newPayToken();
+      await db.query(`UPDATE payment_requests SET token_hash = $1 WHERE id = $2`,
+        [pay.hashToken(token), r.id]);
+      receiptUrl = `${base}/pay/${token}`;
+    } catch (e) {
+      console.error('receipt link failed:', e.message);
+    }
+  }
+
   if (r.client_email) {
     try {
       await mail.send({
@@ -741,10 +762,31 @@ async function sendReceipts(r, req) {
         }),
         attachments: [{ filename, content: bytes }],
       });
-      await logEvent(r.id, 'receipt_sent', req, { detail: { to: r.client_email } });
+      await logEvent(r.id, 'receipt_sent', req, { detail: { channel: 'email', to: r.client_email } });
     } catch (e) {
       console.error('client receipt failed:', e.message);
-      await logEvent(r.id, 'send_failed', req, { detail: { to: r.client_email, error: e.message, kind: 'receipt' } });
+      await logEvent(r.id, 'send_failed', req, { detail: { channel: 'email', to: r.client_email, error: e.message, kind: 'receipt' } });
+    }
+  }
+
+  /* Texted as well as emailed, to anyone who gave a mobile number — not only
+     to those with no email. Somebody who paid at the counter has their proof
+     in hand before they reach the car, and a client who gave only a number
+     gets a receipt at all, which they did not before. */
+  if (r.client_phone) {
+    try {
+      await sms.send({
+        to: r.client_phone,
+        text: sms.receiptText({
+          clientName: r.client_name, amount, url: receiptUrl,
+          alsoEmailed: !!r.client_email, lang: r.language,
+        }),
+      });
+      await logEvent(r.id, 'receipt_sent', req, { detail: { channel: 'sms', to: r.client_phone } });
+    } catch (e) {
+      // A receipt that cannot be texted must not undo a fee that was paid.
+      console.error('client receipt text failed:', e.message);
+      await logEvent(r.id, 'send_failed', req, { detail: { channel: 'sms', to: r.client_phone, error: e.message, kind: 'receipt' } });
     }
   }
 
