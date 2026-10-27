@@ -548,7 +548,7 @@ async function loadList(){
       if(open){
         acts.push(act('send', r.id, r.status === 'draft' ? 'Send' : 'Resend'));
         acts.push(act('link', r.id, 'Copy link'));
-        acts.push(act('record', r.id, 'Record a payment', 'Paid in the office — cash, check or counter terminal'));
+        acts.push(act('record', r.id, 'Record a payment', 'Already settled another way — a counter terminal, or a payment taken elsewhere'));
       }
       if(r.status !== 'draft') acts.push(act('history', r.id, 'History'));
       if(r.status === 'paid' || r.status === 'refunded'){
@@ -601,9 +601,9 @@ async function onAct(){
 
   var body = null, confirmText = null;
   if(what === 'record'){
-    var note = window.prompt('How was this fee paid? (cash, check number, counter terminal)');
+    var note = window.prompt('How was this fee settled? (counter terminal, another system, a correction — whatever the record should say)');
     if(note === null) return;
-    if(!note.trim()){ toast('Say how it was paid', 'error'); return; }
+    if(!note.trim()){ toast('Say how it was settled', 'error'); return; }
     body = { note: note.trim() };
   }
   if(what === 'refund'){

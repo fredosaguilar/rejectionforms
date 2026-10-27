@@ -313,9 +313,11 @@ router.post('/:id/link', requireAuth, async (req, res) => {
   }
 });
 
-/* A fee paid in the office — cash, a check, a card on the counter terminal.
-   Nothing is charged here; the payment is recorded so the client gets the same
-   receipt and the agency keeps one ledger. */
+/* A fee settled outside this portal — a card run on a counter terminal, a
+   payment taken through another system, a correction. Nothing is charged here;
+   it is recorded so the client still gets the same receipt and the agency
+   keeps one ledger. The note is required, because a fee marked paid with no
+   processor behind it is only as good as the reason written beside it. */
 router.post('/:id/record', requireAuth, async (req, res) => {
   try {
     const note = String(req.body.note || '').trim();
@@ -324,7 +326,7 @@ router.post('/:id/record', requireAuth, async (req, res) => {
     if (!r) return res.status(404).json({ error: 'Payment request not found' });
     if (r.status === 'paid') return res.status(409).json({ error: 'This fee is already recorded as paid.' });
     if (r.status === 'void') return res.status(409).json({ error: 'This request was cancelled.' });
-    if (!note) return res.status(400).json({ error: 'Say how it was paid — cash, check number, terminal' });
+    if (!note) return res.status(400).json({ error: 'Say how it was settled — a counter terminal, another system, a correction' });
 
     const { rows: done } = await db.query(
       `UPDATE payment_requests

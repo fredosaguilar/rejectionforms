@@ -79,12 +79,13 @@ const METHODS = {
     note: '0.8% of the agency fee, $5.00 maximum',
     settles: 'in 3–5 business days',
   },
-  // A fee taken in the office — cash, a check, a card run on the counter
-  // terminal — is recorded here so the client has one receipt and the agency
-  // one ledger. Nothing is processed, so nothing is added.
+  // A fee settled outside this portal — a card run on a counter terminal, a
+  // payment taken through another system, a correction — is recorded here so
+  // the client still gets a receipt and the agency keeps one ledger. Nothing
+  // is processed here, so nothing is added.
   manual: {
     key: 'manual',
-    label: 'Recorded by the agency',
+    label: 'Taken outside the portal',
     rate: 0, flat: 0, max: 0,
     note: 'no processing fee',
     settles: 'immediately',
