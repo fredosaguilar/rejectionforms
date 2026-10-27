@@ -44,6 +44,8 @@ css.textContent = [
   '#f-pay .pay-tile strong{display:block;font-size:20px;font-weight:600;color:var(--navy);margin-top:3px}',
   '#f-pay .pay-note{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:6px}',
   '#f-pay .pay-warn{border:1px solid #f0dcb4;background:#fdf7ea;color:#855b0c;border-radius:8px;padding:10px 13px;font-size:12px;line-height:1.6;margin-bottom:14px}',
+  '#f-pay .pay-live{border:1px solid #e8b4ad;background:#fbecea;color:#a32219;border-radius:8px;padding:11px 13px;font-size:12.5px;line-height:1.6;margin-bottom:14px}',
+  '#f-pay .pay-live code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}',
   '#f-pay .pay-setup{border:1px solid var(--border);border-radius:10px;background:#fff;margin-bottom:14px;overflow:hidden}',
   '#f-pay .pay-setup-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;background:var(--bg);border-bottom:1px solid var(--border)}',
   '#f-pay .pay-setup-hd strong{font-size:13px;color:var(--navy)}',
@@ -81,8 +83,10 @@ var html =
   '<span class="badge badge-eo">Payments</span></div>' +
   '<div class="fbody">' +
 
-  '<div id="pay-setup"></div>' +
+  // Notices first: "Stripe is LIVE" is the thing to read before anything else
+  // on this page, not a footnote under the setup steps.
   '<div id="pay-status"></div>' +
+  '<div id="pay-setup"></div>' +
 
   '<div class="sec">' +
     '<div class="sec-title">New payment request</div>' +
@@ -232,13 +236,31 @@ async function loadStatus(){
 }
 
 function renderNotices(s){
-  var box = $('pay-status'), bits = [];
-  if(s.configured && s.mode === 'test'){
-    bits.push('<strong>Stripe is in test mode.</strong> Nothing here moves real money yet — ' +
-      'card 4242 4242 4242 4242 with any future expiry will pay a test request.');
+  var box = $('pay-status'), out = '';
+  if(!s.configured){ box.innerHTML = ''; return; }
+
+  if(s.mode === 'live'){
+    // Said loudly and in its own box. The reassuring version of this message
+    // appearing over a live key is how someone runs a client's real card
+    // believing it was a test.
+    out += '<div class="pay-live"><strong>Stripe is LIVE.</strong> Every payment taken here charges a ' +
+      'real card and moves real money. To try the portal out first, swap the key for the test one ' +
+      '(<code>sk_test_</code>) and use its own webhook.</div>';
+  } else if(s.mode === 'test'){
+    out += '<div class="pay-warn"><strong>Stripe is in test mode.</strong> Nothing here moves real ' +
+      'money yet — card 4242 4242 4242 4242 with any future expiry will pay a test request.</div>';
   }
-  if(s.configured && !s.ok && s.why) bits.push(esc(s.why));
-  box.innerHTML = bits.length ? '<div class="pay-warn">' + bits.join('<br>') + '</div>' : '';
+
+  var bits = [];
+  if(s.restricted && s.ok){
+    bits.push('<strong>This is a restricted key.</strong> It works, but it only does what it was given ' +
+      'permission to do. This portal needs write on Checkout Sessions and Refunds, and read on ' +
+      'PaymentIntents and the account.');
+  }
+  if(!s.ok && s.why) bits.push(esc(s.why));
+  if(bits.length) out += '<div class="pay-warn">' + bits.join('<br>') + '</div>';
+
+  box.innerHTML = out;
 }
 
 function copyRow(value, label){
@@ -255,7 +277,9 @@ function step(n, state, title, body){
 function renderSetup(d){
   var s = d.stripe || {};
   var box = $('pay-setup');
-  var keyDone  = !!s.configured;
+  // A key that is present but unusable — the wrong value pasted, one Stripe
+  // rejects — is not a step anyone should see ticked off.
+  var keyDone  = !!(s.configured && s.ok);
   var hookDone = !!s.webhookConfigured;
   var achDone  = s.ach === 'on';
   var allDone  = keyDone && hookDone && achDone;
@@ -281,8 +305,11 @@ function renderSetup(d){
 
   steps += step(1, keyDone ? 'done' : 'now', 'Copy the secret key into Railway',
     keyDone
-      ? '<p>Set, and Stripe accepts it' + (s.account ? ' — ' + esc(s.account) : '') +
-        '. Running in <strong>' + esc(s.mode) + ' mode</strong>.</p>'
+      ? '<p>Set, and Stripe accepts it' + (s.account ? ' — ' + esc(s.account) : '') + '. ' +
+        (s.mode === 'live'
+          ? 'This is a <strong>live</strong> key: payments taken here are real.'
+          : 'Running in <strong>test</strong> mode.') +
+        (s.restricted ? ' It is a restricted key.' : '') + '</p>'
       : '<p>Open <a href="https://dashboard.stripe.com/test/apikeys" target="_blank" rel="noopener">' +
         'dashboard.stripe.com/test/apikeys</a>. In the <em>Standard keys</em> table, click ' +
         '<strong>Reveal test key</strong> on the <em>Secret key</em> row and copy it — it starts ' +

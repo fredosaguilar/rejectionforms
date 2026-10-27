@@ -16,14 +16,40 @@ const crypto = require('crypto');
 
 const API = 'api.stripe.com';
 
+const rawKey = () => String(process.env.STRIPE_SECRET_KEY || '').trim();
+
 function key() {
-  const k = String(process.env.STRIPE_SECRET_KEY || '').trim();
+  const k = rawKey();
   if (!k) throw new Error('STRIPE_SECRET_KEY is not set');
   return k;
 }
 
-const configured = () => !!String(process.env.STRIPE_SECRET_KEY || '').trim();
-const live = () => /^sk_live_/.test(String(process.env.STRIPE_SECRET_KEY || '').trim());
+const configured = () => !!rawKey();
+
+/* Which set of books this key writes to.
+ *
+ * Stripe issues two kinds: a standard secret key (sk_) and a restricted key
+ * (rk_), and each comes in a test and a live flavour. Reading the mode off
+ * "sk_live_" alone missed rk_live_ entirely — a live key read as test mode,
+ * and the portal would have said nothing here moves real money while holding
+ * one that does. Anything whose shape is not recognised is reported as
+ * unknown rather than assumed harmless, because the assumption that costs
+ * someone a real charge is the assumption that it was a test.
+ */
+function mode() {
+  const k = rawKey();
+  if (!k) return null;
+  if (/^(sk|rk)_live_/.test(k)) return 'live';
+  if (/^(sk|rk)_test_/.test(k)) return 'test';
+  return 'unknown';
+}
+
+const live = () => mode() === 'live';
+
+/* A restricted key carries only the permissions it was given, and this app
+   needs four: write Checkout Sessions, read PaymentIntents, write Refunds and
+   read the account. Saying so up front beats a payment failing at the till. */
+const restricted = () => /^rk_/.test(rawKey());
 
 /* Stripe takes form-encoded bodies with bracketed keys for nested data:
    line_items[0][price_data][unit_amount]=1500. */
@@ -213,7 +239,8 @@ function verifyWebhook(rawBody, signatureHeader, secret, toleranceSeconds = 300)
 async function status() {
   const out = {
     configured: configured(),
-    mode: configured() ? (live() ? 'live' : 'test') : null,
+    mode: mode(),
+    restricted: restricted(),
     webhookConfigured: !!String(process.env.STRIPE_WEBHOOK_SECRET || '').trim(),
   };
   if (!out.configured) {
@@ -222,6 +249,14 @@ async function status() {
               'recorded by hand once the client has paid another way.';
     return out;
   }
+  if (out.mode === 'unknown') {
+    out.ok = false;
+    out.why = 'STRIPE_SECRET_KEY does not look like a Stripe key. A key is sk_test_… or sk_live_… ' +
+              '(or rk_… for a restricted one) — check that the whole value was pasted, and that it is ' +
+              'the secret key rather than the publishable one, which starts pk_.';
+    return out;
+  }
+
   try {
     const acct = await request('GET', '/v1/account');
     out.account = acct.business_profile?.name || acct.settings?.dashboard?.display_name || acct.id;
@@ -240,9 +275,15 @@ async function status() {
     }
   } catch (e) {
     out.ok = false;
-    out.why = /401|403/.test(e.message)
-      ? `Stripe rejected the API key (${e.message}).`
-      : `Could not reach Stripe (${e.message}).`;
+    // A restricted key that cannot read the account is the likeliest cause of
+    // a 403 here, and it is fixed in a different place from a bad key.
+    out.why = out.restricted && /401|403/.test(e.message)
+      ? `Stripe refused this restricted key (${e.message}). A restricted key only does what it was ` +
+        'given permission to do; this portal needs write on Checkout Sessions and Refunds, and read ' +
+        'on PaymentIntents and the account. Grant those, or use the standard secret key instead.'
+      : (/401|403/.test(e.message)
+        ? `Stripe rejected the API key (${e.message}).`
+        : `Could not reach Stripe (${e.message}).`);
     return out;
   }
   if (!out.webhookConfigured) {
@@ -257,6 +298,6 @@ async function status() {
 }
 
 module.exports = {
-  configured, live, status, createCheckout, getCheckout, getIntent, refund, verifyWebhook,
+  configured, live, mode, restricted, status, createCheckout, getCheckout, getIntent, refund, verifyWebhook,
   request, PM_TYPE,
 };
