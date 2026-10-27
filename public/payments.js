@@ -44,6 +44,24 @@ css.textContent = [
   '#f-pay .pay-tile strong{display:block;font-size:20px;font-weight:600;color:var(--navy);margin-top:3px}',
   '#f-pay .pay-note{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:6px}',
   '#f-pay .pay-warn{border:1px solid #f0dcb4;background:#fdf7ea;color:#855b0c;border-radius:8px;padding:10px 13px;font-size:12px;line-height:1.6;margin-bottom:14px}',
+  '#f-pay .pay-setup{border:1px solid var(--border);border-radius:10px;background:#fff;margin-bottom:14px;overflow:hidden}',
+  '#f-pay .pay-setup-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;background:var(--bg);border-bottom:1px solid var(--border)}',
+  '#f-pay .pay-setup-hd strong{font-size:13px;color:var(--navy)}',
+  '#f-pay .pay-step{display:grid;grid-template-columns:26px 1fr;gap:11px;padding:13px 14px;border-bottom:1px solid var(--border);font-size:12.5px;line-height:1.65}',
+  '#f-pay .pay-step:last-child{border-bottom:none}',
+  '#f-pay .pay-step-n{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;background:#eceae4;color:#6b6560;margin-top:1px}',
+  '#f-pay .pay-step.done .pay-step-n{background:#e9f3ec;color:#1a6b45}',
+  '#f-pay .pay-step.now .pay-step-n{background:var(--navy);color:#fff}',
+  '#f-pay .pay-step h4{margin:0 0 3px;font-size:13px;font-weight:600;color:var(--text)}',
+  '#f-pay .pay-step.done h4{color:var(--muted);font-weight:500}',
+  '#f-pay .pay-step p{margin:0 0 6px;color:var(--muted)}',
+  '#f-pay .pay-copy{display:flex;align-items:center;gap:7px;margin:6px 0;padding:7px 9px;border:1px solid var(--border2);border-radius:6px;background:var(--bg)}',
+  '#f-pay .pay-copy code{flex:1;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--text);word-break:break-all}',
+  '#f-pay .pay-copy button{flex:none;font-size:11px;padding:4px 10px;border:1px solid var(--border2);border-radius:14px;background:#fff;cursor:pointer;font-family:inherit}',
+  '#f-pay .pay-copy button:hover{background:var(--bg)}',
+  '#f-pay .pay-step a{color:var(--navy)}',
+  '#f-pay .pay-ok{color:#1a6b45;font-weight:500}',
+  '#f-pay .pay-no{color:#a35a19;font-weight:500}',
   '#f-pay .pay-quote{border:1px solid var(--border);border-radius:8px;background:var(--bg);padding:10px 13px;font-size:12.5px;line-height:1.8;margin-top:10px}',
   '#f-pay .pay-quote b{color:var(--navy)}',
   '#f-pay .pay-hist td{background:var(--bg)}',
@@ -63,6 +81,7 @@ var html =
   '<span class="badge badge-eo">Payments</span></div>' +
   '<div class="fbody">' +
 
+  '<div id="pay-setup"></div>' +
   '<div id="pay-status"></div>' +
 
   '<div class="sec">' +
@@ -189,28 +208,144 @@ function renderQuote(){
 }
 $('pay-fee').addEventListener('input', renderQuote);
 
-/* ---- is there a processor behind this? --------------------------------- */
+/* ---- is there a processor behind this? ---------------------------------
+
+   Setting this up means copying two values out of Stripe into Railway, and
+   telling Stripe one address. The address is the part nobody can look up —
+   it is where this very application is answering from — so the server
+   reports it and the panel hands it over ready to paste, with the state of
+   each step read live rather than remembered.
+
+   The panel folds itself away once all three steps are done, and the link
+   in its header brings it back. */
+var setupOpen = null;   // null = decide from the state; true/false = the agent said
+
 async function loadStatus(){
   try {
     var d = await api('/api/payments/status');
-    var s = d.stripe || {};
-    var box = $('pay-status');
-    if(!s.configured){
-      box.innerHTML = '<div class="pay-warn"><strong>Card payments are not switched on yet.</strong><br>' +
-        esc(s.why || '') + '</div>';
-      return;
-    }
-    var bits = [];
-    if(s.mode === 'test'){
-      bits.push('<strong>Stripe is in test mode.</strong> Nothing here moves real money yet — ' +
-        'card 4242 4242 4242 4242 with any future expiry will pay a test request.');
-    }
-    if(!s.ok && s.why) bits.push(esc(s.why));
-    if(s.warn) bits.push(esc(s.warn));
-    box.innerHTML = bits.length ? '<div class="pay-warn">' + bits.join('<br>') + '</div>' : '';
+    renderSetup(d);
+    renderNotices(d.stripe || {});
   } catch(e){
+    $('pay-setup').innerHTML = '';
     $('pay-status').innerHTML = '';
   }
+}
+
+function renderNotices(s){
+  var box = $('pay-status'), bits = [];
+  if(s.configured && s.mode === 'test'){
+    bits.push('<strong>Stripe is in test mode.</strong> Nothing here moves real money yet — ' +
+      'card 4242 4242 4242 4242 with any future expiry will pay a test request.');
+  }
+  if(s.configured && !s.ok && s.why) bits.push(esc(s.why));
+  box.innerHTML = bits.length ? '<div class="pay-warn">' + bits.join('<br>') + '</div>' : '';
+}
+
+function copyRow(value, label){
+  return '<div class="pay-copy"><code>' + esc(value) + '</code>' +
+    '<button type="button" class="pay-cp" data-copy="' + esc(value) + '">' + esc(label || 'Copy') + '</button></div>';
+}
+
+function step(n, state, title, body){
+  return '<div class="pay-step ' + state + '">' +
+    '<div class="pay-step-n">' + (state === 'done' ? '✓' : n) + '</div>' +
+    '<div><h4>' + title + '</h4>' + body + '</div></div>';
+}
+
+function renderSetup(d){
+  var s = d.stripe || {};
+  var box = $('pay-setup');
+  var keyDone  = !!s.configured;
+  var hookDone = !!s.webhookConfigured;
+  var achDone  = s.ach === 'on';
+  var allDone  = keyDone && hookDone && achDone;
+  var open = setupOpen === null ? !allDone : setupOpen;
+
+  var head = '<div class="pay-setup-hd"><strong>' +
+    (allDone ? 'Card payments are set up' : 'Set up card payments') + '</strong>' +
+    '<span style="font-size:11.5px;color:var(--muted)">' +
+      (keyDone  ? '<span class="pay-ok">Key ✓</span>'     : '<span class="pay-no">Key</span>') + ' · ' +
+      (hookDone ? '<span class="pay-ok">Webhook ✓</span>' : '<span class="pay-no">Webhook</span>') + ' · ' +
+      (achDone  ? '<span class="pay-ok">Bank transfers ✓</span>'
+                : '<span class="pay-no">Bank transfers' + (!s.ach || s.ach === 'unknown' ? '?' : '') + '</span>') +
+      '  <button type="button" class="pay-link" id="pay-setup-toggle" style="margin-left:8px">' +
+        (open ? 'Hide' : 'Show me how') + '</button>' +
+    '</span></div>';
+
+  if(!open){ box.innerHTML = '<div class="pay-setup">' + head + '</div>'; wireSetup(); return; }
+
+  // Test and live are different dashboards. Point at whichever one the key in
+  // use belongs to, so the page that opens is the page being configured.
+  var mode = s.mode === 'live' ? '' : 'test/';
+  var steps = '';
+
+  steps += step(1, keyDone ? 'done' : 'now', 'Copy the secret key into Railway',
+    keyDone
+      ? '<p>Set, and Stripe accepts it' + (s.account ? ' — ' + esc(s.account) : '') +
+        '. Running in <strong>' + esc(s.mode) + ' mode</strong>.</p>'
+      : '<p>Open <a href="https://dashboard.stripe.com/test/apikeys" target="_blank" rel="noopener">' +
+        'dashboard.stripe.com/test/apikeys</a>. In the <em>Standard keys</em> table, click ' +
+        '<strong>Reveal test key</strong> on the <em>Secret key</em> row and copy it — it starts ' +
+        '<code>sk_test_</code>.</p>' +
+        '<p>Then in Railway → this service → <strong>Variables</strong> → ' +
+        '<strong>New Variable</strong>, paste it under this name:</p>' +
+        copyRow('STRIPE_SECRET_KEY') +
+        '<p style="font-size:11.5px">Paste the key itself straight into Railway. It has no reason to ' +
+        'pass through anywhere else.</p>');
+
+  steps += step(2, hookDone ? 'done' : (keyDone ? 'now' : ''), 'Tell Stripe where to reach this portal',
+    '<p>' + (hookDone
+      ? 'Set. Stripe can reach this portal, so a bank transfer that settles days later still lands here.'
+      : 'Open <a href="https://dashboard.stripe.com/' + mode + 'webhooks" target="_blank" rel="noopener">' +
+        'dashboard.stripe.com/' + mode + 'webhooks</a> and choose <strong>Add endpoint</strong>.') + '</p>' +
+    (hookDone ? '' :
+      '<p><strong>Endpoint URL</strong> — this portal’s own address, which is:</p>' +
+      copyRow(d.webhookUrl || '', 'Copy URL') +
+      '<p><strong>Select events</strong> — exactly these four, no others:</p>' +
+      copyRow((d.webhookEvents || []).join('  '), 'Copy all four') +
+      '<p>Create it, then on the endpoint’s page reveal the <strong>Signing secret</strong> ' +
+      '(it starts <code>whsec_</code>) and add that in Railway as:</p>' +
+      copyRow('STRIPE_WEBHOOK_SECRET')));
+
+  steps += step(3, achDone ? 'done' : (hookDone ? 'now' : ''), 'Turn on bank transfers',
+    achDone
+      ? '<p>On. A client paying a large fee can use ACH for $5 rather than card rates.</p>'
+      // Absent and "unknown" mean the same thing: Stripe did not say. Only a
+      // state it did report is worth calling not on yet.
+      : '<p>' + (!s.ach || s.ach === 'unknown'
+          ? 'Stripe did not say whether this is on. '
+          : 'Not on yet, so only the card option will work. ') +
+        'Open <a href="https://dashboard.stripe.com/settings/payment_methods" target="_blank" rel="noopener">' +
+        'Settings → Payment methods</a> and enable <strong>ACH Direct Debit</strong>.</p>');
+
+  var foot = '<div class="pay-step"><div class="pay-step-n">⚑</div><div>' +
+    '<h4>Going live later</h4>' +
+    '<p>Test and live are separate in Stripe: separate keys <em>and</em> separate webhook endpoints. ' +
+    'When <code>sk_test_</code> becomes <code>sk_live_</code>, add the endpoint again on ' +
+    '<a href="https://dashboard.stripe.com/webhooks" target="_blank" rel="noopener">the live webhooks page</a> ' +
+    'and replace the signing secret too — change only the key and bank transfers quietly stop settling.</p>' +
+    '<p style="font-size:11.5px">This panel reads the live configuration, so it says when each step has ' +
+    'taken. Railway redeploys after a variable changes; give it a minute, then reload this page.</p>' +
+    '</div></div>';
+
+  box.innerHTML = '<div class="pay-setup">' + head + steps + foot + '</div>';
+  wireSetup();
+}
+
+function wireSetup(){
+  var t = $('pay-setup-toggle');
+  if(t) t.addEventListener('click', function(){
+    setupOpen = t.textContent.indexOf('Hide') === 0 ? false : true;
+    loadStatus();
+  });
+  $('pay-setup').querySelectorAll('.pay-cp').forEach(function(b){
+    b.addEventListener('click', async function(){
+      await copy(b.dataset.copy);
+      var was = b.textContent;
+      b.textContent = 'Copied';
+      setTimeout(function(){ b.textContent = was; }, 1400);
+    });
+  });
 }
 
 /* ---- pulling a fee off an agreement already on file -------------------- */

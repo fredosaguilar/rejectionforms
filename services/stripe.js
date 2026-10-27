@@ -227,6 +227,11 @@ async function status() {
     out.account = acct.business_profile?.name || acct.settings?.dashboard?.display_name || acct.id;
     out.country = acct.country;
     out.chargesEnabled = acct.charges_enabled !== false;
+    /* Whether bank transfers can actually be taken. Stripe reports this as a
+       capability on the account; where it says nothing at all we say so,
+       rather than claiming a yes or a no we cannot see. */
+    const ach = acct.capabilities && acct.capabilities.us_bank_account_ach_payments;
+    out.ach = ach === 'active' ? 'on' : (ach ? ach : 'unknown');
     if (!out.chargesEnabled) {
       out.ok = false;
       out.why = 'Stripe has this account set up but has not enabled charges on it yet — finish the ' +
