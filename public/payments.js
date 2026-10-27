@@ -108,8 +108,8 @@ var html =
 
     '<div class="pay-grid3" style="margin-top:12px">' +
       '<div class="fld"><div class="lbl">Client name</div><input type="text" id="pay-name" placeholder="Full legal name"></div>' +
-      '<div class="fld"><div class="lbl">Client email <span style="text-transform:none;letter-spacing:0">\u2014 for the receipt</span></div><input type="email" id="pay-email" placeholder="client@email.com"></div>' +
-      '<div class="fld"><div class="lbl">Mobile number <span style="text-transform:none;letter-spacing:0">\u2014 only to send a link</span></div><input type="tel" id="pay-phone" placeholder="(509) 555-0123"></div>' +
+      '<div class="fld"><div class="lbl">Client email <span style="text-transform:none;letter-spacing:0">\u2014 receipt and link</span></div><input type="email" id="pay-email" placeholder="client@email.com"></div>' +
+      '<div class="fld"><div class="lbl">Mobile number <span style="text-transform:none;letter-spacing:0">\u2014 receipt and link</span></div><input type="tel" id="pay-phone" placeholder="(509) 555-0123"></div>' +
     '</div>' +
 
     '<div class="pay-grid3">' +
@@ -589,8 +589,11 @@ $('pay-take').addEventListener('click', async function(){
   try {
     var d = await create();
     if(!d) return;
-    if(!d.request.client_email){
-      toast('No email on file, so no receipt reaches the client — the agency copy is still kept', 'info');
+    // The receipt goes by email and by text, so it only fails to reach them
+    // when there is neither.
+    if(!d.request.client_email && !d.request.client_phone){
+      toast('No email or mobile on file, so no receipt reaches the client — ' +
+            'the agency copy is kept and you can print it from the list', 'info');
     }
     await takePayment(d.request.id);
     clearForm();
@@ -939,9 +942,9 @@ if(location.pathname === '/payments'){ ST('pay'); }
     });
     if(d.success && d.request && d.request.status === 'paid'){
       toast('Paid \u2014 ' + (d.request.paid || d.request.total) + ' from ' + d.request.client_name +
-            (d.request.client_email
+            ((d.request.client_email || d.request.client_phone)
               ? '. The receipt is on its way.'
-              : '. No email on file, so print or send the receipt from the list.'), 'success');
+              : '. Nothing on file to send it to — print it from the list.'), 'success');
     } else {
       toast('That payment has not completed. The request is still open.', 'error');
     }
