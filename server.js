@@ -10,6 +10,7 @@ const db             = require('./db');
 const authRoutes     = require('./routes/auth');
 const formRoutes     = require('./routes/forms');
 const esign          = require('./routes/esign');
+const payments       = require('./routes/payments');
 const { requireAuth } = require('./middleware/auth');
 
 const app  = express();
@@ -17,6 +18,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+/* Stripe signs the bytes it sent, so this one route has to see them. It is
+   mounted ahead of the JSON parser: a body that has been parsed and
+   re-serialised is not what was signed, and the signature would never
+   verify. */
+app.post('/api/pay/webhook', express.raw({ type: '*/*', limit: '1mb' }), payments.webhook);
+
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
@@ -60,6 +67,9 @@ app.use('/api/forms', formRoutes);
 app.use('/api/esign', esign.router);
 // The signing ceremony is reached by token, not by login, so it sits outside requireAuth.
 app.use('/api/sign', esign.pub);
+app.use('/api/payments', payments.router);
+// Paying a fee works the same way: the link in the client's hand is the credential.
+app.use('/api/pay', payments.pub);
 
 // A transcript login code works like an OAuth authorization code: it is
 // random, short-lived, single-use, and only its SHA-256 hash is stored. The
@@ -107,7 +117,13 @@ app.get('/sign/:token', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'sign.html'));
 });
 
-app.get(['/', '/index.html', '/fee-agreement', '/esign'], requireAuth, (req, res) => {
+// So is the payment page the client is sent to.
+app.get('/pay/:token', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'views', 'pay.html'));
+});
+
+app.get(['/', '/index.html', '/fee-agreement', '/esign', '/payments'], requireAuth, (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -304,6 +320,7 @@ app.listen(PORT, async () => {
     `);
     const fs = require('fs');
     await db.query(fs.readFileSync(path.join(__dirname, 'db', 'esign.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, 'db', 'payments.sql'), 'utf8'));
     await db.query(`
       CREATE TABLE IF NOT EXISTS portal_sso_codes (
         code_hash TEXT PRIMARY KEY,
