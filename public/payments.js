@@ -128,10 +128,10 @@ var html =
 
 
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">' +
-      '<button class="btn btn-pri" id="pay-take" type="button" ' +
-        'title="Key the card in yourself \u2014 nothing is sent to the client">Take payment now</button>' +
-      '<button class="btn btn-sec" id="pay-send" type="button" ' +
+      '<button class="btn btn-pri" id="pay-send" type="button" ' +
         'title="Email and text the client a link to pay it themselves">Send a payment link</button>' +
+      '<button class="btn btn-sec" id="pay-take" type="button" ' +
+        'title="Key the card in yourself \u2014 nothing is sent to the client">Take payment now</button>' +
       '<button class="btn btn-sec" id="pay-create" type="button" ' +
         'title="Create it and put the link on the clipboard, without sending anything">Copy a link</button>' +
       '<button class="btn btn-sec" id="pay-clear" type="button">Clear</button>' +
@@ -311,7 +311,7 @@ function renderSetup(d){
   var keyDone  = !!(s.configured && s.ok);
   var hookDone = !!s.webhookConfigured;
   var achDone  = s.ach === 'on';
-  var allDone  = keyDone && hookDone && achDone;
+  var allDone  = keyDone && hookDone && achDone && s.link === 'off';
   var open = setupOpen === null ? !allDone : setupOpen;
 
   var head = '<div class="pay-setup-hd"><strong>' +
@@ -320,7 +320,9 @@ function renderSetup(d){
       (keyDone  ? '<span class="pay-ok">Key ✓</span>'     : '<span class="pay-no">Key</span>') + ' · ' +
       (hookDone ? '<span class="pay-ok">Webhook ✓</span>' : '<span class="pay-no">Webhook</span>') + ' · ' +
       (achDone  ? '<span class="pay-ok">Bank transfers ✓</span>'
-                : '<span class="pay-no">Bank transfers' + (!s.ach || s.ach === 'unknown' ? '?' : '') + '</span>') +
+                : '<span class="pay-no">Bank transfers' + (!s.ach || s.ach === 'unknown' ? '?' : '') + '</span>') + ' · ' +
+      (s.link === 'off' ? '<span class="pay-ok">Link off ✓</span>'
+                        : '<span class="pay-no">Link' + (s.link === 'unknown' || !s.link ? '?' : ' on') + '</span>') +
       '  <button type="button" class="pay-link" id="pay-setup-toggle" style="margin-left:8px">' +
         (open ? 'Hide' : 'Show me how') + '</button>' +
     '</span></div>';
@@ -373,6 +375,21 @@ function renderSetup(d){
           : 'Not on yet, so only the card option will work. ') +
         'Open <a href="https://dashboard.stripe.com/settings/payment_methods" target="_blank" rel="noopener">' +
         'Settings → Payment methods</a> and enable <strong>ACH Direct Debit</strong>.</p>');
+
+  var linkOff = s.link === 'off';
+  steps += step(4, linkOff ? 'done' : (achDone ? 'now' : ''), 'Turn Link off at the till',
+    linkOff
+      ? '<p>Off. The card page asks for a card and nothing else.</p>'
+      : '<p>' + (s.link === 'unknown'
+          ? 'Stripe did not say whether this is on. '
+          : '<strong>On.</strong> ') +
+        'Link is Stripe\u2019s own wallet. When it is on, the card page offers to save the card ' +
+        'against a phone number and texts a code \u2014 which nobody can complete while standing at ' +
+        'your counter, and which makes taking a payment yourself slower than it should be. It cannot ' +
+        'be switched off from here; Stripe shows it whenever the account allows it.</p>' +
+        '<p>Open <a href="https://dashboard.stripe.com/settings/payment_methods" target="_blank" rel="noopener">' +
+        'Settings \u2192 Payment methods</a>, find <strong>Link</strong>, and turn it off. If you have ' +
+        'more than one payment method configuration there, do it in the one marked default.</p>');
 
   var foot = '<div class="pay-step"><div class="pay-step-n">⚑</div><div>' +
     '<h4>Going live later</h4>' +
