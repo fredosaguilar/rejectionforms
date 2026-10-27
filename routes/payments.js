@@ -446,6 +446,99 @@ router.post('/:id/record', requireAuth, async (req, res) => {
   }
 });
 
+/* Taking the fee while the client is on the phone or at the desk.
+ *
+ * The agent is sent to the processor's own hosted page and keys the card in
+ * there. That is the whole point of doing it this way: a card form on this
+ * page would put the agency in PCI scope, and nothing about collecting a
+ * broker fee is worth that. What comes back here is an outcome.
+ *
+ * Card only. A bank debit needs the client to log in to their own bank, which
+ * is not something that can happen across a desk.
+ */
+router.post('/:id/take', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(`SELECT * FROM payment_requests WHERE id = $1`, [req.params.id]);
+    const r = rows[0];
+    if (!r) return res.status(404).json({ error: 'Payment request not found' });
+    if (r.status === 'paid' || r.status === 'refunded') {
+      return res.status(409).json({ error: 'This fee has already been paid.' });
+    }
+    if (r.status === 'void') return res.status(409).json({ error: 'This request was cancelled.' });
+    if (r.status === 'processing') {
+      return res.status(409).json({ error: 'A bank transfer for this fee is already clearing.' });
+    }
+    if (!stripe.configured()) {
+      return res.status(503).json({
+        error: 'Card payments are not switched on yet. Set STRIPE_SECRET_KEY, or record the fee by hand.',
+      });
+    }
+
+    const surcharge = pay.surchargeCents(r.fee_cents, 'card');
+    const base = baseUrl(req);
+    const session = await stripe.createCheckout({
+      method: 'card',
+      feeCents: r.fee_cents,
+      surchargeCents: surcharge,
+      description: r.description,
+      clientEmail: r.client_email || undefined,
+      // Back to the agent's own workspace, not the client's payment page.
+      successUrl: `${base}/payments?paid={CHECKOUT_SESSION_ID}&req=${r.id}`,
+      cancelUrl: `${base}/payments?cancelled=${r.id}`,
+      reference: r.public_id,
+      metadata: { request_id: String(r.id), public_id: r.public_id, client: r.client_name, taken_at_desk: 'yes' },
+      statementDescriptor: 'CBI BROKER FEE',
+    });
+
+    await db.query(
+      `UPDATE payment_requests
+          SET method = 'card', surcharge_cents = $2, provider = 'stripe', provider_session = $3
+        WHERE id = $1`,
+      [r.id, surcharge, session.id]);
+    // Recorded as taken by the agent, not by the client: the audit trail should
+    // not later read as though they paid it themselves from their own phone.
+    await logEvent(r.id, 'checkout_started', req, {
+      actor: req.session.agentName || req.session.email,
+      detail: { method: 'card', total: pay.money(r.fee_cents + surcharge), takenAtDesk: true },
+    });
+
+    res.json({ success: true, url: session.url, total: pay.money(r.fee_cents + surcharge) });
+  } catch (e) {
+    console.error('take payment:', e);
+    res.status(502).json({ error: `The payment page could not be opened: ${e.message}` });
+  }
+});
+
+/* The agent has come back from the processor. Same reconciliation the client's
+   own return does, reached by request id rather than by token. */
+router.post('/:id/reconcile', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(`SELECT * FROM payment_requests WHERE id = $1`, [req.params.id]);
+    const r = rows[0];
+    if (!r) return res.status(404).json({ error: 'Payment request not found' });
+    if (r.status === 'paid' || r.status === 'refunded') {
+      return res.json({ success: true, request: shape(r), already: true });
+    }
+    const sessionId = String(req.body.sessionId || '').trim();
+    if (!sessionId || sessionId !== r.provider_session) {
+      return res.status(400).json({ error: 'That payment could not be matched to this request.' });
+    }
+
+    const session = await stripe.getCheckout(sessionId);
+    const intent = session.payment_intent && typeof session.payment_intent === 'object'
+      ? session.payment_intent : null;
+
+    if (session.payment_status === 'paid') {
+      const updated = await markPaid(r, { session, intent, req });
+      return res.json({ success: true, request: shape(updated) });
+    }
+    res.json({ success: false, pending: true, request: shape(r) });
+  } catch (e) {
+    console.error('agent reconcile:', e);
+    res.status(502).json({ error: e.message });
+  }
+});
+
 router.post('/:id/refund', requireAuth, async (req, res) => {
   try {
     const { rows } = await db.query(`SELECT * FROM payment_requests WHERE id = $1`, [req.params.id]);
@@ -592,9 +685,17 @@ async function markPaid(r, { session, intent, req = null }) {
   // Another path got there first; nothing to do and nothing to send twice.
   if (!rows[0]) return r;
 
+  // Who the record says took it. A fee keyed in at the desk was taken by the
+  // agent, and the trail should not later read as though the client paid it
+  // themselves from their own phone.
+  const atDesk = String(session?.metadata?.taken_at_desk || intent?.metadata?.taken_at_desk || '') === 'yes';
   await logEvent(r.id, 'paid', req, {
-    actor: r.client_email || r.client_name,
-    detail: { amount: pay.money(amount), method: rows[0].method || 'card' },
+    actor: atDesk
+      ? `${r.agent_name || 'the agency'} (taken at the desk)`
+      : (r.client_email || r.client_name),
+    detail: Object.assign(
+      { amount: pay.money(amount), method: rows[0].method || 'card' },
+      atDesk ? { takenAtDesk: true } : {}),
   });
   console.log(`payments: ${pay.money(amount)} received on ${r.public_id} from ${r.client_name}`);
   await sendReceipts(rows[0], req).catch((e) => console.error('receipt send failed:', e.message));

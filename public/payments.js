@@ -129,6 +129,8 @@ var html =
 
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">' +
       '<button class="btn btn-pri" id="pay-send" type="button">Create and send by email + text</button>' +
+      '<button class="btn btn-sec" id="pay-take" type="button" ' +
+        'title="The client is on the phone or at the desk \u2014 key their card in now">Create and take payment now</button>' +
       '<button class="btn btn-sec" id="pay-create" type="button">Create and copy the link</button>' +
       '<button class="btn btn-sec" id="pay-clear" type="button">Clear</button>' +
     '</div>' +
@@ -552,6 +554,22 @@ $('pay-send').addEventListener('click', async function(){
   }
 });
 
+$('pay-take').addEventListener('click', async function(){
+  var btn = this;
+  btn.disabled = true; btn.textContent = 'Creating\u2026';
+  try {
+    var d = await create();
+    if(!d) return;
+    await takePayment(d.request.id);
+    clearForm();
+    loadList();
+  } catch(e){
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create and take payment now';
+  }
+});
+
 $('pay-create').addEventListener('click', async function(){
   var btn = this;
   btn.disabled = true; btn.textContent = 'Creating…';
@@ -567,6 +585,31 @@ $('pay-create').addEventListener('click', async function(){
     btn.disabled = false; btn.textContent = 'Create and copy the link';
   }
 });
+
+/* Sends the agent to the processor's own page to key the card in.
+ *
+ * The tab is opened before the request goes out, not after it comes back: a
+ * browser blocks window.open once the click that caused it has finished, and
+ * an agent with the client waiting should not have to fight a popup blocker.
+ * The blank tab is closed again if the request fails. */
+async function takePayment(id, label){
+  var tab = window.open('', '_blank');
+  if(tab) tab.document.write('<p style="font:15px -apple-system,sans-serif;padding:40px;color:#6b6560">' +
+    'Opening secure payment\u2026</p>');
+  try {
+    var d = await api('/api/payments/' + id + '/take', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+    });
+    if(tab) tab.location.href = d.url;
+    else window.location.href = d.url;   // blocked: go there in this tab instead
+    toast('Key the card in on the page that opened \u2014 ' + d.total + ' due', 'info');
+    return true;
+  } catch(e){
+    if(tab) tab.close();
+    toast(e.message, 'error');
+    return false;
+  }
+}
 
 async function copy(url){
   try {
@@ -623,6 +666,8 @@ async function loadList(){
       var acts = [];
       var open = r.status === 'draft' || r.status === 'sent';
       if(open){
+        acts.push(act('take', r.id, 'Take payment',
+          'The client is on the phone or at the desk \u2014 key their card in now'));
         acts.push(act('send', r.id, r.status === 'draft' ? 'Send' : 'Resend'));
         acts.push(act('link', r.id, 'Copy link'));
         acts.push(act('record', r.id, 'Record a payment', 'Already settled another way — a counter terminal, or a payment taken elsewhere'));
@@ -705,6 +750,8 @@ async function onAct(){
     if(what === 'delete'){
       await api('/api/payments/' + id, { method: 'DELETE' });
       toast('Request deleted', 'success');
+    } else if(what === 'take'){
+      await takePayment(id);
     } else if(what === 'link'){
       var d = await api('/api/payments/' + id + '/link', { method: 'POST' });
       await copy(d.url);
@@ -834,6 +881,41 @@ window.ST = function(id){
 };
 
 if(location.pathname === '/payments'){ ST('pay'); }
+
+/* Coming back from the processor after keying a card in.
+ *
+ * The outcome is read from the processor rather than believed from the URL,
+ * and the query is cleared afterwards so a refresh does not try to settle the
+ * same payment again. The webhook would get there too; this is so the agent
+ * sees it the moment they are back, with the client still in front of them. */
+(async function settleOnReturn(){
+  var q = new URLSearchParams(location.search);
+  var session = q.get('paid'), id = q.get('req'), cancelled = q.get('cancelled');
+  if(!session && !cancelled) return;
+  history.replaceState({}, '', location.pathname);
+  ST('pay');
+
+  if(cancelled){
+    toast('Payment cancelled \u2014 the request is still open', 'info');
+    return;
+  }
+  if(!id) return;
+  try {
+    var d = await api('/api/payments/' + id + '/reconcile', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: session }),
+    });
+    if(d.success && d.request && d.request.status === 'paid'){
+      toast('Paid \u2014 ' + (d.request.paid || d.request.total) + ' from ' + d.request.client_name +
+            '. The receipt is on its way.', 'success');
+    } else {
+      toast('That payment has not completed. The request is still open.', 'error');
+    }
+  } catch(e){
+    toast(e.message, 'error');
+  }
+  loadList();
+})();
 
 // Client details typed at the top of the workspace prefill the request, the
 // same way they prefill the first signer on a signature request.
