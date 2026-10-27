@@ -261,9 +261,10 @@ router.post('/', requireAuth, async (req, res) => {
     if (req.body.clientPhone && !clientPhone) {
       return res.status(400).json({ error: `"${String(req.body.clientPhone).trim()}" is not a usable mobile number` });
     }
-    if (!clientEmail && !clientPhone) {
-      return res.status(400).json({ error: 'An email address or a mobile number is needed to send the request' });
-    }
+    // Neither is required. A fee keyed in at the desk needs no way to reach
+    // the client at all; only sending them a link does, and /send says so when
+    // there is nobody to send to. An email is still worth having, because it
+    // is where the receipt goes.
 
     // The token is issued now rather than on send, so the agent can copy the
     // link and hand it over in person without the request having to be emailed
@@ -327,6 +328,12 @@ router.post('/:id/send', requireAuth, async (req, res) => {
     if (r.status === 'void') return res.status(409).json({ error: 'This request was cancelled.' });
     if (r.status === 'processing') {
       return res.status(409).json({ error: 'A bank transfer for this fee is still clearing.' });
+    }
+    if (!r.client_email && !r.client_phone) {
+      return res.status(400).json({
+        error: `There is no email address or mobile number on file for ${r.client_name}, so there is ` +
+               'nowhere to send the link. Add one, or take the payment at the desk instead.',
+      });
     }
 
     // Only the hash is stored, so the link cannot be rebuilt from the row. A

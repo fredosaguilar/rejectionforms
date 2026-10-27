@@ -108,8 +108,8 @@ var html =
 
     '<div class="pay-grid3" style="margin-top:12px">' +
       '<div class="fld"><div class="lbl">Client name</div><input type="text" id="pay-name" placeholder="Full legal name"></div>' +
-      '<div class="fld"><div class="lbl">Client email</div><input type="email" id="pay-email" placeholder="client@email.com"></div>' +
-      '<div class="fld"><div class="lbl">Mobile number</div><input type="tel" id="pay-phone" placeholder="(509) 555-0123"></div>' +
+      '<div class="fld"><div class="lbl">Client email <span style="text-transform:none;letter-spacing:0">\u2014 for the receipt</span></div><input type="email" id="pay-email" placeholder="client@email.com"></div>' +
+      '<div class="fld"><div class="lbl">Mobile number <span style="text-transform:none;letter-spacing:0">\u2014 only to send a link</span></div><input type="tel" id="pay-phone" placeholder="(509) 555-0123"></div>' +
     '</div>' +
 
     '<div class="pay-grid3">' +
@@ -128,14 +128,18 @@ var html =
 
 
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">' +
-      '<button class="btn btn-pri" id="pay-send" type="button">Create and send by email + text</button>' +
-      '<button class="btn btn-sec" id="pay-take" type="button" ' +
-        'title="The client is on the phone or at the desk \u2014 key their card in now">Create and take payment now</button>' +
-      '<button class="btn btn-sec" id="pay-create" type="button">Create and copy the link</button>' +
+      '<button class="btn btn-pri" id="pay-take" type="button" ' +
+        'title="Key the card in yourself \u2014 nothing is sent to the client">Take payment now</button>' +
+      '<button class="btn btn-sec" id="pay-send" type="button" ' +
+        'title="Email and text the client a link to pay it themselves">Send a payment link</button>' +
+      '<button class="btn btn-sec" id="pay-create" type="button" ' +
+        'title="Create it and put the link on the clipboard, without sending anything">Copy a link</button>' +
       '<button class="btn btn-sec" id="pay-clear" type="button">Clear</button>' +
     '</div>' +
-    '<div class="pay-note">Every request records who created it, when it was opened, and how it was paid. ' +
-      'A fee that is paid can be refunded but never deleted.</div>' +
+    '<div class="pay-note"><strong>Take payment now</strong> opens the card page on your own screen and ' +
+      'sends the client nothing. Only <strong>Send a payment link</strong> contacts them. Every request ' +
+      'records who created it, how it was paid, and by whom; a fee that is paid can be refunded but ' +
+      'never deleted.</div>' +
   '</div>' +
 
   '<div class="sec">' +
@@ -523,11 +527,19 @@ function clearForm(){
 }
 $('pay-clear').addEventListener('click', clearForm);
 
-async function create(then){
+async function create(opts){
+  opts = opts || {};
   var body = gather();
   if(!body.clientName){ toast('The client’s name is needed', 'error'); $('pay-name').focus(); return null; }
   if(!body.description){ toast('Say what the fee is for', 'error'); $('pay-desc').focus(); return null; }
   if(!feeCents()){ toast('Enter the agency broker fee', 'error'); $('pay-fee').focus(); return null; }
+  // Only a link that has to reach somebody needs somewhere to go. A card keyed
+  // in at the desk needs neither an address nor a number.
+  if(opts.willSend && !body.clientEmail && !body.clientPhone){
+    toast('An email address or mobile number is needed to send them a link', 'error');
+    $('pay-email').focus();
+    return null;
+  }
   return api('/api/payments', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   });
@@ -537,7 +549,7 @@ $('pay-send').addEventListener('click', async function(){
   var btn = this;
   btn.disabled = true; btn.textContent = 'Creating…';
   try {
-    var d = await create();
+    var d = await create({ willSend: true });
     if(!d) return;
     btn.textContent = 'Sending…';
     var s = await api('/api/payments/' + d.request.id + '/send', { method: 'POST' });
@@ -550,7 +562,7 @@ $('pay-send').addEventListener('click', async function(){
   } catch(e){
     toast(e.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = 'Create and send by email + text';
+    btn.disabled = false; btn.textContent = 'Send a payment link';
   }
 });
 
@@ -560,13 +572,16 @@ $('pay-take').addEventListener('click', async function(){
   try {
     var d = await create();
     if(!d) return;
+    if(!d.request.client_email){
+      toast('No email on file, so no receipt reaches the client — the agency copy is still kept', 'info');
+    }
     await takePayment(d.request.id);
     clearForm();
     loadList();
   } catch(e){
     toast(e.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = 'Create and take payment now';
+    btn.disabled = false; btn.textContent = 'Take payment now';
   }
 });
 
@@ -582,7 +597,7 @@ $('pay-create').addEventListener('click', async function(){
   } catch(e){
     toast(e.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = 'Create and copy the link';
+    btn.disabled = false; btn.textContent = 'Copy a link';
   }
 });
 
@@ -907,7 +922,9 @@ if(location.pathname === '/payments'){ ST('pay'); }
     });
     if(d.success && d.request && d.request.status === 'paid'){
       toast('Paid \u2014 ' + (d.request.paid || d.request.total) + ' from ' + d.request.client_name +
-            '. The receipt is on its way.', 'success');
+            (d.request.client_email
+              ? '. The receipt is on its way.'
+              : '. No email on file, so print or send the receipt from the list.'), 'success');
     } else {
       toast('That payment has not completed. The request is still open.', 'error');
     }
