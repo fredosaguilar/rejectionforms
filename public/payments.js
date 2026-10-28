@@ -129,17 +129,19 @@ var html =
 
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">' +
       '<button class="btn btn-pri" id="pay-send" type="button" ' +
-        'title="Email and text the client a link to pay it themselves">Send a payment link</button>' +
+        'title="Email and text the client a link to pay it themselves">Send link by text + email</button>' +
       '<button class="btn btn-sec" id="pay-take" type="button" ' +
         'title="Key the card in yourself \u2014 nothing is sent to the client">Take payment now</button>' +
       '<button class="btn btn-sec" id="pay-create" type="button" ' +
         'title="Create it and put the link on the clipboard, without sending anything">Copy a link</button>' +
       '<button class="btn btn-sec" id="pay-clear" type="button">Clear</button>' +
     '</div>' +
-    '<div class="pay-note"><strong>Take payment now</strong> opens the card page on your own screen and ' +
-      'sends the client nothing. Only <strong>Send a payment link</strong> contacts them. Every request ' +
-      'records who created it, how it was paid, and by whom; a fee that is paid can be refunded but ' +
-      'never deleted.</div>' +
+    '<div class="pay-note"><strong>Send link by text + email</strong> is the only one that contacts the ' +
+      'client \u2014 it uses whichever of the two you have on file, or both. <strong>Take payment now</strong> ' +
+      'opens the card page on your own screen and sends them nothing.<br>' +
+      'Once a fee is paid, the receipt goes out on its own: attached to an email, and texted as a link, ' +
+      'to whichever you have. Every request records who created it, how it was paid, and by whom; a fee ' +
+      'that is paid can be refunded but never deleted.</div>' +
   '</div>' +
 
   '<div class="sec">' +
@@ -579,7 +581,7 @@ $('pay-send').addEventListener('click', async function(){
   } catch(e){
     toast(e.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = 'Send a payment link';
+    btn.disabled = false; btn.textContent = 'Send link by text + email';
   }
 });
 
@@ -703,7 +705,8 @@ async function loadList(){
       if(open){
         acts.push(act('take', r.id, 'Take payment',
           'The client is on the phone or at the desk \u2014 key their card in now'));
-        acts.push(act('send', r.id, r.status === 'draft' ? 'Send' : 'Resend'));
+        acts.push(act('send', r.id, r.status === 'draft' ? 'Send' : 'Resend',
+          'Text and email them the payment link'));
         acts.push(act('link', r.id, 'Copy link'));
         acts.push(act('record', r.id, 'Record a payment', 'Already settled another way — a counter terminal, or a payment taken elsewhere'));
       }
@@ -726,8 +729,14 @@ async function loadList(){
         '<td><span class="pay-pill pay-' + esc(r.status) + '">' + esc(statusWord(r.status)) + '</span>' +
           '<div style="color:var(--muted);font-size:11px;margin-top:4px">' +
             (r.paid_at ? 'Paid ' + esc(when(r.paid_at))
-              : r.sent_at ? 'Sent ' + esc(when(r.sent_at))
+              : r.sent_at ? 'Sent by ' + esc(channelWords(r.sent_channels) || 'email') + ' ' + esc(when(r.sent_at))
               : 'Created ' + esc(when(r.created_at))) + '</div>' +
+          // Where the receipt went, once there is one, said in the list rather
+          // than only in the history.
+          (r.paid_at && r.receipt_channels && r.receipt_channels.length
+            ? '<div style="color:var(--ok);font-size:11px">Receipt sent by ' +
+              esc(channelWords(r.receipt_channels)) + '</div>'
+            : '') +
           (r.viewed_at && !r.paid_at ? '<div style="color:var(--muted);font-size:11px">Opened ' + esc(when(r.viewed_at)) + '</div>' : '') +
         '</td>' +
         '<td>' + acts.join('') + '</td>' +

@@ -214,7 +214,18 @@ router.get('/', requireAuth, async (req, res) => {
     const q = `%${String(req.query.q || '').trim()}%`;
     const status = String(req.query.status || '').trim();
     const { rows } = await db.query(
-      `SELECT ${AGENT_COLS} FROM payment_requests
+      `SELECT ${AGENT_COLS},
+              -- Which ways it actually went out, so the list says so without
+              -- anyone having to open the history to find out.
+              (SELECT ARRAY_AGG(DISTINCT e.detail->>'channel')
+                 FROM payment_events e
+                WHERE e.request_id = payment_requests.id
+                  AND e.event = 'sent' AND e.detail->>'channel' IS NOT NULL) AS sent_channels,
+              (SELECT ARRAY_AGG(DISTINCT e.detail->>'channel')
+                 FROM payment_events e
+                WHERE e.request_id = payment_requests.id
+                  AND e.event = 'receipt_sent' AND e.detail->>'channel' IS NOT NULL) AS receipt_channels
+         FROM payment_requests
         WHERE ($1 = '%%' OR client_name ILIKE $1 OR policy_number ILIKE $1 OR description ILIKE $1)
           AND ($2 = '' OR status = $2)
         ORDER BY created_at DESC LIMIT 200`, [q, status]);
