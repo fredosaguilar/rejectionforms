@@ -146,7 +146,7 @@ var html =
   '</div></div>' +
 
   '</div>' +
-  '<div class="btn-row"><button class="btn btn-sec" onclick="CF(\'f-fee\')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-fee" onclick="submitFeeAgreement()">Save &amp; Download PDF</button><button class="btn btn-green" id="esign-fee" onclick="submitFeeAgreement(\'esign\')">Save &amp; send for e-signature</button><button class="btn btn-green" id="fee-collect" onclick="submitFeeAgreement(\'pay\')">Save &amp; collect the fee</button></div>' +
+  '<div class="btn-row"><button class="btn btn-sec" onclick="CF(\'f-fee\')">Clear</button><button class="btn btn-sec" onclick="window.print()">Print</button><button class="btn btn-pri" id="submit-fee" onclick="submitFeeAgreement()">Save &amp; Download PDF</button><button class="btn btn-green" id="esign-fee" onclick="submitFeeAgreement(\'esign\')">Save &amp; send for e-signature</button></div>' +
 '</div>';
 
 lastForm.insertAdjacentHTML('afterend', html);
@@ -525,22 +525,15 @@ window.buildFeeAgreementPDF = function(){
 /* The fee agreement, either downloaded as a PDF or handed straight to the
    signature workflow. It is saved to the submission history either way. */
 window.submitFeeAgreement = async function(mode){
-  var toEsign = mode === 'esign', toPay = mode === 'pay';
-  var btn=document.getElementById(toEsign ? 'esign-fee' : toPay ? 'fee-collect' : 'submit-fee');
+  var toEsign = mode === 'esign';
+  var btn=document.getElementById(toEsign ? 'esign-fee' : 'submit-fee');
   var wasLabel=btn.textContent;
-  // Collecting the fee needs the numbers on this page, not the document, so
-  // there is nothing to generate for it.
-  btn.disabled=true; btn.textContent = toPay ? 'Saving…' : 'Generating PDF…';
+  btn.disabled=true; btn.textContent='Generating PDF…';
   try{
-    if(toPay && typeof window.paymentFromAgreement !== 'function'){
-      throw new Error('The payments workspace has not loaded yet');
-    }
-    var doc = toPay ? null : window.buildFeeAgreementPDF();
+    var doc=window.buildFeeAgreementPDF();
     var client=gv('fee-client')||'Client';
     var fileName='WA-Fee-Agreement-'+client.replace(/\s+/g,'-')+'.pdf';
-    if(toPay){
-      // nothing here: the hand-over happens once the submission has an id
-    } else if(toEsign){
+    if(toEsign){
       if(typeof window.esignAttachPdf!=='function') throw new Error('The signature workspace has not loaded yet');
       window.esignAttachPdf(new File([doc.output('blob')], fileName, {type:'application/pdf'}), {
         title: 'Broker Fee Agreement' + (gv('fee-client') ? ' — ' + gv('fee-client') : ''),
@@ -572,25 +565,11 @@ window.submitFeeAgreement = async function(mode){
       },
       signatureClient:sigData('s-fee-c'), signatureAgent:sigData('s-fee-a')
     };
-    var got = toEsign ? 'Added to the signature request' : toPay ? 'Saved' : 'PDF downloaded';
+    var got = toEsign ? 'Added to the signature request' : 'PDF downloaded';
     try{
       var r=await fetch('/api/forms/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       var d=await r.json();
-      if(r.ok&&d.success){
-        if(!toEsign && !toPay) showT(got+' & saved as EO-'+d.submissionId,'success');
-        if(typeof loadHistory==='function') loadHistory();
-        // Handed over once it is on file, so the fee request can point back at
-        // the agreement that set the amount.
-        if(toPay) window.paymentFromAgreement({
-          submissionId: d.submissionId,
-          clientName: gv('fee-client'),
-          clientEmail: gv('global-client-email'),
-          policyNumber: gv('fee-policy'),
-          carrier: gv('fee-insurer'),
-          lineOfBusiness: gv('fee-lob'),
-          agencyFee: gv('fee-total'),
-        });
-      }
+      if(r.ok&&d.success){ if(!toEsign) showT(got+' & saved as EO-'+d.submissionId,'success'); if(typeof loadHistory==='function') loadHistory(); }
       else showT(got+', but save failed: '+(d.error||'unknown error'),'error');
     }catch(e){ showT(got+', but save failed: '+e.message,'error'); }
   }catch(e){ showT('PDF error: '+e.message,'error'); console.error(e); }

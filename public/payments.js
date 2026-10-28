@@ -103,9 +103,10 @@ var html =
         'placeholder="Search by client name or policy number\u2026">' +
       '<div id="pay-results" class="pay-results" hidden></div>' +
       '<div class="pay-note" style="margin-top:4px">Searches signed fee agreements, earlier fee ' +
-        'requests and AgencyZoom. Picking one fills in everything below that is known. Or just type it in.' +
-        ' <button type="button" class="pay-link" id="pay-agreements" style="margin-left:4px">' +
-        'Browse fee agreements</button></div>' +
+        'requests and AgencyZoom. Picking one fills in everything below that is known. Or just type it in.</div>' +
+      '<button class="btn btn-sec" id="pay-agreements" type="button" ' +
+        'style="margin-top:8px;font-size:12px;padding:6px 14px;align-self:flex-start">' +
+        'Pull the fee from a signed fee agreement</button>' +
     '</div>' +
 
     '<div class="pay-grid3" style="margin-top:12px">' +
@@ -547,47 +548,6 @@ document.addEventListener('click', function(e){
   if(box && !box.hidden && !box.contains(e.target) && e.target !== $('pay-search')) box.hidden = true;
 });
 var pulledFrom = null;
-
-/* Handed a fee straight off the agreement that set it.
- *
- * Called by the fee agreement's own "Save & collect the fee", once the
- * agreement is on file and has an id — so the fee request points back at the
- * document the amount was agreed in, rather than at a number retyped from
- * memory. Everything the agreement knows comes across; what it has no idea
- * about, the mobile number, is left for the agent. */
-window.paymentFromAgreement = function(a){
-  a = a || {};
-  ST('pay');
-  if(a.clientName)   $('pay-name').value = a.clientName;
-  if(a.clientEmail)  $('pay-email').value = a.clientEmail;
-  if(a.policyNumber) $('pay-policy').value = a.policyNumber;
-
-  var cents = null;
-  var raw = String(a.agencyFee || '').replace(/[^0-9.]/g, '');
-  var n = parseFloat(raw);
-  if(isFinite(n) && n > 0){
-    cents = Math.round(n * 100);
-    $('pay-fee').value = money(cents);
-    if(window.CBIMoney) window.CBIMoney.refresh();
-  }
-
-  $('pay-desc').value = 'Agency broker fee' +
-    (a.policyNumber ? ' \u2014 policy ' + a.policyNumber : '') +
-    (a.lineOfBusiness ? ' (' + a.lineOfBusiness + ')' : a.carrier ? ' (' + a.carrier + ')' : '');
-
-  pulledFrom = a.submissionId || null;
-  renderQuote();
-  $('pay-results').hidden = true;
-
-  // The one thing the agreement cannot supply, and the one thing a texted
-  // link needs.
-  if(!$('pay-phone').value) $('pay-phone').focus();
-
-  toast(cents
-    ? 'Broker fee of ' + money(cents) + ' brought over from the agreement \u2014 ' +
-      'add a mobile number to text the link, or take the payment now'
-    : 'Agreement brought over, but it had no agency fee on it \u2014 enter the amount', cents ? 'success' : 'error');
-};
 
 /* ---- creating a request ------------------------------------------------ */
 function gather(){
