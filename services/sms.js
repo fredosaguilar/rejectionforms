@@ -300,21 +300,26 @@ function signingText({ recipientName, agentName, url, lang }) {
   const agent = String(agentName || '').trim();
   const hi = first ? (lang === 'es' ? `Hola ${first}, ` : `Hi ${first}, `) : '';
 
-  // The last line earns its place twice over: the link is the credential, so
-  // a forwarded one lets anyone sign in that person's name, and carriers'
-  // messaging rules expect opt-out wording on business texts.
+  // The last line earns its place: the link is the credential, so a forwarded
+  // one lets anyone sign in that person's name.
+  //
+  // Opt-out wording was here too and was removed at the agency's request.
+  // STOP still works — the carrier honours the keyword whether or not the
+  // message mentions it — but carriers also look for that wording when they
+  // decide what to filter, so if texts start going undelivered this is the
+  // first thing to put back.
   if (lang === 'es') {
     const who = agent ? `${agent} de ${AGENCY_NAME}` : AGENCY_NAME;
     return `${hi}${who} le envió un documento que requiere su firma.\n\n${url}\n\n` +
       'Por favor firme pronto para evitar retrasos o problemas con su póliza. ' +
       '¿Preguntas? Comuníquese con nuestra oficina.\n\n' +
-      'No comparta este enlace. Responda STOP para no recibir mensajes.';
+      'No comparta este enlace.';
   }
   const who = agent ? `${agent} from ${AGENCY_NAME}` : AGENCY_NAME;
   return `${hi}${who} sent you a document requiring your signature.\n\n${url}\n\n` +
     'Please sign promptly to help avoid delays or issues with your policy. ' +
     'Questions? Contact our office for assistance.\n\n' +
-    'Do not share this link. Reply STOP to opt out.';
+    'Do not share this link.';
 }
 
 /* The same shape as a signing request, because it arrives from the same office
@@ -332,14 +337,14 @@ function paymentText({ clientName, agentName, amount, url, lang }) {
       (amt ? ` de ${amt}` : '') + `.\n\n${url}\n\n` +
       'Pague pronto para evitar retrasos o problemas con su póliza. ' +
       '¿Preguntas? Comuníquese con nuestra oficina.\n\n' +
-      'No comparta este enlace. Responda STOP para no recibir mensajes.';
+      'No comparta este enlace.';
   }
   const who = agent ? `${agent} from ${AGENCY_NAME}` : AGENCY_NAME;
   return `${hi}${who} sent you a request to pay the agency broker fee` +
     (amt ? ` of ${amt}` : '') + `.\n\n${url}\n\n` +
     'Please pay promptly to help avoid delays or issues with your policy. ' +
     'Questions? Contact our office for assistance.\n\n' +
-    'Do not share this link. Reply STOP to opt out.';
+    'Do not share this link.';
 }
 
 /* The receipt, texted.
@@ -358,15 +363,13 @@ function receiptText({ clientName, amount, url, alsoEmailed, lang }) {
       (url ? `\n\n${url}\n\nSu recibo está en el enlace anterior` : '\n\nSu recibo está listo') +
       (alsoEmailed ? ' y también se lo enviamos por correo.' : '.') +
       '\n\nEste es un recibo de la tarifa de agencia, no de la prima.' +
-      (url ? '\n\nNo comparta este enlace.' : '') +
-      ' Responda STOP para no recibir mensajes.';
+      (url ? '\n\nNo comparta este enlace.' : '');
   }
   return `${hi}we have received your payment` + (amt ? ` of ${amt}` : '') + ` to ${AGENCY_NAME}. Thank you.` +
     (url ? `\n\n${url}\n\nYour receipt is at the link above` : '\n\nYour receipt is ready') +
     (alsoEmailed ? ', and a copy is on its way by email.' : '.') +
     '\n\nThis is a receipt for the agency fee, not for insurance premium.' +
-    (url ? '\n\nDo not share this link.' : '') +
-    ' Reply STOP to opt out.';
+    (url ? '\n\nDo not share this link.' : '');
 }
 
 /* Exchanges the JWT for a token and throws with the provider's own message if
