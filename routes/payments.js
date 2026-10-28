@@ -511,6 +511,7 @@ router.post('/:id/take', requireAuth, async (req, res) => {
       reference: r.public_id,
       metadata: { request_id: String(r.id), public_id: r.public_id, client: r.client_name, taken_at_desk: 'yes' },
       statementDescriptor: 'CBI BROKER FEE',
+      lang: r.language,
     });
 
     await db.query(
@@ -916,6 +917,7 @@ pub.post('/:token/checkout', async (req, res) => {
       reference: r.public_id,
       metadata: { request_id: String(r.id), public_id: r.public_id, client: r.client_name },
       statementDescriptor: 'CBI BROKER FEE',
+      lang: r.language,
     });
 
     await db.query(
