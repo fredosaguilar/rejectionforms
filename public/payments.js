@@ -128,17 +128,17 @@ var html =
 
 
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">' +
-      '<button class="btn btn-pri" id="pay-send" type="button" ' +
-        'title="Email and text the client a link to pay it themselves">Send link by text + email</button>' +
-      '<button class="btn btn-sec" id="pay-take" type="button" ' +
+      '<button class="btn btn-pri" id="pay-take" type="button" ' +
         'title="Key the card in yourself \u2014 nothing is sent to the client">Take payment now</button>' +
+      '<button class="btn btn-sec" id="pay-send" type="button" ' +
+        'title="Email and text the client a link to pay it themselves">Send link by text + email</button>' +
       '<button class="btn btn-sec" id="pay-create" type="button" ' +
         'title="Create it and put the link on the clipboard, without sending anything">Copy a link</button>' +
       '<button class="btn btn-sec" id="pay-clear" type="button">Clear</button>' +
     '</div>' +
-    '<div class="pay-note"><strong>Send link by text + email</strong> is the only one that contacts the ' +
-      'client \u2014 it uses whichever of the two you have on file, or both. <strong>Take payment now</strong> ' +
-      'opens the card page on your own screen and sends them nothing.<br>' +
+    '<div class="pay-note"><strong>Take payment now</strong> opens the card page on your own screen and ' +
+      'sends the client nothing. <strong>Send link by text + email</strong> is the only one that contacts ' +
+      'them \u2014 it uses whichever of the two you have on file, or both.<br>' +
       'Once a fee is paid, the receipt goes out on its own: attached to an email, and texted as a link, ' +
       'to whichever you have. Every request records who created it, how it was paid, and by whom; a fee ' +
       'that is paid can be refunded but never deleted.</div>' +
