@@ -103,7 +103,9 @@ var html =
         'placeholder="Search by client name or policy number\u2026">' +
       '<div id="pay-results" class="pay-results" hidden></div>' +
       '<div class="pay-note" style="margin-top:4px">Searches signed fee agreements, earlier fee ' +
-        'requests and AgencyZoom. Picking one fills in everything below that is known. Or just type it in.</div>' +
+        'requests and AgencyZoom. Picking one fills in everything below that is known. Or just type it in.' +
+        ' <button type="button" class="pay-link" id="pay-agreements" style="margin-left:4px">' +
+        'Browse fee agreements</button></div>' +
     '</div>' +
 
     '<div class="pay-grid3" style="margin-top:12px">' +
@@ -462,20 +464,31 @@ function applyClient(c){
     : 'Client details filled in — enter the agency fee', 'success');
 }
 
-async function runSearch(){
+async function runSearch(opts){
+  opts = opts || {};
   var q = $('pay-search').value.trim(), box = $('pay-results');
-  if(q.length < 2){ box.hidden = true; return; }
-  lastQuery = q;
+  if(!opts.browse && q.length < 2){ box.hidden = true; return; }
+  // Browsing and searching share this list, so each marks the request it made
+  // and a late answer to an abandoned one is dropped.
+  lastQuery = opts.browse ? '\u0000browse' : q;
+  var mine = lastQuery;
+  if(!opts.browse) browsing = false;
   box.hidden = false;
-  box.innerHTML = '<div class="pay-empty">Searching…</div>';
+  box.innerHTML = '<div class="pay-empty">' + (opts.browse ? 'Loading…' : 'Searching…') + '</div>';
   try {
-    var d = await api('/api/payments/clients?q=' + encodeURIComponent(q));
-    if(q !== lastQuery) return;            // a later keystroke already won
+    var d = await api('/api/payments/clients?' +
+      (opts.browse ? 'agreements=1' : 'q=' + encodeURIComponent(q)));
+    if(mine !== lastQuery) return;         // a later keystroke already won
     box.innerHTML = '';
     if(!d.clients.length){
-      box.innerHTML = '<div class="pay-empty">Nothing found for “' + esc(q) + '”' +
-        (d.agencyZoom ? '' : ' — AgencyZoom is not connected, so only this portal’s own records were searched') +
-        '.</div>';
+      box.innerHTML = '<div class="pay-empty">' + (opts.browse
+        ? 'No fee agreements on file yet.'
+        : 'Nothing found for “' + esc(q) + '”' +
+          (d.agencyZoom ? '' : ' — AgencyZoom is not connected, so only this portal’s own records were searched') +
+          '.') + '</div>';
+    } else if(opts.browse){
+      box.insertAdjacentHTML('beforeend',
+        '<div class="pay-empty">Signed fee agreements, newest first. Picking one brings its fee across.</div>');
     }
     d.clients.forEach(function(c){
       var b = document.createElement('button');
@@ -513,6 +526,17 @@ $('pay-search').addEventListener('input', function(){
   clearTimeout(searchTimer);
   searchTimer = setTimeout(runSearch, 250);
 });
+/* The fee agreements on their own, for when the reason to be on this page is
+   one of them and the name is not what comes to mind first. */
+var browsing = false;
+$('pay-agreements').addEventListener('click', function(e){
+  e.preventDefault();
+  e.stopPropagation();                   // or the outside-click handler shuts it again
+  clearTimeout(searchTimer);
+  if(!$('pay-results').hidden && browsing){ $('pay-results').hidden = true; browsing = false; return; }
+  browsing = true;
+  runSearch({ browse: true });
+});
 $('pay-search').addEventListener('keydown', function(e){
   if(e.key === 'Escape'){ $('pay-results').hidden = true; this.blur(); }
   if(e.key === 'Enter'){ e.preventDefault(); clearTimeout(searchTimer); runSearch(); }
@@ -523,6 +547,47 @@ document.addEventListener('click', function(e){
   if(box && !box.hidden && !box.contains(e.target) && e.target !== $('pay-search')) box.hidden = true;
 });
 var pulledFrom = null;
+
+/* Handed a fee straight off the agreement that set it.
+ *
+ * Called by the fee agreement's own "Save & collect the fee", once the
+ * agreement is on file and has an id — so the fee request points back at the
+ * document the amount was agreed in, rather than at a number retyped from
+ * memory. Everything the agreement knows comes across; what it has no idea
+ * about, the mobile number, is left for the agent. */
+window.paymentFromAgreement = function(a){
+  a = a || {};
+  ST('pay');
+  if(a.clientName)   $('pay-name').value = a.clientName;
+  if(a.clientEmail)  $('pay-email').value = a.clientEmail;
+  if(a.policyNumber) $('pay-policy').value = a.policyNumber;
+
+  var cents = null;
+  var raw = String(a.agencyFee || '').replace(/[^0-9.]/g, '');
+  var n = parseFloat(raw);
+  if(isFinite(n) && n > 0){
+    cents = Math.round(n * 100);
+    $('pay-fee').value = money(cents);
+    if(window.CBIMoney) window.CBIMoney.refresh();
+  }
+
+  $('pay-desc').value = 'Agency broker fee' +
+    (a.policyNumber ? ' \u2014 policy ' + a.policyNumber : '') +
+    (a.lineOfBusiness ? ' (' + a.lineOfBusiness + ')' : a.carrier ? ' (' + a.carrier + ')' : '');
+
+  pulledFrom = a.submissionId || null;
+  renderQuote();
+  $('pay-results').hidden = true;
+
+  // The one thing the agreement cannot supply, and the one thing a texted
+  // link needs.
+  if(!$('pay-phone').value) $('pay-phone').focus();
+
+  toast(cents
+    ? 'Broker fee of ' + money(cents) + ' brought over from the agreement \u2014 ' +
+      'add a mobile number to text the link, or take the payment now'
+    : 'Agreement brought over, but it had no agency fee on it \u2014 enter the amount', cents ? 'success' : 'error');
+};
 
 /* ---- creating a request ------------------------------------------------ */
 function gather(){

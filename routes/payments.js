@@ -98,7 +98,11 @@ router.get('/status', requireAuth, async (req, res) => {
  */
 router.get('/clients', requireAuth, async (req, res) => {
   const q = String(req.query.q || '').trim();
-  if (q.length < 2) return res.json({ success: true, clients: [], notes: [] });
+  /* With no name in mind, the signed fee agreements on file are worth
+     browsing on their own: they are the only source that carries the fee that
+     was agreed, and the usual reason to open this page at all is one of them. */
+  const browsing = req.query.agreements === '1';
+  if (!browsing && q.length < 2) return res.json({ success: true, clients: [], notes: [] });
   const like = `%${q}%`;
 
   const out = [], notes = [];
@@ -108,8 +112,8 @@ router.get('/clients', requireAuth, async (req, res) => {
       `SELECT id, client_name, client_email, policy_number, carrier, submitted_at, form_data
          FROM submissions
         WHERE form_type = 'fee_agreement'
-          AND (client_name ILIKE $1 OR policy_number ILIKE $1)
-        ORDER BY submitted_at DESC LIMIT 10`, [like]);
+          AND ($2 OR client_name ILIKE $1 OR policy_number ILIKE $1)
+        ORDER BY submitted_at DESC LIMIT $3`, [like, browsing, browsing ? 25 : 10]);
     rows.forEach((r) => {
       const d = r.form_data || {};
       out.push({
@@ -129,7 +133,7 @@ router.get('/clients', requireAuth, async (req, res) => {
     notes.push('Fee agreements could not be searched.');
   }
 
-  try {
+  if (!browsing) try {
     const { rows } = await db.query(
       `SELECT DISTINCT ON (LOWER(client_name), COALESCE(policy_number,''))
               client_name, client_email, client_phone, policy_number, fee_cents, created_at
@@ -151,7 +155,7 @@ router.get('/clients', requireAuth, async (req, res) => {
     console.error('client search (requests):', e.message);
   }
 
-  if (az.configured()) {
+  if (!browsing && az.configured()) {
     try {
       const found = await az.searchClients(q);
       found.clients.forEach((c) => out.push({
@@ -206,7 +210,7 @@ router.get('/clients', requireAuth, async (req, res) => {
       fee: c.feeCents ? pay.money(c.feeCents) : null,
     }));
 
-  res.json({ success: true, clients, notes, agencyZoom: az.configured() });
+  res.json({ success: true, clients, notes, agencyZoom: az.configured(), browsing });
 });
 
 router.get('/', requireAuth, async (req, res) => {
