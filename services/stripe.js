@@ -118,9 +118,34 @@ const PM_TYPE = { card: 'card', bank: 'us_bank_account' };
  * the client sees on Stripe's own page exactly what they saw on ours, and the
  * receipt Stripe keeps says the same as the receipt we issue.
  */
+/* What the agency says on the processor's own page.
+ *
+ * Everything else about this transaction says it twice — the portal's pay
+ * page, the receipt, the signed fee agreement — but the one screen where the
+ * client actually parts with money was the processor's default wording and
+ * nothing of ours. A client reading "Columbia Basin Insurance, $257.55" with
+ * a policy on their mind can reasonably think they are paying for insurance.
+ *
+ * Markdown is allowed here, and the limit is 1200 characters; these are well
+ * inside it. */
+const CHECKOUT_TEXT = {
+  en: {
+    submit: 'This is **Columbia Basin Insurance\u2019s agency broker fee**, and the processing fee ' +
+            'charged on it. It is **not your insurance premium**, and paying it does not by itself ' +
+            'bind, issue or renew a policy.',
+    after: 'Thank you. Your receipt is on its way from Columbia Basin Insurance.',
+  },
+  es: {
+    submit: 'Esta es la **tarifa de agencia de Columbia Basin Insurance** y el cargo de procesamiento ' +
+            'correspondiente. **No es la prima de su seguro**, y pagarla no vincula, emite ni renueva ' +
+            'una p\u00f3liza por s\u00ed sola.',
+    after: 'Gracias. Columbia Basin Insurance le enviar\u00e1 su recibo.',
+  },
+};
+
 async function createCheckout({
   method, feeCents, surchargeCents, description, clientEmail, successUrl, cancelUrl,
-  reference, metadata = {}, statementDescriptor,
+  reference, metadata = {}, statementDescriptor, lang,
 }) {
   const type = PM_TYPE[method];
   if (!type) throw new Error(`Unknown payment method: ${method}`);
@@ -159,6 +184,12 @@ async function createCheckout({
       metadata,
     },
   };
+  const words = CHECKOUT_TEXT[lang] || CHECKOUT_TEXT.en;
+  params.custom_text = {
+    submit: { message: words.submit },
+    after_submit: { message: words.after },
+  };
+
   if (clientEmail) params.customer_email = clientEmail;
   // What the client sees on their statement. Stripe allows 5–22 characters and
   // no < > \ ' " *.
@@ -318,6 +349,6 @@ async function status() {
 }
 
 module.exports = {
-  configured, live, mode, restricted, status, createCheckout, getCheckout, getIntent, refund, verifyWebhook,
+  configured, live, mode, restricted, status, CHECKOUT_TEXT, createCheckout, getCheckout, getIntent, refund, verifyWebhook,
   request, PM_TYPE,
 };
