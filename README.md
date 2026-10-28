@@ -51,11 +51,10 @@ In Railway → your service → **Variables**, add:
 | `AGENCYZOOM_API_KEY` | A bearer token for AgencyZoom, if your account has one. **Or** set `AGENCYZOOM_USERNAME` and `AGENCYZOOM_PASSWORD` instead and the portal will log in for a token. |
 | `AGENCYZOOM_BASE_URL` | Optional; defaults to `https://api.agencyzoom.com`. Set it if your account is on a different host. |
 
-AgencyZoom powers **Find the client** on the Payments tab — searching by name
-or policy number. Without it, that search still works across the portal's own
-fee agreements and earlier fee requests; it just won't reach clients who have
-never been through this portal. The Payments tab says plainly when AgencyZoom
-is configured but not answering, and `GET /api/az/status` reports the reason.
+AgencyZoom is reachable at `GET /api/az/search?q=…` and `GET /api/az/status`,
+which reports whether it is answering and why not. Nothing in the portal calls
+it today: the Payments tab fills a fee request from the signed fee agreements
+on file instead, which are the only source that carries the agreed amount.
 | `NODE_ENV` | `production` |
 
 For the broker fee payment portal, add these as well. Without them the Payments
