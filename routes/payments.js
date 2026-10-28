@@ -5,7 +5,6 @@ const sms = require('../services/sms');
 const stripe = require('../services/stripe');
 const pay = require('../services/payments');
 const { groupEvents } = require('../services/esign');
-const az = require('../services/agencyzoom');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();   // /api/payments — the agency side, behind a login
@@ -60,9 +59,6 @@ router.get('/status', requireAuth, async (req, res) => {
     res.json({
       success: true,
       stripe: await stripe.status(),
-      // Reported beside the processor because it is the same kind of fact: a
-      // third party this page depends on, and whether it is answering.
-      agencyZoom: await az.status(),
       // The one value nobody can look up for the agency: where this very
       // application is answering from. Stripe has to be told it exactly, and
       // reading it off the running server is the only way to be sure it is
@@ -80,137 +76,44 @@ router.get('/status', requireAuth, async (req, res) => {
   }
 });
 
-/* Finding the client a fee is for, by name or by policy number.
+/* The signed fee agreements on file, newest first.
  *
- * Three places are searched and the answers are merged, because each knows
- * something the others do not:
- *
- *   - fee agreements on file, which carry the agency fee that was agreed and
- *     signed, and so are the only source that can fill in the amount;
- *   - fee requests already raised, so a repeat client is one click;
- *   - AgencyZoom, which has every client whether or not they have ever been
- *     through this portal.
- *
- * The first two are this application's own database and always answer. The
- * third is a third party that may be unconfigured, unreachable, or on a plan
- * without API search — so it is asked alongside rather than instead, and a
- * failure there is reported without losing the rest.
+ * They carry the agency fee that was agreed and signed, which is the one
+ * number in this system that should never be retyped from memory. The payment
+ * portal lists them so a fee request can be filled in from the document that
+ * set the amount, and points back at it afterwards.
  */
 router.get('/clients', requireAuth, async (req, res) => {
-  const q = String(req.query.q || '').trim();
-  /* With no name in mind, the signed fee agreements on file are worth
-     browsing on their own: they are the only source that carries the fee that
-     was agreed, and the usual reason to open this page at all is one of them. */
-  const browsing = req.query.agreements === '1';
-  if (!browsing && q.length < 2) return res.json({ success: true, clients: [], notes: [] });
-  const like = `%${q}%`;
-
-  const out = [], notes = [];
-
   try {
     const { rows } = await db.query(
       `SELECT id, client_name, client_email, policy_number, carrier, submitted_at, form_data
          FROM submissions
         WHERE form_type = 'fee_agreement'
-          AND ($2 OR client_name ILIKE $1 OR policy_number ILIKE $1)
-        ORDER BY submitted_at DESC LIMIT $3`, [like, browsing, browsing ? 25 : 10]);
-    rows.forEach((r) => {
-      const d = r.form_data || {};
-      out.push({
-        source: 'agreement',
-        submissionId: r.id,
-        name: r.client_name || '',
-        email: r.client_email || '',
-        phone: '',
-        policyNumber: r.policy_number || '',
-        carrier: r.carrier || '',
-        feeCents: pay.centsFromInput(d.agencyFee),
-        when: r.submitted_at,
-      });
+        ORDER BY submitted_at DESC LIMIT 25`);
+    res.json({
+      success: true,
+      clients: rows.map((r) => {
+        const d = r.form_data || {};
+        const feeCents = pay.centsFromInput(d.agencyFee);
+        return {
+          source: 'agreement',
+          submissionId: r.id,
+          name: r.client_name || '',
+          email: r.client_email || '',
+          policyNumber: r.policy_number || '',
+          carrier: r.carrier || '',
+          feeCents,
+          // The agreement stores what was typed ("$250.00"); the portal needs
+          // both that and the number behind it.
+          fee: feeCents ? pay.money(feeCents) : null,
+          when: r.submitted_at,
+        };
+      }),
     });
   } catch (e) {
-    console.error('client search (agreements):', e.message);
-    notes.push('Fee agreements could not be searched.');
+    console.error('fee agreements:', e);
+    res.status(500).json({ error: e.message });
   }
-
-  if (!browsing) try {
-    const { rows } = await db.query(
-      `SELECT DISTINCT ON (LOWER(client_name), COALESCE(policy_number,''))
-              client_name, client_email, client_phone, policy_number, fee_cents, created_at
-         FROM payment_requests
-        WHERE client_name ILIKE $1 OR policy_number ILIKE $1
-        ORDER BY LOWER(client_name), COALESCE(policy_number,''), created_at DESC
-        LIMIT 10`, [like]);
-    rows.forEach((r) => out.push({
-      source: 'request',
-      name: r.client_name || '',
-      email: r.client_email || '',
-      phone: r.client_phone || '',
-      policyNumber: r.policy_number || '',
-      carrier: '',
-      feeCents: r.fee_cents,
-      when: r.created_at,
-    }));
-  } catch (e) {
-    console.error('client search (requests):', e.message);
-  }
-
-  if (!browsing && az.configured()) {
-    try {
-      const found = await az.searchClients(q);
-      found.clients.forEach((c) => out.push({
-        source: 'agencyzoom',
-        agencyZoomId: c.id,
-        name: c.name,
-        email: c.email,
-        phone: c.phone,
-        policyNumber: c.policyNumber,
-        carrier: c.carrier,
-        lineOfBusiness: c.lineOfBusiness,
-        feeCents: null,
-        when: null,
-      }));
-      if (found.errors.length && !found.clients.length) {
-        notes.push('AgencyZoom did not answer this search \u2014 see the notice at the top of this page.');
-        console.error('AgencyZoom search:', found.errors.join(' | '));
-      }
-    } catch (e) {
-      console.error('client search (agencyzoom):', e.message);
-      notes.push('AgencyZoom could not be reached.');
-    }
-  }
-
-  /* One client found three ways is one row. A fee agreement wins over a past
-     request, and both win over AgencyZoom, because only this portal's own
-     records carry the agreed fee. */
-  const rank = { agreement: 0, request: 1, agencyzoom: 2 };
-  const best = new Map();
-  for (const c of out) {
-    if (!c.name && !c.policyNumber) continue;
-    const key = `${c.name.trim().toLowerCase()}|${(c.policyNumber || '').trim().toLowerCase()}`;
-    const have = best.get(key);
-    if (!have) { best.set(key, c); continue; }
-    // Keep the better-ranked row, but take any detail it is missing from the
-    // other: AgencyZoom often has the phone number the agreement never had.
-    const keep = rank[c.source] < rank[have.source] ? c : have;
-    const other = keep === c ? have : c;
-    ['email', 'phone', 'policyNumber', 'carrier', 'lineOfBusiness'].forEach((k) => {
-      if (!keep[k] && other[k]) keep[k] = other[k];
-    });
-    if (keep.feeCents == null && other.feeCents != null) keep.feeCents = other.feeCents;
-    if (!keep.submissionId && other.submissionId) keep.submissionId = other.submissionId;
-    best.set(key, keep);
-  }
-
-  const clients = Array.from(best.values())
-    .sort((a, b) => rank[a.source] - rank[b.source] ||
-                    String(a.name).localeCompare(String(b.name)))
-    .slice(0, 20)
-    .map((c) => Object.assign({}, c, {
-      fee: c.feeCents ? pay.money(c.feeCents) : null,
-    }));
-
-  res.json({ success: true, clients, notes, agencyZoom: az.configured(), browsing });
 });
 
 router.get('/', requireAuth, async (req, res) => {
