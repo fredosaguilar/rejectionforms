@@ -708,9 +708,27 @@ function beginFieldDrag(e){
     var holder = layer.parentElement;
     var pw = Number(holder.dataset.pw) || 612, ph = Number(holder.dataset.ph) || 792;
     var pageNum = Number(holder.dataset.page);
-    var size = dropSize(type, recipientNames()[index],
-      docTextSize(pageNum, (ev.clientX - rect.left) / rect.width, (ev.clientY - rect.top) / rect.height));
-    var w = Math.min(size.w / pw, 1), h = Math.min(size.h / ph, 1);
+    /* The first field of a type on a page sets the size for the rest of that
+       type on that page.
+
+       A size otherwise comes from the document's own text where the field
+       lands, and from the name going in it — so two signatures a few lines
+       apart, or for people with names of different lengths, come out
+       different heights. On the page that reads as a mistake rather than as
+       the measurement it is. Matched on type and page only: it is the column
+       of boxes down one page that has to line up. */
+    var twin = null;
+    for(var ti = 0; ti < fields.length; ti++){
+      if(fields[ti].page === pageNum && fields[ti].type === type){ twin = fields[ti]; break; }
+    }
+    var w, h;
+    if(twin){
+      w = twin.w; h = twin.h;
+    } else {
+      var size = dropSize(type, recipientNames()[index],
+        docTextSize(pageNum, (ev.clientX - rect.left) / rect.width, (ev.clientY - rect.top) / rect.height));
+      w = Math.min(size.w / pw, 1); h = Math.min(size.h / ph, 1);
+    }
     var x = Math.max(0, Math.min(1 - w, (ev.clientX - rect.left) / rect.width  - w / 2));
     var y = Math.max(0, Math.min(1 - h, (ev.clientY - rect.top)  / rect.height - h / 2));
     fields.push({ page:pageNum, type:type, recipientIndex:index,

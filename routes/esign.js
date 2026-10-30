@@ -1031,6 +1031,15 @@ pub.post('/:token/sign', async (req, res) => {
               recipientName: p.name, title: envRows[0].title, lang: envRows[0].language,
               url: `${baseUrl(req)}/api/sign/${retrieval}/document?signed=1`,
             }),
+            // The signed document itself, as a file, the way the agency's own
+            // copy has always been sent. A link is a promise that something
+            // will still be there; a signer is entitled to the record, and
+            // ought to be holding it rather than holding a way to ask for it.
+            // The link stays below it, for a second copy later.
+            attachments: [{
+              filename: signedFileName(envRows[0].title),
+              content: bytes,
+            }],
           });
         } catch (err) {
           // A failed copy must not undo a completed signature.
