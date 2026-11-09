@@ -54,6 +54,16 @@ function shape(r) {
 /* Whether a payment can actually be taken, and if not, what is missing.
    Every value here is derived — a mode, an account name, a yes or no — and
    never a key. */
+async function webhookHealth() {
+  try {
+    const { rows } = await db.query(
+      `SELECT COUNT(*)::int AS seen, MAX(at) AS last FROM payment_webhook_events`);
+    return { everReceived: rows[0].seen > 0, count: rows[0].seen, last: rows[0].last };
+  } catch (e) {
+    return { everReceived: null, why: e.message };
+  }
+}
+
 router.get('/status', requireAuth, async (req, res) => {
   try {
     res.json({
@@ -70,6 +80,12 @@ router.get('/status', requireAuth, async (req, res) => {
         'payment_intent.payment_failed',
         'charge.refunded',
       ],
+      /* Whether Stripe has ever actually reached this portal.
+         The secret being set says only that somebody pasted one in. This says
+         whether a delivery has arrived, which is the difference between a
+         webhook that is configured and a webhook that works — and the usual
+         reason a fee is paid at Stripe and still showing as owed here. */
+      webhook: await webhookHealth(),
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -437,6 +453,86 @@ router.post('/:id/take', requireAuth, async (req, res) => {
   } catch (e) {
     console.error('take payment:', e);
     res.status(502).json({ error: `The payment page could not be opened: ${e.message}` });
+  }
+});
+
+/* Asks the processor what became of one fee, and settles it here if it was
+ * paid.
+ *
+ * Three things can settle a fee: the client returning from the processor, the
+ * webhook, and this. The first two can both miss — a client who closes the tab
+ * on the receipt page never comes back, and a webhook pointed at the wrong
+ * place, or registered in test mode while the key is live, never arrives at
+ * all. Either way the money is at the processor and the portal says the fee is
+ * still owed, which is the worst way to be wrong about a payment.
+ *
+ * So the portal can always ask. It reads the session off the record rather
+ * than being told which one, and settles through the same path as every other
+ * route, so a fee cannot be paid twice or receipted twice.
+ */
+async function syncOne(r, req) {
+  if (r.status === 'paid' || r.status === 'refunded') {
+    return { id: r.id, state: 'already paid' };
+  }
+  if (!r.provider_session) {
+    // Nobody ever reached the processor's page from this request, so there is
+    // nothing there to ask about.
+    return { id: r.id, state: 'never started' };
+  }
+  const session = await stripe.getCheckout(r.provider_session);
+  const intent = session.payment_intent && typeof session.payment_intent === 'object'
+    ? session.payment_intent : null;
+
+  if (session.payment_status === 'paid') {
+    const updated = await markPaid(r, { session, intent, req });
+    return { id: r.id, state: 'settled', request: shape(updated) };
+  }
+  if (intent && intent.status === 'processing') {
+    await db.query(
+      `UPDATE payment_requests SET status = 'processing', provider_intent = $2
+        WHERE id = $1 AND status <> 'paid'`, [r.id, intent.id]);
+    return { id: r.id, state: 'clearing' };
+  }
+  return { id: r.id, state: 'not paid', why: session.payment_status || 'unknown' };
+}
+
+router.post('/:id/sync', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await db.query(`SELECT * FROM payment_requests WHERE id = $1`, [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Payment request not found' });
+    if (!stripe.configured()) {
+      return res.status(503).json({ error: 'Stripe is not switched on, so there is nothing to ask.' });
+    }
+    const out = await syncOne(rows[0], req);
+    if (out.state === 'settled') {
+      console.log(`payments: ${rows[0].public_id} settled by asking Stripe directly`);
+    }
+    res.json(Object.assign({ success: true }, out));
+  } catch (e) {
+    console.error('payment sync:', e);
+    res.status(502).json({ error: `Stripe could not be asked: ${e.message}` });
+  }
+});
+
+/* Every fee that reached the processor's page and is still showing as owed.
+   Called when the agent opens the list, so a payment the webhook never
+   reported is found by looking rather than by someone noticing. */
+router.post('/sync-open', requireAuth, async (req, res) => {
+  if (!stripe.configured()) return res.json({ success: true, checked: 0, settled: 0 });
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM payment_requests
+        WHERE status IN ('draft','sent','processing')
+          AND provider_session IS NOT NULL
+        ORDER BY created_at DESC LIMIT 15`);
+    const results = await Promise.allSettled(rows.map((r) => syncOne(r, req)));
+    const settled = results.filter((x) => x.status === 'fulfilled' && x.value.state === 'settled').length;
+    results.filter((x) => x.status === 'rejected')
+      .forEach((x) => console.error('sync-open:', x.reason && x.reason.message));
+    res.json({ success: true, checked: rows.length, settled });
+  } catch (e) {
+    console.error('sync-open:', e);
+    res.json({ success: true, checked: 0, settled: 0, error: e.message });
   }
 });
 

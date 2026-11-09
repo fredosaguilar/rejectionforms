@@ -245,14 +245,15 @@ async function loadStatus(){
   try {
     var d = await api('/api/payments/status');
     renderSetup(d);
-    renderNotices(d.stripe || {});
+    renderNotices(d.stripe || {},
+      Object.assign({ webhookConfigured: (d.stripe || {}).webhookConfigured }, d.webhook || {}));
   } catch(e){
     $('pay-setup').innerHTML = '';
     $('pay-status').innerHTML = '';
   }
 }
 
-function renderNotices(s){
+function renderNotices(s, w){
   var box = $('pay-status'), out = '';
   if(!s.configured){ box.innerHTML = ''; return; }
 
@@ -269,6 +270,15 @@ function renderNotices(s){
   }
 
   var bits = [];
+  // A secret that has never been used is the usual reason a fee is paid at
+  // Stripe and still shows as owed here.
+  if(s.configured && w && w.webhookConfigured && w.everReceived === false){
+    bits.push('<strong>Stripe has never reached this portal.</strong> The signing secret is set, but no ' +
+      'webhook has ever arrived. A bank transfer that settles later, or a client who closes the tab after ' +
+      'paying, will not be noticed on its own. Most often the endpoint was added in test mode while the ' +
+      'key is live, or the other way round \u2014 they are separate lists. Check Stripe is on each ' +
+      'request meanwhile, and the list checks open ones by itself.');
+  }
   if(s.restricted && s.ok){
     bits.push('<strong>This is a restricted key.</strong> It works, but it only does what it was given ' +
       'permission to do. This portal needs write on Checkout Sessions and Refunds, and read on ' +
@@ -675,6 +685,12 @@ async function loadList(){
       if(open){
         acts.push(act('take', r.id, 'Take payment',
           'The client is on the phone or at the desk \u2014 key their card in now'));
+        // Only worth offering where somebody actually reached the card page:
+        // anywhere else there is nothing at Stripe to ask about.
+        if(r.provider_session){
+          acts.push(act('sync', r.id, 'Check Stripe',
+            'Ask Stripe whether this one was paid, and settle it here if it was'));
+        }
         acts.push(act('send', r.id, r.status === 'draft' ? 'Send' : 'Resend',
           'Text and email them the payment link'));
         acts.push(act('link', r.id, 'Copy link'));
@@ -717,9 +733,31 @@ async function loadList(){
       '<th>Client</th><th>Amount</th><th>Status</th><th>Actions</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
     el.querySelectorAll('.pay-act').forEach(function(b){ b.addEventListener('click', onAct); });
+    sweep();
   } catch(e){
     el.innerHTML = '<div style="font-size:12.5px;color:#a32219">' + esc(e.message) + '</div>';
   }
+}
+
+/* Asks Stripe about every fee that reached the card page and still shows as
+   owed. The webhook is meant to report those and can quietly fail to — a
+   wrong endpoint, or one registered in test mode while the key is live — so
+   the list checks rather than trusts. Once per load, after the rows are up,
+   and only a reload when something actually changed. */
+var sweeps = 0;
+async function sweep(){
+  if(sweeps >= 2) return;            // a settled fee leaves the open set, so one more pass is always enough
+  sweeps++;
+  try {
+    var d = await api('/api/payments/sync-open', { method: 'POST' });
+    if(d.settled){
+      toast(d.settled === 1
+        ? 'One fee was already paid at Stripe and had not reached this list \u2014 settled now'
+        : d.settled + ' fees were already paid at Stripe and had not reached this list \u2014 settled now',
+        'success');
+      loadList();                    // the rows are stale now; rebuild them
+    }
+  } catch(e){ /* the list stands on its own; this is a background check */ }
 }
 
 function act(name, id, label, title, danger){
@@ -764,6 +802,14 @@ async function onAct(){
     if(what === 'delete'){
       await api('/api/payments/' + id, { method: 'DELETE' });
       toast('Request deleted', 'success');
+    } else if(what === 'sync'){
+      var out = await api('/api/payments/' + id + '/sync', { method: 'POST' });
+      toast({
+        settled: 'Paid at Stripe \u2014 settled here, and the receipt is on its way',
+        clearing: 'A bank transfer is still clearing at Stripe',
+        'already paid': 'Already settled here',
+        'never started': 'Nobody opened the card page for this one, so Stripe has nothing on it',
+      }[out.state] || 'Stripe says this one has not been paid', out.state === 'settled' ? 'success' : 'info');
     } else if(what === 'take'){
       await takePayment(id);
     } else if(what === 'link'){
