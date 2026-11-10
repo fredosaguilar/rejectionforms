@@ -30,7 +30,7 @@ function logEvent(requestId, event, req, extra = {}) {
 const AGENT_COLS = `id, public_id, receipt_no, agent_name, agent_email, client_name,
   client_email, client_phone, description, policy_number, language, fee_cents,
   surcharge_cents, method, status, submission_id, provider, provider_intent,
-  paid_cents, card_brand, card_last4, failure_reason, refunded_cents,
+  paid_cents, processor_fee_cents, card_brand, card_last4, failure_reason, refunded_cents,
   created_at, sent_at, viewed_at, paid_at, voided_at, void_reason`;
 
 function shape(r) {
@@ -44,7 +44,7 @@ function shape(r) {
     total: pay.money(pay.totalCents(r)),
     paid: r.paid_cents == null ? null : pay.money(r.paid_cents),
     methodWords: r.method ? pay.methodWords(r) : null,
-  });
+  }, pay.settlement(r));
 }
 
 /* -------------------------------------------------------------------------
@@ -686,6 +686,12 @@ async function markPaid(r, { session, intent, req = null }) {
   if (r.status === 'paid' || r.status === 'refunded') return r;
 
   const charge = (intent && intent.latest_charge) || null;
+  // What the processor really took out of this charge, rather than what its
+  // published rate says it should have. They are meant to be the same number;
+  // when they are not, the agency is quietly netting less than the fee, and
+  // this is the only place that difference is visible.
+  const bt = charge && charge.balance_transaction;
+  const processorFee = bt && typeof bt === 'object' && Number.isFinite(bt.fee) ? bt.fee : null;
   const card = charge && charge.payment_method_details && charge.payment_method_details.card;
   const bank = charge && charge.payment_method_details && charge.payment_method_details.us_bank_account;
   const amount = (session && session.amount_total) || (intent && intent.amount_received) || pay.totalCents(r);
@@ -693,6 +699,7 @@ async function markPaid(r, { session, intent, req = null }) {
   const { rows } = await db.query(
     `UPDATE payment_requests
         SET status = 'paid', paid_at = NOW(), paid_cents = $2,
+            processor_fee_cents = COALESCE($8, processor_fee_cents),
             provider = 'stripe',
             provider_session = COALESCE($3, provider_session),
             provider_intent  = COALESCE($4, provider_intent),
@@ -707,7 +714,8 @@ async function markPaid(r, { session, intent, req = null }) {
      (intent && intent.id) || (session && (typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id)) || null,
      card ? card.brand : (bank ? 'bank' : null),
      card ? card.last4 : (bank ? bank.last4 : null),
-     pay.receiptNumber(Object.assign({}, r, { paid_at: new Date() }))]);
+     pay.receiptNumber(Object.assign({}, r, { paid_at: new Date() })),
+     processorFee]);
 
   // Another path got there first; nothing to do and nothing to send twice.
   if (!rows[0]) return r;
@@ -725,6 +733,16 @@ async function markPaid(r, { session, intent, req = null }) {
       atDesk ? { takenAtDesk: true } : {}),
   });
   console.log(`payments: ${pay.money(amount)} received on ${r.public_id} from ${r.client_name}`);
+  // Say it once, loudly, where it will be read. A surcharge that no longer
+  // covers the processor means every payment after this one is short too, so
+  // it is worth more than a silent column.
+  const settled = pay.settlement(rows[0]);
+  if (settled.shortCents > 0) {
+    console.warn(`payments: ${r.public_id} netted ${pay.money(settled.netCents)} on a ` +
+      `${pay.money(r.fee_cents)} fee — the processor took ${pay.money(settled.processorFeeCents)} ` +
+      `where ${pay.money(r.surcharge_cents)} was collected. The surcharge no longer covers ` +
+      `what accepting a payment costs.`);
+  }
   await sendReceipts(rows[0], req).catch((e) => console.error('receipt send failed:', e.message));
   return rows[0];
 }

@@ -209,12 +209,16 @@ async function createCheckout({
     { idempotencyKey: reference ? `co_${reference}_${method}_${feeCents + surchargeCents}` : undefined });
 }
 
-/* The charge is expanded two levels down on purpose: the card brand and last
+/* The charge is expanded three levels down on purpose. The card brand and last
    four live on the charge, not on the session or the intent, and without them
-   the receipt can only say "Card". */
+   the receipt can only say "Card". The balance transaction below that is what
+   the processor actually took out of this particular charge — the real
+   number, not the published rate — which is the only way to know whether
+   the surcharge collected covered it. */
 const getCheckout = (id) =>
   request('GET', `/v1/checkout/sessions/${encodeURIComponent(id)}` +
-    '?expand[]=payment_intent&expand[]=payment_intent.latest_charge');
+    '?expand[]=payment_intent&expand[]=payment_intent.latest_charge' +
+    '&expand[]=payment_intent.latest_charge.balance_transaction');
 
 const getIntent = (id) =>
   request('GET', `/v1/payment_intents/${encodeURIComponent(id)}?expand[]=latest_charge`);

@@ -50,6 +50,12 @@ CREATE TABLE IF NOT EXISTS payment_requests (
   void_reason     TEXT
 );
 
+-- What the processor actually took out of this charge, read back off the
+-- charge once it settled. The surcharge is worked out to equal this to the
+-- cent; keeping both is what lets the portal notice when it does not, rather
+-- than the agency noticing a short payout weeks later.
+ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS processor_fee_cents INTEGER;
+
 CREATE INDEX IF NOT EXISTS idx_payment_requests_status  ON payment_requests(status);
 CREATE INDEX IF NOT EXISTS idx_payment_requests_created ON payment_requests(created_at DESC);
 
