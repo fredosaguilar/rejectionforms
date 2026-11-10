@@ -60,6 +60,10 @@ function money(cents) {
  * the percentage: the processor charges 30 cents per card transaction whether
  * the fee is fifty dollars or five hundred.
  *
+ * The rate is of the amount charged, which is how the processor bills it, and
+ * so is what surchargeCents works out below. It is not a percentage of the
+ * agency fee: that would collect too little.
+ *
  * Both rates are held here, in one place, rather than computed at each call
  * site. They are also written into the fee agreement the client signs, so a
  * change here is a change there; the two must say the same thing.
@@ -69,14 +73,14 @@ const METHODS = {
     key: 'card',
     label: 'Credit or debit card',
     rate: 0.029, flat: 30, max: null,
-    note: '2.9% of the agency fee plus $0.30',
+    note: '2.9% of the amount charged plus $0.30',
     settles: 'immediately',
   },
   bank: {
     key: 'bank',
     label: 'Bank transfer (ACH)',
     rate: 0.008, flat: 0, max: 500,
-    note: '0.8% of the agency fee, $5.00 maximum',
+    note: '0.8% of the amount charged, $5.00 maximum',
     settles: 'in 3–5 business days',
   },
   // A fee settled outside this portal — a card run on a counter terminal, a
@@ -92,11 +96,47 @@ const METHODS = {
   },
 };
 
+/* What the processor takes out of a charge of this size. Its percentage is of
+   the whole charge, and it rounds its own cut to the cent. */
+function processorCostCents(totalCents, m) {
+  let c = Math.round(Number(totalCents || 0) * m.rate) + (m.flat || 0);
+  if (m.max) c = Math.min(c, m.max);
+  return c;
+}
+
+/* What to add to a fee so the fee itself survives the processor.
+ *
+ * The trap here is that the processor's percentage is charged on the whole
+ * amount it collects, the surcharge included — not on the agency fee. A
+ * surcharge worked out as a percentage of the fee alone therefore never covers
+ * the processor's cut and the agency always lands a few cents short: on a $35
+ * fee, 2.9% of $35 plus $0.30 is $1.32, the client pays $36.32, and the
+ * processor takes 2.9% of $36.32 plus $0.30, which is $1.35. Three cents gone,
+ * every time, and more as the fee grows.
+ *
+ * So the surcharge is found rather than multiplied out: the smallest amount
+ * which, added to the fee, still leaves the whole fee after the processor has
+ * taken its cut of the larger total. Starting a cent below the closed-form
+ * answer and walking up makes it the smallest such amount, which means it
+ * comes out equal to the processor's charge to the cent — never under, so
+ * the agency nets the fee, and never over, so the surcharge stays within what
+ * accepting the payment actually costs, which is both what the fee agreement
+ * says and what the card networks require.
+ */
 function surchargeCents(feeCents, method) {
   const m = METHODS[method];
   if (!m || (!m.rate && !m.flat)) return 0;
-  let s = Math.round(Number(feeCents || 0) * m.rate) + (m.flat || 0);
-  if (m.max) s = Math.min(s, m.max);
+  const fee = Number(feeCents || 0);
+  if (fee <= 0) return 0;
+
+  let s = Math.floor((fee * m.rate + (m.flat || 0)) / (1 - m.rate)) - 1;
+  if (s < 0) s = 0;
+  if (m.max && s > m.max) s = m.max;
+  for (let guard = 0; guard < 1000; guard++) {
+    if (m.max && s >= m.max) { s = m.max; break; }
+    if (fee + s - processorCostCents(fee + s, m) >= fee) break;
+    s++;
+  }
   return s;
 }
 

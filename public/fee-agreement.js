@@ -114,7 +114,7 @@ var html =
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
     fld('Full agency broker fee for this policy transaction / Tarifa total', txt('fee-total','$0.00')) +
-    fld('Transaction processing fee / Cargo de procesamiento', '<div class="fee-fixed" id="fee-processing-box">Enter the agency fee above to calculate</div><div class="fee-note" style="margin:6px 0 0">Charged at cost, so it depends on how the client pays: 2.9% of the agency fee plus $0.30 by card, or 0.8% capped at $5.00 by bank transfer. Calculated automatically. / Se cobra al costo según la forma de pago: 2.9% de la tarifa más $0.30 con tarjeta, o 0.8% con máximo de $5.00 por transferencia bancaria. Se calcula automáticamente.</div>') +
+    fld('Transaction processing fee / Cargo de procesamiento', '<div class="fee-fixed" id="fee-processing-box">Enter the agency fee above to calculate</div><div class="fee-note" style="margin:6px 0 0">Charged at cost, so it depends on how the client pays: 2.9% of the amount charged plus $0.30 by card, or 0.8% of the amount charged capped at $5.00 by bank transfer. Calculated automatically, so the agency fee above arrives whole. / Se cobra al costo según la forma de pago: 2.9% del total cobrado más $0.30 con tarjeta, o 0.8% del total cobrado con máximo de $5.00 por transferencia bancaria. Se calcula automáticamente para que la tarifa de la agencia llegue completa.</div>') +
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
     fld('Full commission paid by insurer / Comisión de la aseguradora', txt('fee-commission','$0.00, or 10% of premium')) +
@@ -233,11 +233,31 @@ function brokerFeeValue(){
   var n = parseFloat(raw);
   return isFinite(n) && n > 0 ? n : 0;
 }
+/* The processor's percentage is of the whole amount it collects, the
+   processing fee included, so the fee cannot be a percentage of the agency fee
+   alone: that collects less than the payment costs and the agency absorbs the
+   difference. It is the smallest amount that still leaves the whole agency fee
+   behind, which works out equal to the processor's charge to the cent. Same
+   arithmetic as the payment portal (services/payments.js, surchargeCents);
+   change one, change the other. */
+function processorCost(total, m){
+  var c = Math.round(total * m.rate * 100) / 100 + m.flat;
+  return m.max ? Math.min(c, m.max) : c;
+}
 function processingFee(method){
   var f = brokerFeeValue(), m = PROC[method];
   if(!f || !m) return 0;
-  var s = f * m.rate + m.flat;
-  return m.max ? Math.min(s, m.max) : s;
+  var cents = Math.floor((f * m.rate + m.flat) * 100 / (1 - m.rate)) - 1;
+  if(cents < 0) cents = 0;
+  var maxc = m.max ? Math.round(m.max * 100) : 0;
+  if(maxc && cents > maxc) cents = maxc;
+  for(var g = 0; g < 1000; g++){
+    if(maxc && cents >= maxc){ cents = maxc; break; }
+    var total = f + cents / 100;
+    if(total - processorCost(total, m) >= f - 0.0000001) break;
+    cents++;
+  }
+  return cents / 100;
 }
 /* Both rates on one line, for the signed disclosure and the saved record. */
 function processingFeeText(){
@@ -466,7 +486,7 @@ window.buildFeeAgreementPDF = function(){
   ],[CW-320,150,170]);
   paraB('Annual-fee disclosure:', 'Commercial agency fees are annual and are charged in full at placement and again at each annual renewal. No agency fee is billed monthly and no installment balance accrues. The surety bond fee is $50.00 at issuance and $50.00 at each annual renewal.');
   font('bold',9.5,navy); doc.text('Processing fees', M, y); y+=12;
-  para('A transaction processing fee may apply to a policy transaction. It is charged at the agency\'s actual cost of accepting the payment, and therefore depends on how the client chooses to pay: 2.9% of the agency fee plus $0.30 when paid by credit or debit card, and 0.8% of the agency fee, to a maximum of $5.00, when paid by bank transfer. The agency accepts payment by card or bank transfer. It is calculated from the agency fee charged, not from the premium, it is never more than the agency is charged to accept that payment, and the amount is stated in the transaction disclosure before the policy is purchased. Carrier, surplus-lines, stamping, tax, premium-finance, or vendor charges must be separately identified and are not agency fees.');
+  para('A transaction processing fee may apply to a policy transaction. It is charged at the agency\'s actual cost of accepting the payment, and therefore depends on how the client chooses to pay: 2.9% of the amount charged plus $0.30 when paid by credit or debit card, and 0.8% of the amount charged, to a maximum of $5.00, when paid by bank transfer. The agency accepts payment by card or bank transfer. The processor applies its rate to the whole amount it collects, this fee included, so the fee is calculated on that whole amount rather than on the agency fee alone; it is calculated from the agency fee charged and what accepting it costs, not from the premium, it is equal to and never more than the agency is charged to accept that payment, and the amount is stated in the transaction disclosure before the policy is purchased. Carrier, surplus-lines, stamping, tax, premium-finance, or vendor charges must be separately identified and are not agency fees.');
 
   heading('5','General terms');
   paraB('No fee without disclosure.', 'The client receives the amount or calculation basis in writing before services are rendered. For every policy carrying an agency fee, the client receives and signs the policy-specific compensation disclosure before purchase.');

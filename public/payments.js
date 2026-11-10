@@ -206,10 +206,27 @@ function feeCents(){
   var n = parseFloat(raw);
   return isFinite(n) && n > 0 ? Math.round(n * 100) : 0;
 }
+/* The same arithmetic as the server (services/payments.js, surchargeCents):
+   the processor's percentage is of the whole charge, surcharge included, so the
+   surcharge is the smallest amount that still leaves the whole fee behind. A
+   percentage of the fee alone would quote the client less than the card
+   actually costs, and the agency would eat the difference. */
+function processorCost(cents, m){
+  var c = Math.round(cents * m.rate) + m.flat;
+  return m.max ? Math.min(c, m.max) : c;
+}
 function surcharge(cents, method){
   var m = RATES[method];
-  var s = Math.round(cents * m.rate) + m.flat;
-  return m.max ? Math.min(s, m.max) : s;
+  if(!cents || cents <= 0) return 0;
+  var s = Math.floor((cents * m.rate + m.flat) / (1 - m.rate)) - 1;
+  if(s < 0) s = 0;
+  if(m.max && s > m.max) s = m.max;
+  for(var g = 0; g < 1000; g++){
+    if(m.max && s >= m.max){ s = m.max; break; }
+    if(cents + s - processorCost(cents + s, m) >= cents) break;
+    s++;
+  }
+  return s;
 }
 function money(cents){
   return '$' + (Number(cents || 0) / 100).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
@@ -224,8 +241,10 @@ function renderQuote(){
       '<span style="color:var(--muted)">(+' + esc(money(surcharge(c,'card'))) + ' processing)</span><br>' +
     '<b>' + esc(money(c + surcharge(c,'bank'))) + '</b> by bank transfer ' +
       '<span style="color:var(--muted)">(+' + esc(money(surcharge(c,'bank'))) + ', clears in 3–5 business days)</span>' +
-    '<div style="font-size:11px;color:var(--muted);margin-top:4px">Processing is charged at cost: ' +
-      '2.9% + $0.30 by card, 0.8% capped at $5.00 by bank transfer — the rates on the fee agreement.</div>';
+    '<div style="font-size:11px;color:var(--muted);margin-top:4px">Processing is charged at cost — ' +
+      '2.9% + $0.30 by card, 0.8% capped at $5.00 by bank transfer, the rates on the fee agreement. ' +
+      'Worked out on the amount charged, which is how the processor bills it, so the full ' +
+      '<b>' + esc(money(c)) + '</b> reaches the agency.</div>';
 }
 $('pay-fee').addEventListener('input', renderQuote);
 
