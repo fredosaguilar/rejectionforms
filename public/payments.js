@@ -693,6 +693,15 @@ async function loadList(){
       var sub = r.status === 'paid' || r.status === 'refunded'
         ? esc(r.methodWords || '') + (r.receipt_no ? ' · ' + esc(r.receipt_no) : '')
         : 'fee only — processing added at checkout';
+      // The surcharge is meant to equal what the processor takes, so in the
+      // ordinary case there is nothing to say here. It is said only when the
+      // agency kept less than the fee it charged — which is the one case
+      // nobody would otherwise see until the payout.
+      var shortfall = Number(r.shortCents) > 0
+        ? '<div style="color:#a35a19;font-size:11px;margin-top:3px" title="The processor took ' +
+          esc(r.processorFee || '') + ' where ' + esc(r.surcharge || '') + ' was collected">Netted ' +
+          esc(r.net || '') + ' — ' + esc(r.short || '') + ' under the fee</div>'
+        : '';
       var fail = r.failure_reason
         ? '<div style="color:#a32219;font-size:11px;margin-top:3px">Last attempt failed: ' + esc(r.failure_reason) + '</div>'
         : '';
@@ -728,7 +737,7 @@ async function loadList(){
           '<div style="color:var(--muted);font-size:11.5px">' + esc(r.description) + '</div>' +
           '<div style="color:var(--muted);font-size:11px">' +
             esc(r.policy_number || 'No policy number') + ' · ' + esc(r.agent_name || '—') + '</div>' +
-          fail + refunded + '</td>' +
+          fail + refunded + shortfall + '</td>' +
         '<td><div class="pay-amount">' + esc(amount) + '</div>' +
           '<div style="color:var(--muted);font-size:11px">' + sub + '</div></td>' +
         '<td><span class="pay-pill pay-' + esc(r.status) + '">' + esc(statusWord(r.status)) + '</span>' +

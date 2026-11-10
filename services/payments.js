@@ -158,6 +158,41 @@ function methodQuotes(feeCents) {
 
 const totalCents = (r) => Number(r.fee_cents || 0) + Number(r.surcharge_cents || 0);
 
+/* What the agency actually kept, once the processor had taken its cut.
+ *
+ * The surcharge is worked out to equal the processor's charge to the cent, so
+ * in the ordinary case the agency nets the fee exactly and there is nothing to
+ * say. It can still come out short, for reasons the surcharge cannot know in
+ * advance: a card that costs more than the ordinary rate, a per-transaction
+ * add-on switched on at the processor, a rate change. None of those announce
+ * themselves — they appear as a payout a few cents light, weeks later, if
+ * anyone is looking. So the real figure is read back off the charge and kept
+ * beside the one that was collected, and the difference is shown rather than
+ * left to be noticed.
+ *
+ * Null where the processor has not told us yet — a bank transfer is still
+ * clearing, or the fee was recorded by hand and never went through a
+ * processor at all. Null is not zero, and is not a shortfall.
+ */
+function settlement(r) {
+  const took = r && r.processor_fee_cents;
+  if (took == null || !Number.isFinite(Number(took))) {
+    return { processorFeeCents: null, netCents: null, shortCents: null, netsTheFee: null };
+  }
+  const paid = Number(r.paid_cents != null ? r.paid_cents : totalCents(r));
+  const net = paid - Number(took);
+  const short = Number(r.fee_cents || 0) - net;
+  return {
+    processorFeeCents: Number(took),
+    processorFee: money(took),
+    netCents: net,
+    net: money(net),
+    shortCents: short > 0 ? short : 0,
+    short: short > 0 ? money(short) : null,
+    netsTheFee: short <= 0,
+  };
+}
+
 /* -------------------------------------------------------------------------
    Receipt
    ------------------------------------------------------------------------- */
@@ -329,6 +364,6 @@ function wrap(s, font, size, width) {
 module.exports = {
   AGENCY_NAME, METHODS, EVENT_WORDS,
   newPayToken, hashToken, publicId,
-  centsFromInput, money, surchargeCents, methodQuotes, totalCents,
+  centsFromInput, money, surchargeCents, methodQuotes, totalCents, settlement,
   receiptNumber, methodWords, fmt, buildReceiptPdf, wrap,
 };
