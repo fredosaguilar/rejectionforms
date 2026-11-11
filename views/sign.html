@@ -148,7 +148,7 @@ canvas.sig{width:100%;height:130px;border:1px dashed var(--border2);border-radiu
     </div>
     <h2 id="done-h">Thank you for signing</h2>
     <p id="done-p">A copy will be emailed to you once everyone has signed.</p>
-    <p style="margin-top:18px"><a id="done-dl" class="btn" href="#" hidden>Download signed document</a></p>
+    <p style="margin-top:18px"><a id="done-dl" class="btn" href="#" download target="_blank" rel="noopener" hidden>Download signed document</a></p>
 
     <!-- The review invitation. Held back a beat so the confirmation reads
          first: someone needs to know the signing worked before they are asked
@@ -983,7 +983,15 @@ function finishSigning(button){
     show('done');
     if (res.d.completed) {
       $('done-p').textContent = L.doneAll;
-      var dl = $('done-dl'); dl.href = api + '/document?signed=1'; dl.hidden = false;
+      // Signing retires the token this page arrived with, so the link cannot
+      // be built from it: the server hands back a fresh one for this signer.
+      // Without it there is nothing to download from here and the old link
+      // would 404, taking the confirmation page down with it.
+      var dl = $('done-dl');
+      if (res.d.retrievalToken) {
+        dl.href = '/api/sign/' + encodeURIComponent(res.d.retrievalToken) + '/document?signed=1';
+        dl.hidden = false;
+      }
     }
     // Only after a signature of their own — not when the link was already
     // used, and not on any failure.
