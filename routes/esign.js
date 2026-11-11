@@ -880,10 +880,17 @@ pub.get('/:token/document', async (req, res) => {
     if (!r) return res.status(404).send('Not found');
     if (r.status !== 'signed' && !(await currentTurn(r))) return res.status(403).send('Waiting for the previous signer');
     const { rows } = await db.query(
-      `SELECT file_bytes, signed_bytes, file_name FROM envelopes WHERE id = $1`, [r.env_id]);
+      `SELECT file_bytes, signed_bytes, file_name, title FROM envelopes WHERE id = $1`, [r.env_id]);
     const wantSigned = req.query.signed === '1' && rows[0].signed_bytes;
+    // The signed document is a different document from the one that was
+    // uploaded, and saving it under the upload's name invites someone to
+    // overwrite their unsigned copy with it, or to lose track of which is
+    // which. It is named here the way the emailed copy is named.
+    const name = wantSigned
+      ? signedFileName(rows[0].title)
+      : String(rows[0].file_name || 'document.pdf').replace(/[^\w.\-]/g, '_');
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${rows[0].file_name.replace(/[^\w.\-]/g, '_')}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${name}"`);
     res.send(wantSigned ? rows[0].signed_bytes : rows[0].file_bytes);
   } catch (e) {
     res.status(500).send(e.message);
@@ -994,6 +1001,12 @@ pub.post('/:token/sign', async (req, res) => {
         WHERE envelope_id=$1 AND status <> 'signed'`, [r.env_id]);
 
     let completed = false;
+    /* The signer in front of us is about to have their signing token retired,
+       below, along with everyone else's. Their browser is still holding that
+       token and is about to offer them a download built from it, so the new
+       one has to go back with this response or the link they are shown is dead
+       the moment it appears. Only ever their own. */
+    let mine = null;
     if (outstanding[0].n === 0) {
       completed = true;
       const [{ rows: envRows }, { rows: recips }, { rows: events }, { rows: allFields }] = await Promise.all([
@@ -1024,6 +1037,7 @@ pub.post('/:token/sign', async (req, res) => {
           const retrieval = newSigningToken();
           await db.query(`UPDATE envelope_recipients SET token_hash = $2 WHERE id = $1`,
             [p.id, hashToken(retrieval)]);
+          if (p.id === r.id) mine = retrieval;
           await mail.send({
             to: p.email,
             subject: mail.copy(envRows[0].language).subjDone(envRows[0].title),
@@ -1094,7 +1108,9 @@ pub.post('/:token/sign', async (req, res) => {
         }
       }
     }
-    res.json({ success: true, completed });
+    // retrievalToken is this signer's own, re-issued because signing retired
+    // the one they arrived with. Null unless they are the one who completed it.
+    res.json(Object.assign({ success: true, completed }, mine ? { retrievalToken: mine } : {}));
   } catch (e) {
     console.error('sign:', e);
     res.status(500).json({ error: e.message });
