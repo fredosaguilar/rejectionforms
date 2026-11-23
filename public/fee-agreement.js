@@ -76,24 +76,28 @@ var html =
 
   // Schedule reference (read-only)
   '<div class="sec"><div class="sec-title">Fee schedule (printed on PDF) / Tabla de tarifas</div>' +
-    '<div class="fee-note">Quoting is free. A policy fee applies only if the client purchases or renews through us. The schedule below is fixed and prints on the agreement; the Transaction Disclosure controls if it differs. / Cotizar es gratis. La tarifa aplica solo si el cliente compra o renueva con nosotros.</div>' +
-    '<table class="fee-table"><thead><tr><th>Personal policy type</th><th>New</th><th>Renewal</th></tr></thead><tbody>' +
-      '<tr><td>Personal auto – standard</td><td>$20.00</td><td>$20.00</td></tr>' +
-      '<tr><td>Personal auto – nonstandard</td><td>$50.00</td><td>$50.00</td></tr>' +
-      '<tr><td>Homeowners or condominium</td><td>$30.00</td><td>$30.00</td></tr>' +
-      '<tr><td>Landlord or rental dwelling</td><td>$15.00</td><td>$15.00</td></tr>' +
-      '<tr><td>Renters</td><td>$50.00</td><td>$50.00</td></tr>' +
-      '<tr><td>Recreational vehicle, motorcycle, boat, or similar</td><td>$20.00</td><td>$20.00</td></tr>' +
-      '<tr><td>Personal umbrella</td><td>$20.00</td><td>$20.00</td></tr>' +
+    '<div class="fee-note">Quoting is free. A policy fee applies only if the client places the policy through us, and is charged once — there is no fee at renewal. Rewriting or cancelling any policy carries the service fee below. The schedule is fixed and prints on the agreement; the Transaction Disclosure controls if it differs. / Cotizar es gratis. La tarifa aplica solo si el cliente coloca la póliza con nosotros y se cobra una sola vez; no hay cargo por renovación. Reescribir o cancelar cualquier póliza conlleva el cargo de servicio indicado abajo.</div>' +
+    '<table class="fee-table"><thead><tr><th>Personal policy type</th><th>Agency fee</th><th>When charged</th></tr></thead><tbody>' +
+      '<tr><td>Personal auto – standard</td><td>$20.00</td><td>At placement only</td></tr>' +
+      '<tr><td>Personal auto – nonstandard</td><td>$50.00</td><td>At placement only</td></tr>' +
+      '<tr><td>Homeowners or condominium</td><td>$30.00</td><td>At placement only</td></tr>' +
+      '<tr><td>Landlord or rental dwelling</td><td>$15.00</td><td>At placement only</td></tr>' +
+      '<tr><td>Renters</td><td>$50.00</td><td>At placement only</td></tr>' +
+      '<tr><td>Recreational vehicle, motorcycle, boat, or similar</td><td>$20.00</td><td>At placement only</td></tr>' +
+      '<tr><td>Personal umbrella</td><td>$20.00</td><td>At placement only</td></tr>' +
     '</tbody></table>' +
     '<table class="fee-table"><thead><tr><th>Commercial policy or service</th><th>Agency fee</th><th>When charged</th></tr></thead><tbody>' +
-      '<tr><td>Commercial auto – standard or admitted</td><td>$100.00 per year</td><td>At placement and each annual renewal</td></tr>' +
-      '<tr><td>Commercial auto – surplus lines or nonstandard</td><td>$150.00 per year</td><td>At placement and each annual renewal</td></tr>' +
-      '<tr><td>Businessowners policy or commercial general liability</td><td>$50.00 per year</td><td>At placement and each annual renewal</td></tr>' +
-      '<tr><td>Workers\' compensation</td><td>$100.00 per year</td><td>At placement and each annual renewal</td></tr>' +
-      '<tr><td>Surety bond</td><td>$50.00 per year</td><td>At issuance and each annual renewal</td></tr>' +
+      '<tr><td>Commercial auto – standard or admitted</td><td>$100.00</td><td>At placement only</td></tr>' +
+      '<tr><td>Commercial auto – surplus lines or nonstandard</td><td>$150.00</td><td>At placement only</td></tr>' +
+      '<tr><td>Businessowners policy or commercial general liability</td><td>$50.00</td><td>At placement only</td></tr>' +
+      '<tr><td>Workers\' compensation</td><td>$100.00</td><td>At placement only</td></tr>' +
+      '<tr><td>Surety bond</td><td>$50.00</td><td>At issuance only</td></tr>' +
       '<tr><td>Add seasonal vehicle(s) or unit(s)</td><td>$150.00 per request</td><td>Before requested change</td></tr>' +
       '<tr><td>Remove or suspend seasonal vehicle(s) or unit(s)</td><td>$100.00 per request</td><td>Before requested change</td></tr>' +
+    '</tbody></table>' +
+    '<table class="fee-table"><thead><tr><th>Service — any policy, personal or commercial</th><th>Agency fee</th><th>When charged</th></tr></thead><tbody>' +
+      '<tr><td>Rewrite a policy</td><td>$35.00 per policy</td><td>When the rewritten policy is issued</td></tr>' +
+      '<tr><td>Cancel a policy at the client\'s request</td><td>$35.00 per policy</td><td>When the cancellation is submitted</td></tr>' +
     '</tbody></table>' +
   '</div>' +
 
@@ -109,8 +113,8 @@ var html =
     fld('Annual or term premium / Prima', txt('fee-premium','$0.00')) +
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
-      '<div class="fld"><div class="lbl">Transaction / Transacción</div><div class="rr">' + radio('fee-tx','New policy','New policy') + radio('fee-tx','Renewal','Renewal') + radio('fee-tx','Other','Other') + '</div>' + txt('fee-tx-other','If other, describe',' style="margin-top:6px"') + '</div>' +
-      '<div class="fld"><div class="lbl">Payment basis / Base de pago</div><div class="rr">' + radio('fee-basis','One-time fee','One-time fee') + radio('fee-basis','Annual fee','Annual fee') + radio('fee-basis','Other','Other') + '</div>' + txt('fee-basis-other','If other, amount',' style="margin-top:6px"') + '</div>' +
+      '<div class="fld"><div class="lbl">Transaction / Transacción</div><div class="rr">' + radio('fee-tx','New policy','New policy') + radio('fee-tx','Renewal','Renewal') + radio('fee-tx','Rewrite','Rewrite') + radio('fee-tx','Cancellation','Cancellation') + radio('fee-tx','Other','Other') + '</div>' + txt('fee-tx-other','If other, describe',' style="margin-top:6px"') + '</div>' +
+      '<div class="fld"><div class="lbl">Payment basis / Base de pago</div><div class="rr">' + radio('fee-basis','One-time fee','One-time fee') + radio('fee-basis','Other','Other') + '</div>' + txt('fee-basis-other','If other, amount',' style="margin-top:6px"') + '</div>' +
     '</div>' +
     '<div class="g2" style="margin-top:10px">' +
     fld('Full agency broker fee for this policy transaction / Tarifa total', txt('fee-total','$0.00')) +
@@ -125,7 +129,7 @@ var html =
     '</div></div>' +
     '<div class="g2" style="margin-top:10px">' +
       '<div class="fld"><div class="lbl">Surplus-lines placement / Colocación surplus lines</div><div class="rr">' + radio('fee-sl','No','No', true) + radio('fee-sl','Yes','Yes — notices, taxes and stamping fees shown separately') + '</div></div>' +
-      '<div class="fld"><div class="lbl">Possible incentive compensation / Compensación de incentivo</div><div class="rr">' + radio('fee-incent','applies','Section 6 notice applies', true) + radio('fee-incent','none','No incentive compensation may be received') + '</div></div>' +
+      '<div class="fld"><div class="lbl">Possible incentive compensation / Compensación de incentivo</div><div class="rr">' + radio('fee-incent','applies','Section 7 notice applies', true) + radio('fee-incent','none','No incentive compensation may be received') + '</div></div>' +
     '</div>' +
   '</div>' +
 
@@ -389,12 +393,22 @@ window.buildFeeAgreementPDF = function(){
   var y = M;
 
   function font(style,size,color){ doc.setFont('helvetica',style||'normal'); doc.setFontSize(size||9); var c=color||ink; doc.setTextColor(c[0],c[1],c[2]); }
+  /* The page does not grow. The footer band sits at H-30, so anything printed
+     below about H-52 runs into it. Every block asks for its own height first
+     and takes a new page if it will not fit, which means a paragraph added to
+     a section pushes itself over the page break instead of printing on top of
+     the footer and being lost. */
+  function need(h){ if(y + h > H - 52){ doc.addPage(); y = M; } }
+  /* An explicit page break, for the places the document genuinely starts a new
+     page. It does nothing on a page that is already empty, so a section that
+     has just overflowed does not leave a blank sheet behind it. */
+  function newPage(){ if(y > M){ doc.addPage(); y = M; } }
   function title(t){ font('bold',13,navy); doc.text(t, W/2, y, {align:'center'}); y+=18; }
   function subtitle(t){ font('italic',8.5,muted); doc.text(t, W/2, y, {align:'center'}); y+=14; }
-  function heading(n,t){ y+=6; font('bold',10.5,navy); doc.text(n+'  '+t, M, y); doc.setDrawColor(gold[0],gold[1],gold[2]); doc.setLineWidth(1); doc.line(M,y+3,M+CW,y+3); y+=14; }
-  function para(t, size){ font('normal',size||8.5); var ls=doc.splitTextToSize(t, CW); doc.text(ls, M, y); y+=ls.length*(size?size*1.28:11)+4; }
-  function paraB(lead, t){ font('bold',8.5); doc.text(lead, M, y); var lw=doc.getTextWidth(lead+' '); font('normal',8.5); var first=doc.splitTextToSize(t, CW-lw); doc.text(first[0], M+lw, y); var rest=doc.splitTextToSize(first.slice(1).join(' '), CW); if(rest.length&&rest[0]){ doc.text(rest, M, y+11); y+=rest.length*11; } y+=15; }
-  function field(label, value, labelW){ labelW=labelW||150; font('normal',8.5,muted); doc.text(label, M, y); doc.setDrawColor(line[0],line[1],line[2]); doc.setLineWidth(0.5); doc.line(M+labelW, y+2, M+CW, y+2); if(value){ font('normal',9); doc.text(value, M+labelW+3, y-0.5); } y+=15; }
+  function heading(n,t){ need(52); y+=6; font('bold',10.5,navy); doc.text(n+'  '+t, M, y); doc.setDrawColor(gold[0],gold[1],gold[2]); doc.setLineWidth(1); doc.line(M,y+3,M+CW,y+3); y+=14; }
+  function para(t, size){ font('normal',size||8.5); var ls=doc.splitTextToSize(t, CW); var lh=(size?size*1.28:11); need(ls.length*lh+4); doc.text(ls, M, y); y+=ls.length*lh+4; }
+  function paraB(lead, t){ font('bold',8.5); var lw=doc.getTextWidth(lead+' '); font('normal',8.5); var first=doc.splitTextToSize(t, CW-lw); var rest=doc.splitTextToSize(first.slice(1).join(' '), CW); need((rest.length&&rest[0]?rest.length*11:0)+15); font('bold',8.5); doc.text(lead, M, y); font('normal',8.5); doc.text(first[0], M+lw, y); if(rest.length&&rest[0]){ doc.text(rest, M, y+11); y+=rest.length*11; } y+=15; }
+  function field(label, value, labelW){ labelW=labelW||150; need(15); font('normal',8.5,muted); doc.text(label, M, y); doc.setDrawColor(line[0],line[1],line[2]); doc.setLineWidth(0.5); doc.line(M+labelW, y+2, M+CW, y+2); if(value){ font('normal',9); doc.text(value, M+labelW+3, y-0.5); } y+=15; }
   function fieldRow(items){ // [[label,value,widthFraction],...] on one line
     var x=M, total=CW; items.forEach(function(it){ var w=total*it[2]; font('normal',8.5,muted); doc.text(it[0], x, y); var lw=doc.getTextWidth(it[0])+3; if(!it[3]){ doc.setDrawColor(line[0],line[1],line[2]); doc.setLineWidth(0.5); doc.line(x+lw, y+2, x+w-8, y+2); } if(it[1]){ font('normal',9); doc.text(it[1], x+lw+2, y-0.5); } x+=w; }); y+=15; }
   function box(x, checked){ doc.setDrawColor(ink[0],ink[1],ink[2]); doc.setLineWidth(0.6); doc.rect(x, y-7, 8, 8); if(checked){ doc.setFillColor(navy[0],navy[1],navy[2]); doc.rect(x+1.5, y-5.5, 5, 5, 'F'); } }
@@ -406,11 +420,19 @@ window.buildFeeAgreementPDF = function(){
   }
   function table(head, rows, widths){
     var rh=15;
-    doc.setFillColor(navy[0],navy[1],navy[2]); doc.rect(M,y,CW,rh,'F'); font('bold',8,[255,255,255]);
-    var x=M; head.forEach(function(h,i){ doc.text(h, x+5, y+10); x+=widths[i]; }); y+=rh;
+    function header(){
+      doc.setFillColor(navy[0],navy[1],navy[2]); doc.rect(M,y,CW,rh,'F'); font('bold',8,[255,255,255]);
+      var x=M; head.forEach(function(h,i){ doc.text(h, x+5, y+10); x+=widths[i]; }); y+=rh;
+    }
+    need(rh+30);          // never strand a header at the foot of a page
+    header();
     rows.forEach(function(r,ri){
       font('normal',8.5); var lines=r.map(function(c,i){ return doc.splitTextToSize(String(c), widths[i]-10); });
       var h=Math.max.apply(null, lines.map(function(l){return l.length;}))*10+6;
+      // A table that runs past the page carries its own header over, so the
+      // continued rows are still readable as fees rather than as loose text.
+      if(y+h > H-52){ doc.addPage(); y=M; header(); }
+      font('normal',8.5);
       if(ri%2){ doc.setFillColor(248,247,244); doc.rect(M,y,CW,h,'F'); }
       var x=M; lines.forEach(function(l,i){ doc.text(l, x+5, y+10); x+=widths[i]; });
       doc.setDrawColor(224,220,212); doc.setLineWidth(0.4); doc.line(M,y+h,M+CW,y+h); y+=h;
@@ -418,6 +440,7 @@ window.buildFeeAgreementPDF = function(){
     y+=14;
   }
   function sigBlock(clientLabel, producerLabel, withLicense){
+    need(withLicense ? 150 : 110);   // a signature line must not split across pages
     var colW=(CW-30)/2, lx=M, rx=M+colW+30;
     var sc=sigData('s-fee-c'), sa=sigData('s-fee-a');
     var top=y;
@@ -449,20 +472,20 @@ window.buildFeeAgreementPDF = function(){
   field('Client', gv('fee-client'));
 
   heading('1','How fees work');
-  para('Quoting is free. A policy fee applies only if you choose to purchase or renew coverage through us. Agency fees are charged at placement and at each renewal; no agency fee is billed monthly. A separately listed service fee applies only when you request that service and approve the charge in advance.');
+  para('Quoting is free. A policy fee applies only if you choose to place coverage through us. The policy fee is charged once, when the policy is first placed. No agency fee is charged when a policy renews, and no agency fee is billed monthly. A separately listed service fee applies only when you request that service and approve the charge in advance.');
   para('We may receive both a fee from you and commission from an insurer. Before each policy is sold, we will disclose the exact fee, the full insurer commission, any offset or reimbursement, the insurer\'s full name, and possible incentive compensation. The completed transaction disclosure controls if it differs from this schedule.');
 
   heading('2','Personal policy fees');
-  table(['Policy type','New policy','Renewal'],[
-    ['Personal auto - standard','$20.00','$20.00'],
-    ['Personal auto - nonstandard','$50.00','$50.00'],
-    ['Homeowners or condominium','$30.00','$30.00'],
-    ['Landlord or rental dwelling','$15.00','$15.00'],
-    ['Renters','$50.00','$50.00'],
-    ['Recreational vehicle, motorcycle, boat, or similar','$20.00','$20.00'],
-    ['Personal umbrella','$20.00','$20.00']
-  ],[CW-200,100,100]);
-  para('Each fee is per policy transaction. For a six-month policy, the renewal fee applies at each six-month renewal.');
+  table(['Policy type','Agency fee','When charged'],[
+    ['Personal auto - standard','$20.00','At placement only'],
+    ['Personal auto - nonstandard','$50.00','At placement only'],
+    ['Homeowners or condominium','$30.00','At placement only'],
+    ['Landlord or rental dwelling','$15.00','At placement only'],
+    ['Renters','$50.00','At placement only'],
+    ['Recreational vehicle, motorcycle, boat, or similar','$20.00','At placement only'],
+    ['Personal umbrella','$20.00','At placement only']
+  ],[CW-240,110,130]);
+  para('Each fee is charged once, when the policy is first placed with the agency. No fee is charged when the policy renews, including the renewal of a six-month policy. Rewriting or cancelling a personal policy carries the service fee in Section 5, which applies to personal and commercial policies alike.');
 
   heading('3','Client acknowledgment');
   para('I received this fee schedule before services began. I understand that I am not required to purchase insurance through the agency and that no fee may be charged unless the applicable amount is disclosed and accepted as stated in this agreement.');
@@ -470,38 +493,56 @@ window.buildFeeAgreementPDF = function(){
   sigBlock('Client signature','Producer signature',false);
 
   /* ---------------- PAGE 2 ---------------- */
-  doc.addPage(); y=M;
+  newPage();
   title('COMMERCIAL POLICY AND SERVICE FEES');
   subtitle('Complete the transaction disclosure before binding or renewing coverage');
 
   heading('4','Commercial policy fees');
   table(['Policy or service','Agency fee','When charged'],[
-    ['Commercial auto - standard or admitted','$100.00 per year','At placement and each annual renewal'],
-    ['Commercial auto - surplus lines or nonstandard','$150.00 per year','At placement and each annual renewal'],
-    ['Businessowners policy or commercial general liability','$50.00 per year','At placement and each annual renewal'],
-    ['Workers\' compensation','$100.00 per year','At placement and each annual renewal'],
-    ['Surety bond','$50.00 per year','At issuance and each annual renewal'],
+    ['Commercial auto - standard or admitted','$100.00','At placement only'],
+    ['Commercial auto - surplus lines or nonstandard','$150.00','At placement only'],
+    ['Businessowners policy or commercial general liability','$50.00','At placement only'],
+    ['Workers\' compensation','$100.00','At placement only'],
+    ['Surety bond','$50.00','At issuance only'],
     ['Add seasonal vehicle(s) or unit(s)','$150.00 per request','Before requested change'],
     ['Remove or suspend seasonal vehicle(s) or unit(s)','$100.00 per request','Before requested change']
   ],[CW-320,150,170]);
-  paraB('Annual-fee disclosure:', 'Commercial agency fees are annual and are charged in full at placement and again at each annual renewal. No agency fee is billed monthly and no installment balance accrues. The surety bond fee is $50.00 at issuance and $50.00 at each annual renewal.');
+  paraB('One-time fee disclosure:', 'A commercial agency fee is charged once, when the policy is first placed or the bond first issued. No agency fee is charged when the policy or bond renews, no agency fee is billed monthly, and no installment balance accrues. The fees listed per request are charged only when that change is requested and approved in advance.');
   font('bold',9.5,navy); doc.text('Processing fees', M, y); y+=12;
   para('A transaction processing fee may apply to a policy transaction. It is charged at the agency\'s actual cost of accepting the payment, and therefore depends on how the client chooses to pay: 2.9% of the amount charged plus $0.30 when paid by credit or debit card, and 0.8% of the amount charged, to a maximum of $5.00, when paid by bank transfer. The agency accepts payment by card or bank transfer. The processor applies its rate to the whole amount it collects, this fee included, so the fee is calculated on that whole amount rather than on the agency fee alone; it is calculated from the agency fee charged and what accepting it costs, not from the premium, it is equal to and never more than the agency is charged to accept that payment, and the amount is stated in the transaction disclosure before the policy is purchased. Carrier, surplus-lines, stamping, tax, premium-finance, or vendor charges must be separately identified and are not agency fees.');
 
-  heading('5','General terms');
+  heading('5','Service fees for any policy');
+  para('These apply to any policy placed through the agency, personal or commercial. They are charged for work requested after the policy is in force, and are separate from the policy fee charged at placement.');
+  table(['Service','Agency fee','When charged'],[
+    ['Rewrite a policy','$35.00 per policy','When the rewritten policy is issued'],
+    ['Cancel a policy at the client\'s request','$35.00 per policy','When the cancellation is submitted to the insurer']
+  ],[CW-320,150,170]);
+  paraB('Rewrite.', 'A rewrite is the replacement of an existing policy with a new one covering substantially the same risk, whether with the same insurer or another, including a policy rewritten after a lapse. A rewrite carries the $35.00 service fee and not a new policy-placement fee from Section 2 or 4.');
+  paraB('Cancellation at your request.', 'The $35.00 fee is charged when you ask the agency to cancel a policy that is in force, and covers preparing and submitting the cancellation and handling the return premium. It is not charged if the insurer cancels or non-renews the policy, if you simply let a policy expire, or in any case where Section 6 refunds the policy-placement fee.');
+
+  /* ---------------- PAGE 3 ---------------- */
+  /* The terms get their own page rather than whatever was left of the last
+     one. Section 5 filled the commercial page, and three clauses stranded
+     after a page break read like an afterthought in a document a client is
+     being asked to sign. */
+  newPage();
+  title('GENERAL TERMS AND NOTICES');
+  subtitle('These terms apply to every fee in this agreement');
+
+  heading('6','General terms');
   paraB('No fee without disclosure.', 'The client receives the amount or calculation basis in writing before services are rendered. For every policy carrying an agency fee, the client receives and signs the policy-specific compensation disclosure before purchase.');
   paraB('Fees are not premium.', 'Agency fees are retained by the agency and do not change coverage. Insurer, governmental, association, premium-finance, card, or other third-party charges are shown separately and are paid or retained by the applicable third party.');
-  paraB('Refunds.', 'A policy-placement fee is refunded if no policy is bound or issued. If coverage is rescinded, voided, or flat-cancelled from inception, the policy-placement fee is refunded. Fees for a completed policy term and for completed separately requested services are not refunded.');
-  paraB('Cancellation.', 'Agency fees are not charged for any term beginning after the applicable policy, bond, or service ends. No future balance or finance charge is owed. This agreement does not cancel insurance; policy cancellation must follow the insurer\'s requirements.');
-  paraB('Renewals.', 'A renewal is a new policy transaction for disclosure purposes. The applicable fee and commission disclosure must be completed before the renewal is purchased.');
+  paraB('Refunds.', 'A policy-placement fee is refunded if no policy is bound or issued. If coverage is rescinded, voided, or flat-cancelled from inception, the policy-placement fee is refunded and no cancellation fee is charged. Fees for a completed policy term and for completed separately requested services are not refunded.');
+  paraB('Cancellation.', 'Cancelling a policy at your request carries the service fee in Section 5. Beyond that fee, agency fees are not charged for any term beginning after the applicable policy, bond, or service ends, and no future balance or finance charge is owed. This agreement does not cancel insurance; policy cancellation must follow the insurer\'s requirements.');
+  paraB('Renewals.', 'No agency fee is charged when a policy renews. A renewal remains a policy transaction for disclosure purposes, and the commission disclosure is completed before the renewal is purchased. A policy that is rewritten rather than renewed carries the rewrite fee in Section 5.');
   paraB('Uniform treatment.', 'The schedule is applied consistently to similarly situated clients. A client may decline and seek insurance elsewhere.');
   paraB('Records and electronic transactions.', 'Signed policy disclosures are retained for at least five years. Electronic signatures and documented telephone or electronic consent may be used when allowed by Washington law.');
 
-  heading('6','Incentive compensation notice');
+  heading('7','Incentive compensation notice');
   para('The agency may receive future incentive compensation from an insurer, including contingent commissions, awards, or bonuses. These may depend on sales volume, growth, profitability, or retention and are paid only if the performance criteria in the agency-insurer agreement are met. We will provide specific information about additional compensation upon request.');
 
-  /* ---------------- PAGE 3 ---------------- */
-  doc.addPage(); y=M;
+  /* ---------------- PAGE 4 ---------------- */
+  newPage();
   title('POLICY TRANSACTION DISCLOSURE');
   subtitle('Complete and sign before each new policy or renewal is purchased');
   para('This page records the actual compensation for one policy. The completed amounts below control over the general schedule.');
@@ -512,8 +553,8 @@ window.buildFeeAgreementPDF = function(){
   field('Policy number or New pending', gv('fee-policy'));
   field('Policy term', gv('fee-term'));
   field('Annual or term premium', money(gv('fee-premium')));
-  checks('Transaction:', ['New policy','Renewal','Other:'], rv('fee-tx')==='Other'?'Other:':rv('fee-tx'), gv('fee-tx-other'));
-  checks('Payment basis:', ['One-time fee','Annual fee','Other:'], rv('fee-basis')==='Other'?'Other:':rv('fee-basis'), money(gv('fee-basis-other')));
+  checks('Transaction:', ['New policy','Renewal','Rewrite','Cancellation','Other:'], rv('fee-tx')==='Other'?'Other:':rv('fee-tx'), gv('fee-tx-other'));
+  checks('Payment basis:', ['One-time fee','Other:'], rv('fee-basis')==='Other'?'Other:':rv('fee-basis'), money(gv('fee-basis-other')));
   field('Full agency broker fee for this policy transaction', money(gv('fee-total')), 255);
   field('Transaction processing fee, at cost by payment method', processingFeeText(), 250);
   field('Full commission paid by insurer', money(gv('fee-commission')), 215);
@@ -526,9 +567,9 @@ window.buildFeeAgreementPDF = function(){
   font('normal',8.5,muted); doc.text('Surplus-lines placement:', M, y); var sx=M+doc.getTextWidth('Surplus-lines placement:')+8;
   box(sx, sl==='No'); font('normal',8.5); doc.text('No', sx+11, y); sx+=11+doc.getTextWidth('No')+10; box(sx, sl==='Yes'); doc.text('Yes. If yes, required surplus-lines notices, taxes, and stamping fees will be shown', sx+11, y); y+=11; doc.text('separately on the quote or invoice.', M, y); y+=15;
   var inc=rv('fee-incent');
-  checks('Possible incentive compensation:', ['The notice in Section 6 applies','No incentive compensation may be received'], inc==='none'?'No incentive compensation may be received':'The notice in Section 6 applies');
+  checks('Possible incentive compensation:', ['The notice in Section 7 applies','No incentive compensation may be received'], inc==='none'?'No incentive compensation may be received':'The notice in Section 7 applies');
 
-  heading('7','Consent');
+  heading('8','Consent');
   para('I received this disclosure before purchasing the policy. I understand and agree to the fee stated above, acknowledge the disclosed insurer commission and any offset or reimbursement, and consent to the agency receiving that compensation.');
   y+=6;
   sigBlock('Client signature','Producer signature',true);
