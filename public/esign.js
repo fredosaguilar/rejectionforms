@@ -150,6 +150,16 @@ var html =
     '<div class="es-grid" style="margin-top:12px">' +
       '<div class="fld"><div class="lbl">Document title</div><input type="text" id="es-title" placeholder="e.g. Broker fee agreement — G. Ayala"></div>' +
     '</div>' +
+    '<div class="es-grid" style="margin-top:10px">' +
+      '<div class="fld"><div class="lbl">Insured name <span style="color:var(--muted);font-weight:400">(optional)</span></div>' +
+        '<input type="text" id="es-insured" placeholder="e.g. ANTONIO CARDENAS GOMEZ"></div>' +
+      '<div class="fld"><div class="lbl">Policy number <span style="color:var(--muted);font-weight:400">(optional)</span></div>' +
+        '<input type="text" id="es-policy" placeholder="e.g. 00370246-1"></div>' +
+    '</div>' +
+    '<div style="font-size:11.5px;color:var(--muted);margin-top:6px">' +
+      'These name the signed PDF when it is downloaded or emailed, so a folder of signed documents ' +
+      'can be searched by client and by policy. Left blank, the document title is used.' +
+    '</div>' +
     '<div class="fld" style="margin-top:10px;max-width:320px"><div class="lbl">Signing language / Idioma de firma</div>' +
       '<select id="es-lang" style="width:100%;padding:7px 9px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;background:#fff">' +
         '<option value="en">English</option><option value="es">Español</option>' +
@@ -1145,7 +1155,8 @@ async function saveDraftAndExit(btn){
     if(resumeId){
       var r = await fetch('/api/esign/envelopes/' + resumeId + '/draft', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title, recipients: JSON.stringify(list), fields: JSON.stringify(fields) }),
+        body: JSON.stringify(Object.assign({ title: title, recipients: JSON.stringify(list),
+          fields: JSON.stringify(fields) }, esFiling())),
       });
       var d = await r.json();
       if(!r.ok || !d.success) throw new Error(d.error || 'Could not save');
@@ -1154,6 +1165,8 @@ async function saveDraftAndExit(btn){
       var fd = new FormData();
       files.forEach(function(f){ fd.append('document', f); });
       fd.append('title', title);
+      fd.append('insuredName', esFiling().insuredName);
+      fd.append('policyNumber', esFiling().policyNumber);
       fd.append('recipients', JSON.stringify(list));
       fd.append('fields', JSON.stringify(fields));
       fd.append('language', document.getElementById('es-lang').value);
@@ -1336,6 +1349,13 @@ function prefill(){
 if(gName) gName.addEventListener('input', prefill);
 if(gMail) gMail.addEventListener('input', prefill);
 
+/* Who the document is about and which policy it belongs to. Optional, and only
+   ever used to name the signed PDF. */
+function esFiling(){
+  var i = document.getElementById('es-insured'), p = document.getElementById('es-policy');
+  return { insuredName: (i && i.value.trim()) || '', policyNumber: (p && p.value.trim()) || '' };
+}
+
 /* ---- send -------------------------------------------------------------- */
 document.getElementById('es-send').addEventListener('click', async function(){
   var btn = this;
@@ -1358,6 +1378,8 @@ document.getElementById('es-send').addEventListener('click', async function(){
     var fd = new FormData();
     files.forEach(function(f){ fd.append('document', f); });
     fd.append('title', title);
+    fd.append('insuredName', esFiling().insuredName);
+    fd.append('policyNumber', esFiling().policyNumber);
     fd.append('recipients', JSON.stringify(list));
     fd.append('fields', JSON.stringify(fields));
     fd.append('language', document.getElementById('es-lang').value);
@@ -1392,6 +1414,8 @@ function resetForm(){
   if(note) note.hidden = true;
   renderFiles();
   document.getElementById('es-title').value = '';
+  document.getElementById('es-insured').value = '';
+  document.getElementById('es-policy').value = '';
   rcpts.innerHTML = ''; addRecipient();
   fields = [];
   pdfDoc = null;
@@ -1437,6 +1461,8 @@ async function continueDraft(id){
     resumeId = id;
     files = [f];
     document.getElementById('es-title').value = d.envelope.title || '';
+    document.getElementById('es-insured').value = d.envelope.insured_name || '';
+    document.getElementById('es-policy').value = d.envelope.policy_number || '';
     renderFiles();
 
     rcpts.innerHTML = '';

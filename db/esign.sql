@@ -28,6 +28,13 @@ CREATE TABLE IF NOT EXISTS envelopes (
   void_reason    TEXT
 );
 
+-- Who the document is about, and which policy it belongs to. Both optional,
+-- both only ever used to name the file a signed copy is saved under: a signed
+-- PDF that lands in a download folder as the name of the file somebody
+-- happened to upload is a signed PDF nobody can find again.
+ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS insured_name  TEXT;
+ALTER TABLE envelopes ADD COLUMN IF NOT EXISTS policy_number TEXT;
+
 CREATE TABLE IF NOT EXISTS envelope_recipients (
   id             SERIAL PRIMARY KEY,
   envelope_id    INTEGER NOT NULL REFERENCES envelopes(id) ON DELETE CASCADE,
