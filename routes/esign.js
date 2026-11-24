@@ -242,7 +242,8 @@ router.get('/envelopes/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT id, public_id, title, message, status, file_name, file_sha256,
-              signed_sha256, agent_name, created_at, sent_at, completed_at,
+              signed_sha256, agent_name, insured_name, policy_number,
+              created_at, sent_at, completed_at,
               voided_at, void_reason
          FROM envelopes WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Envelope not found' });
@@ -274,12 +275,78 @@ router.get('/envelopes/:id', requireAuth, async (req, res) => {
 });
 
 /* A filename that reads like the document rather than like a database row. */
-function signedFileName(title) {
-  const base = String(title || 'document')
-    .replace(/[^\w\s.-]+/g, '')
-    .trim().replace(/\s+/g, '-')
-    .slice(0, 80) || 'document';
-  return `${base}-signed.pdf`;
+/* What a copy of this document is called when it leaves the system.
+ *
+ * It used to be the name of whatever was uploaded, lightly sanitised. That
+ * fails in two ways at once. A document merged from several uploads is stored
+ * as "Foremost App.pdf + 1 more", which sanitises to
+ * "SIGNED-Foremost_App.pdf___1_more" — a file whose name ends in "_more"
+ * rather than ".pdf", which the operating system will not open. And even when
+ * it did end in .pdf, it was named after a file somebody happened to pick off
+ * their desktop, so a folder of signed documents could not be searched by
+ * client or by policy.
+ *
+ * So the name is built rather than inherited: who it is about, which policy it
+ * belongs to, then the document, and it always ends in exactly one .pdf. Each
+ * part is dropped when it is not known, and if nothing at all is known it
+ * falls back to the envelope's own id, which is at least unique.
+ */
+function pdfFileName(env, opts) {
+  const signed = !!(opts && opts.signed);
+  const e = env || {};
+  // Accents are folded rather than stripped: a client called Ana Maria Avila
+  // should not be filed as "Ana-Mar-a-vila". Everything else that is not a
+  // letter, a digit or a dash becomes a dash, and a trailing one is trimmed so
+  // the name never reads "...-.pdf".
+  const clean = (v, max) => String(v == null ? '' : v)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\.pdf\b/gi, '')          // never ".pdf" anywhere but the end
+    .replace(/[^A-Za-z0-9\s.-]+/g, ' ')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '')
+    .slice(0, max || 48)
+    .replace(/[-.]+$/, '');
+
+  const insured = clean(e.insured_name, 48);
+  const policy  = clean(e.policy_number, 32);
+  let   title   = clean(e.title, 60);
+  // No point saying the client's name twice when the title is just their name.
+  if (title && insured && title.toLowerCase() === insured.toLowerCase()) title = '';
+
+  const base = [insured, policy, title].filter(Boolean).join('-')
+      .slice(0, 90).replace(/[-.]+$/, '')
+    || clean(e.file_name, 60)
+    || ('document-' + (e.public_id || '')).replace(/-$/, '')
+    || 'document';
+  return base + (signed ? '-signed' : '') + '.pdf';
+}
+
+/* Sending a PDF out.
+ *
+ * A signed copy goes as an attachment, so the browser uses the name above
+ * rather than guessing one from the URL. That guess is the other half of the
+ * same bug: a PDF opened inline and then saved from the viewer is named after
+ * the route it came from, so a file called "document" lands in the downloads
+ * folder whatever the header said. The unsigned original stays inline, because
+ * the app opens it to be read rather than to be kept.
+ *
+ * filename* carries the name as UTF-8 for anything that reads it; the plain
+ * filename stays as the ASCII fallback for anything that does not.
+ */
+function sendPdf(res, bytes, name, asAttachment) {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition',
+    `${asAttachment ? 'attachment' : 'inline'}; filename="${name}"; ` +
+    `filename*=UTF-8''${encodeURIComponent(name)}`);
+  res.send(bytes);
+}
+
+/* Kept for the completion emails, which name the attachment the same way. */
+function signedFileName(env) {
+  return typeof env === 'string'
+    ? pdfFileName({ title: env }, { signed: true })
+    : pdfFileName(env, { signed: true });
 }
 
 router.post('/envelopes', requireAuth, upload.array('document', 12), async (req, res) => {
@@ -339,10 +406,13 @@ router.post('/envelopes', requireAuth, upload.array('document', 12), async (req,
 
     const { rows } = await db.query(
       `INSERT INTO envelopes (public_id, agent_id, agent_name, agent_email, title, message,
+                              insured_name, policy_number,
                               file_name, file_mime, file_bytes, file_sha256, language, reminders_enabled)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,TRUE) RETURNING id, public_id`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,TRUE) RETURNING id, public_id`,
       [publicId(), req.session.agentId, req.session.agentName, req.session.email,
        title, (req.body.message || '').trim() || null,
+       (req.body.insuredName || '').trim().slice(0, 120) || null,
+       (req.body.policyNumber || '').trim().slice(0, 60) || null,
        fileName, 'application/pdf', merged, sha256(merged), language]
     );
     const envelope = rows[0];
@@ -430,9 +500,16 @@ router.put('/envelopes/:id/draft', requireAuth, async (req, res) => {
     try { fields = JSON.parse(req.body.fields || '[]') || []; } catch { fields = []; }
 
     const title = String(req.body.title || '').trim();
+    // Blank clears these rather than keeping a stale value: the agent may have
+    // deleted what was there, and the signed PDF is named from them.
+    const insured = String(req.body.insuredName || '').trim().slice(0, 120) || null;
+    const policy  = String(req.body.policyNumber || '').trim().slice(0, 60) || null;
 
     await client.query('BEGIN');
     if (title) await client.query(`UPDATE envelopes SET title = $2 WHERE id = $1`, [req.params.id, title]);
+    await client.query(
+      `UPDATE envelopes SET insured_name = $2, policy_number = $3 WHERE id = $1`,
+      [req.params.id, insured, policy]);
     // Deleting the recipients cascades their fields, so both are rebuilt here.
     await client.query(`DELETE FROM envelope_recipients WHERE envelope_id = $1`, [req.params.id]);
 
@@ -799,17 +876,15 @@ router.get('/envelopes/:id/document', requireAuth, async (req, res) => {
   try {
     const signed = req.query.signed === '1';
     const { rows } = await db.query(
-      `SELECT title, file_name, file_bytes, signed_bytes FROM envelopes WHERE id = $1`,
+      `SELECT public_id, title, insured_name, policy_number, file_name, file_bytes, signed_bytes
+         FROM envelopes WHERE id = $1`,
       [req.params.id]);
     const env = rows[0];
     if (!env) return res.status(404).send('Not found');
     const bytes = signed ? env.signed_bytes : env.file_bytes;
     if (!bytes) return res.status(404).send('No signed document yet');
     await logEvent(req.params.id, 'downloaded', req, { actor: req.session.agentName, detail: { signed } });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition',
-      `inline; filename="${(signed ? 'SIGNED-' : '') + env.file_name.replace(/[^\w.\-]/g, '_')}"`);
-    res.send(bytes);
+    sendPdf(res, bytes, pdfFileName(env, { signed }), signed);
   } catch (e) {
     res.status(500).send(e.message);
   }
@@ -880,18 +955,15 @@ pub.get('/:token/document', async (req, res) => {
     if (!r) return res.status(404).send('Not found');
     if (r.status !== 'signed' && !(await currentTurn(r))) return res.status(403).send('Waiting for the previous signer');
     const { rows } = await db.query(
-      `SELECT file_bytes, signed_bytes, file_name, title FROM envelopes WHERE id = $1`, [r.env_id]);
+      `SELECT public_id, file_bytes, signed_bytes, file_name, title, insured_name, policy_number
+         FROM envelopes WHERE id = $1`, [r.env_id]);
     const wantSigned = req.query.signed === '1' && rows[0].signed_bytes;
     // The signed document is a different document from the one that was
     // uploaded, and saving it under the upload's name invites someone to
     // overwrite their unsigned copy with it, or to lose track of which is
-    // which. It is named here the way the emailed copy is named.
-    const name = wantSigned
-      ? signedFileName(rows[0].title)
-      : String(rows[0].file_name || 'document.pdf').replace(/[^\w.\-]/g, '_');
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${name}"`);
-    res.send(wantSigned ? rows[0].signed_bytes : rows[0].file_bytes);
+    // which. Named here exactly as the emailed copy is named.
+    sendPdf(res, wantSigned ? rows[0].signed_bytes : rows[0].file_bytes,
+      pdfFileName(rows[0], { signed: wantSigned }), wantSigned);
   } catch (e) {
     res.status(500).send(e.message);
   }
@@ -1051,7 +1123,7 @@ pub.post('/:token/sign', async (req, res) => {
             // ought to be holding it rather than holding a way to ask for it.
             // The link stays below it, for a second copy later.
             attachments: [{
-              filename: signedFileName(envRows[0].title),
+              filename: signedFileName(envRows[0]),
               content: bytes,
             }],
           });
@@ -1082,7 +1154,7 @@ pub.post('/:token/sign', async (req, res) => {
               })),
             }),
             attachments: [{
-              filename: signedFileName(envRows[0].title),
+              filename: signedFileName(envRows[0]),
               content: bytes,
             }],
           });
